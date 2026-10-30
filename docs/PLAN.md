@@ -88,7 +88,11 @@ Match `docs/design/` (layout, tokens, type scale 11/12/13/15/24, radii 6/10, lig
 - [x] Event schema for the stream matches `docs/ARCHITECTURE.md`; roll interval 60s (`basin/stream-schema.json`, plus an `id` column)
 - [x] `scripts/setup-basin.js`: creates bucket, catalog, stream, sink, pipeline via wrangler (idempotent)
       (written, **not run**: needs the owner's go-ahead and Workers Paid)
-- [ ] Deploy to a **staging** Worker on the owner's account; shared query test suite passes against Basin
+- [x] Deploy to a **staging** Worker on the owner's account; shared query test suite passes against Basin
+      (2026-10-30: `open-logs-staging` on workers.dev. 10 events sent → in `open_logs.events` in under 2 min.
+      The app's own queries all pass on real Basin: filters, nested JSON, number compares, free-text search,
+      LIKE escaping, injection probe, histogram, p95, grouped series, freshness. Live tail, search and the
+      Overview dashboard show correct numbers in the UI.)
 - [ ] UI shows ingest lag honestly; document every Basin limitation found in `docs/PLAN.md` and README
 
 **Done means:** a real event sent to staging shows up in live tail via Basin SQL (~60s), and charts work on Basin.
@@ -147,10 +151,17 @@ Match `docs/design/` (layout, tokens, type scale 11/12/13/15/24, radii 6/10, lig
 - **Basin SQL has no bound parameters** (the HTTP API takes one `query` string). The Basin dialect inlines
   values as SQL literals (`'…'` with quotes doubled, NUL stripped, numbers must be finite). Values only ever
   come from a validated filter; table names are checked against `^[a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*$`.
-- The Basin SQL **response JSON shape is not documented**. `BasinStorage` accepts `result.rows` as objects or
-  `{ columns, rows }` arrays. Confirm on the first staging deploy.
-- Nested JSON keys use variadic paths (`json_get_float(fields, 'http', 'status')`); docs only show single
-  keys. Confirm on staging.
+- Verified on real Basin (staging, 2026-10-30):
+  - Responses are `{ result: { schema, rows: [{…}], metrics: { bytes_scanned, files_scanned } }, success }`.
+  - Backslash is an ordinary character inside string literals; quotes are escaped by doubling.
+  - `LIKE … ESCAPE` only accepts backslash (`ESCAPE '!'` is rejected).
+  - Nested JSON paths work as variadic args: `json_get_float(fields, 'http', 'status')`.
+  - The sink creates the namespace and table on its first write, not at sink creation.
+  - Sink type in the CLI is `r2-data-catalog` (docs say `basin-catalog`); `--catalog-token` is required and
+    needs R2 **Admin** Read & Write. Sinks and new pipelines cannot be edited, only deleted and recreated.
+  - An R2 Admin Read & Write token can also run Basin SQL queries.
+- Latency: Basin queries take ~1–2 s each, so the first live tail load takes a few seconds. A dashboard load
+  runs ~25 queries (each billed at the 10 MB minimum, ~250 MB per load).
 - p95 on Basin uses `approx_percentile_cont` (T-Digest), so it can differ slightly from the exact
   nearest-rank p95 used locally.
 - Free-text search on Basin uses `lower(x) LIKE lower('%…%')` (no ILIKE). Window functions and
