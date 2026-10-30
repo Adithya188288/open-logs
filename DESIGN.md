@@ -33,6 +33,7 @@ colors:
   ok-wash: "#ecfdf3"
   info-bar: "#8e8e96"
   debug-bar: "#c8c8ce"
+  signal: "#3ddc97"
   series-1: "#2563eb"
   series-2: "#0d9488"
   series-3: "#7c3aed"
@@ -177,6 +178,10 @@ levels and status.
 - **Focus Blue** (#2563eb / #60a5fa): focus rings and links to act; not a decorative accent.
 - **Series 1 to 5** (blue, teal, violet, amber, grey): chart series in order.
 
+### Brand
+- **Signal Green** (`--signal` #3ddc97, glow `--signal-glow` at 50%): the logo dot and the pulsing loading dot only.
+  It is not a status colour; Live and healthy states use OK.
+
 ### Fixed surfaces
 - **Code block** (`--code-bg` #0a0a0a, `--code-raised` #1a1a1a, `--code-line` #222222, `--code-line2` #333333,
   `--code-tx` #e5e5e5, `--code-tx2` #a3a3a3): the install snippet is a dark terminal in both themes.
@@ -267,6 +272,10 @@ for tiny marks such as legend swatches. Borders are always 1px.
 
 ### Chips
 - **Filter chip:** Geist Mono 12px on Well, field name in Ink weight 500, a small remove button.
+
+### Activity status
+- One rule everywhere (`app/src/lib/activity.js`): **Live** when the newest event is under 15 minutes old (OK pill),
+  **Idle** after that, **Waiting for first event** before any event. Rejected tokens override with an Error pill.
 
 ### Status pills
 - **Style:** 11px weight 500, pill shape, Rail background and Hairline border; OK, Warn and Error variants use

@@ -49,6 +49,9 @@
   --control-h: 32px;
   --topbar-h: 56px;
   --scrim: rgba(0, 0, 0, 0.35);
+  /* Brand signal green: the logo dot and the loading dot. */
+  --signal: #3ddc97;
+  --signal-glow: rgba(61, 220, 151, 0.5);
   /* The install snippet is always a dark terminal, in both themes. */
   --code-bg: #0a0a0a;
   --code-raised: #1a1a1a;
@@ -419,7 +422,7 @@ kbd {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #3ddc97;
+  background: var(--signal);
 }
 @media (prefers-reduced-motion: no-preference) {
   @keyframes pulse {
@@ -788,11 +791,6 @@ kbd {
   justify-content: center;
   padding: var(--s-40) var(--s-16);
   background-color: var(--bg2);
-  background-image:
-    linear-gradient(var(--line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--line) 1px, transparent 1px);
-  background-size: 24px 24px;
-  background-position: -1px -1px;
 }
 .auth form {
   width: 100%;
@@ -832,19 +830,20 @@ kbd {
 .auth .foot {
   border-top: 1px solid var(--line);
   padding-top: var(--s-16);
-  font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.6;
   color: var(--tx3);
 }
 .auth .foot b {
+  font-family: var(--mono);
+  font-size: 11px;
   color: var(--tx2);
   font-weight: 400;
 }
 .auth .toggle {
   position: fixed;
-  top: 12px;
-  right: 12px;
+  top: var(--s-12);
+  right: var(--s-12);
 }
 
 /* Shared pieces added for the simplified layout */
@@ -962,7 +961,7 @@ kbd {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: #3ddc97;
+  background: var(--signal);
   animation: dot-pulse 1.2s ease-in-out infinite;
 }
 .loader-sm .pulse-dot {
@@ -977,11 +976,11 @@ kbd {
   0%,
   100% {
     opacity: 1;
-    box-shadow: 0 0 0 0 rgba(61, 220, 151, 0.5);
+    box-shadow: 0 0 0 0 var(--signal-glow);
   }
   50% {
     opacity: 0.5;
-    box-shadow: 0 0 0 6px rgba(61, 220, 151, 0);
+    box-shadow: 0 0 0 6px transparent;
   }
 }
 @media (prefers-reduced-motion: reduce) {

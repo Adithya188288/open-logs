@@ -594,6 +594,15 @@
 .with-panel .thead {
   grid-template-columns: 96px 60px 64px minmax(0, 1fr) 16px;
 }
+/* Ranges longer than a day, or across midnight, show the date in the time column. */
+.table.dated .thead,
+.table.dated .row {
+  grid-template-columns: 156px 64px 76px minmax(0, 1fr) 24px;
+}
+.with-panel .table.dated .thead,
+.with-panel .table.dated .row {
+  grid-template-columns: 136px 60px 64px minmax(0, 1fr) 16px;
+}
 .ev.open {
   background: var(--bg3);
 }

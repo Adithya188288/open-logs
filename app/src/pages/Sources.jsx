@@ -7,6 +7,7 @@ import { Icon } from '../components/Icon.jsx';
 import { PageLoader, Topbar, useProject } from '../components/Layout.jsx';
 import { SendPanel } from '../components/SendPanel.jsx';
 import { ApiError, api } from '../lib/api.js';
+import { activity } from '../lib/activity.js';
 import { ago, lagLabel } from '../lib/format.js';
 import { q, refresh } from '../lib/queries.js';
 
@@ -21,8 +22,8 @@ function StatusPill({ s }) {
         {s.rejected_count} rejected
       </span>
     );
-  if (s.last_event_at) return <span className="pill ok">Receiving</span>;
-  return <span className="pill">Waiting for first event</span>;
+  const a = activity(s.last_event_at);
+  return <span className={`pill${a.state === 'live' ? ' ok' : ''}`}>{a.label}</span>;
 }
 
 /**

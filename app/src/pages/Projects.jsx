@@ -7,16 +7,20 @@ import { Icon } from '../components/Icon.jsx';
 import { newProjectDialog, projectHome, Topbar, useApp } from '../components/Layout.jsx';
 import { MenuButton } from '../components/Menu.jsx';
 import { ApiError, api } from '../lib/api.js';
+import { activity } from '../lib/activity.js';
 import { ago, compact, num } from '../lib/format.js';
 import { q } from '../lib/queries.js';
 
-const LIVE_MS = 15 * 60 * 1000;
+const LOOK = {
+  waiting: { cls: '', dot: 'dot idle' },
+  live: { cls: 'ok', dot: 'dot live' },
+  idle: { cls: '', dot: 'dot off' },
+};
 
 /** @param {{ last_event_at: number | null }} p */
 function status(p) {
-  if (!p.last_event_at) return { label: 'Waiting for data', cls: '', dot: 'dot idle' };
-  if (Date.now() - p.last_event_at < LIVE_MS) return { label: 'Live', cls: 'ok', dot: 'dot live' };
-  return { label: 'Idle', cls: '', dot: 'dot off' };
+  const a = activity(p.last_event_at);
+  return { label: a.label, ...LOOK[a.state] };
 }
 
 /** @param {{ values: number[] }} props */

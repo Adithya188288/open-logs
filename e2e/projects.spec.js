@@ -28,7 +28,7 @@ test('All projects shows live and waiting projects; delete needs DELETE', async 
   await expect(live).toContainText('40 events · 24h');
   await expect(live).toContainText('16 errors');
   const idle = page.getByTestId('project-card').filter({ hasText: idleName });
-  await expect(idle).toContainText('Waiting for data');
+  await expect(idle).toContainText('Waiting for first event');
 
   await idle.getByRole('button', { name: `Options for ${idleName}` }).click();
   await page.getByRole('menuitem', { name: 'Delete project' }).click();

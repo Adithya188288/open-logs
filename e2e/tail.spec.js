@@ -231,3 +231,12 @@ test('source picker filters to one source; search help explains the syntax', asy
   await page.getByRole('button', { name: 'Search help' }).click();
   await expect(page.getByTestId('search-help')).toContainText('status:>=500');
 });
+
+test('the time column shows the date for ranges longer than a day', async ({ page, app }) => {
+  const { project } = await seeded(app, 10);
+  await page.goto(`/tail?project=${project.id}`);
+  const firstTime = page.getByTestId('event').first().locator('.t');
+  await expect(firstTime).toHaveText(/^\d\d:\d\d:\d\d\.\d{3}$/);
+  await page.getByRole('group', { name: 'Time range' }).getByRole('button', { name: '7d' }).click();
+  await expect(firstTime).toHaveText(/^[A-Z][a-z]{2} \d{1,2} \d\d:\d\d:\d\d\.\d{3}$/);
+});

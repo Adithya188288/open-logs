@@ -9,7 +9,7 @@ import { Loader } from '../components/Loader.jsx';
 import { MenuButton } from '../components/Menu.jsx';
 import { ApiError, api } from '../lib/api.js';
 import { downloadCsv, toCsv } from '../lib/csv.js';
-import { ago, hm, hms, hmsms, lagLabel, num, span } from '../lib/format.js';
+import { ago, eventTime, hm, hms, hmsms, lagLabel, needsDate, num, span } from '../lib/format.js';
 import { fetchTail, RANGES, TAIL_PAGE, tailKey } from '../lib/live.js';
 import { q, queryClient, refresh } from '../lib/queries.js';
 import { clauseLabel, clauseToSearch, parseSearch } from '../lib/search.js';
@@ -423,6 +423,7 @@ export function Tail() {
   };
 
   const w = windowRange();
+  const dated = !relative && needsDate(w);
   const windowName = zoom || range === 'custom' ? 'this range' : `the last ${span(w.to - w.from)}`;
   const lag = status && status.lag_ms > 0 ? ` · ${lagLabel(status.lag_ms)} ingest lag` : '';
   const statusText = !dataThrough
@@ -668,7 +669,7 @@ export function Tail() {
       </div>
 
       <div className={`tail-body${panelEvent ? ' with-panel' : ''}`}>
-        <div className="table">
+        <div className={`table${dated ? ' dated' : ''}`}>
           <div className="thead">
             <button
               type="button"
@@ -802,7 +803,7 @@ export function Tail() {
                           setSelected(open ? null : e.id);
                         }}
                       >
-                        <span className="t">{relative ? ago(e.ts) : hmsms(e.ts)}</span>
+                        <span className="t">{relative ? ago(e.ts) : eventTime(e.ts, dated)}</span>
                         <span className={`lvl ${e.level}`}>{e.level.toUpperCase()}</span>
                         <span className="src">{e.source}</span>
                         <span className="msg">{e.message}</span>
