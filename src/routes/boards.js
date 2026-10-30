@@ -134,12 +134,12 @@ function insertChart(env, dashboardId, chart) {
 export function overviewStatements(env, projectId) {
   const dashboardId = randomId('dsh');
   return [
-    env.DB.prepare('INSERT INTO dashboards (id, project_id, name, created_at) VALUES (?, ?, ?, ?)').bind(
-      dashboardId,
-      projectId,
-      'Overview',
-      Date.now(),
-    ),
+    // Only when the project has no dashboard yet: a second concurrent attempt inserts nothing, its chart
+    // inserts then fail their foreign key and the whole batch rolls back.
+    env.DB.prepare(
+      `INSERT INTO dashboards (id, project_id, name, created_at)
+       SELECT ?, ?, 'Overview', ? WHERE NOT EXISTS (SELECT 1 FROM dashboards WHERE project_id = ?)`,
+    ).bind(dashboardId, projectId, Date.now(), projectId),
     ...STARTER_CHARTS.map(
       ({ where, ...c }) => insertChart(env, dashboardId, { ...c, filter: { where } }).stmt,
     ),
@@ -182,11 +182,18 @@ export async function deleteView({ env, params }) {
 /** @param {import('../types.js').RouteContext} c */
 export async function listDashboards({ env, params }) {
   const project = await findProject(env, params.id);
-  const { results } = await env.DB.prepare(
-    'SELECT id, project_id, name, created_at FROM dashboards WHERE project_id = ? ORDER BY created_at',
-  )
-    .bind(project.id)
-    .all();
+  const list = () =>
+    env.DB.prepare(
+      'SELECT id, project_id, name, created_at FROM dashboards WHERE project_id = ? ORDER BY created_at',
+    )
+      .bind(project.id)
+      .all();
+  let { results } = await list();
+  // A project always has a dashboard: if the last one was deleted, bring back Overview with its starter charts.
+  if (!results.length) {
+    await env.DB.batch(overviewStatements(env, String(project.id))).catch(() => {});
+    ({ results } = await list());
+  }
   return json({ dashboards: results });
 }
 
