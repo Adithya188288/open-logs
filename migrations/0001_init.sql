@@ -31,6 +31,12 @@ CREATE TABLE invites (
   accepted_at INTEGER
 );
 
+-- Team-wide settings editable in the app (e.g. team_name). Falls back to Worker vars when unset.
+CREATE TABLE settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+
 CREATE TABLE projects (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL UNIQUE COLLATE NOCASE,

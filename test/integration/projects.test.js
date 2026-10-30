@@ -22,7 +22,7 @@ describe('projects', () => {
     expect(id).toMatch(/^prj_/);
 
     const list = await api('/api/projects', { cookie });
-    expect(list.json.projects.map((p) => p.name)).toEqual(['checkout-app']);
+    expect(list.json.projects.map((p) => p.name)).toEqual(['Default', 'checkout-app']);
 
     const renamed = await api(`/api/projects/${id}`, { method: 'PATCH', cookie, body: { name: 'shop' } });
     expect(renamed.status).toBe(200);
@@ -105,6 +105,6 @@ describe('sources', () => {
     const { json: p } = await api('/api/projects', { cookie, body: { name: 'app' } });
     await api(`/api/projects/${p.project.id}/sources`, { cookie, body: { name: 'web' } });
     const list = await api('/api/projects', { cookie });
-    expect(list.json.projects[0].sources.map((s) => s.name)).toEqual(['web']);
+    expect(list.json.projects.find((x) => x.name === 'app').sources.map((s) => s.name)).toEqual(['web']);
   });
 });

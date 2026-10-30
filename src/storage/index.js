@@ -7,7 +7,7 @@ import { LocalStorage } from './local.js';
  * @typedef {{ id: string, ts: number, project_id: string, source: string, level: string, message: string, fields: string }} StoredEvent
  * @typedef {{ id: string, ts: number, source: string, level: string, message: string, fields: Record<string, unknown> }} EventOut
  * @typedef {{ t: number, debug: number, info: number, warn: number, error: number, fatal: number }} Bucket
- * @typedef {{ measure: 'count' | 'count_over_time' | 'avg' | 'p95', field?: string, group_by?: string, interval: number }} AggregateSpec
+ * @typedef {{ measure: 'count' | 'count_over_time' | 'avg' | 'p95', field?: string, group_by?: string, interval: number, parts?: string[] }} AggregateSpec
  * @typedef {{ t: number, value: number }} Point
  * @typedef {{ value: number | null, groups: { key: string, value: number }[], series: Point[], series_by_group: { key: string, series: Point[] }[], interval_ms: number }} AggregateResult
  *

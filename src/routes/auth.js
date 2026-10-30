@@ -2,6 +2,8 @@
 import { clearedCookie, clientIp, createSession, destroySession, rateLimit, requireRole } from '../auth.js';
 import { hashPassword, newSecret, randomId, sha256Hex, timingSafeEqual, verifyPassword } from '../crypto.js';
 import { asObject, EMAIL_RE, HttpError, json, readJson, requireString } from '../http.js';
+import { teamName } from '../settings.js';
+import { overviewStatements } from './boards.js';
 
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const INVALID_LOGIN = new HttpError(401, 'invalid_credentials', 'Invalid email or password');
@@ -25,7 +27,7 @@ function passwordFrom(value) {
   return requireString(value, 'password', { min: 8, max: 256 });
 }
 
-/** @param {import('../router.js').RouteContext} c */
+/** @param {import('../types.js').RouteContext} c */
 export async function login({ request, env }) {
   const body = asObject(await readJson(request));
   const email = requireString(body.email, 'email', { max: 254, pattern: EMAIL_RE }).toLowerCase();
@@ -70,21 +72,31 @@ async function createOwner(env, email, password) {
     .bind(id, email, nameFromEmail(email), hash, salt, now, now)
     .run();
   if (!res.meta.changes) return null;
+  // Every workspace starts with a Default project, so there's somewhere to send logs right away.
+  const projectId = randomId('prj');
+  await env.DB.batch([
+    env.DB.prepare('INSERT INTO projects (id, name, created_at) VALUES (?, ?, ?)').bind(
+      projectId,
+      'Default',
+      now,
+    ),
+    ...overviewStatements(env, projectId),
+  ]);
   return env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(id).first();
 }
 
-/** @param {import('../router.js').RouteContext} c */
+/** @param {import('../types.js').RouteContext} c */
 export async function logout({ request, env }) {
   await destroySession(request, env);
   return json({ ok: true }, 200, { 'set-cookie': clearedCookie() });
 }
 
-/** @param {import('../router.js').RouteContext} c */
-export function me({ user, env }) {
-  return json({ user: requireRole(user, 'member'), team_name: env.TEAM_NAME ?? 'Open Logs' });
+/** @param {import('../types.js').RouteContext} c */
+export async function me({ user, env }) {
+  return json({ user: requireRole(user, 'member'), team_name: await teamName(env) });
 }
 
-/** @param {import('../router.js').RouteContext} c */
+/** @param {import('../types.js').RouteContext} c */
 export async function listUsers({ user, env }) {
   requireRole(user, 'member');
   const users = await env.DB.prepare(
@@ -98,7 +110,7 @@ export async function listUsers({ user, env }) {
   return json({ users: users.results, invites: invites.results });
 }
 
-/** @param {import('../router.js').RouteContext} c */
+/** @param {import('../types.js').RouteContext} c */
 export async function deleteUser({ user, env, params }) {
   const me = requireRole(user, 'owner');
   if (params.id === me.id) throw new HttpError(400, 'cannot_remove_self', 'You cannot remove yourself');
@@ -111,7 +123,7 @@ export async function deleteUser({ user, env, params }) {
   return json({ ok: true });
 }
 
-/** @param {import('../router.js').RouteContext} c */
+/** @param {import('../types.js').RouteContext} c */
 export async function createInvite({ request, user, env, url }) {
   const me = requireRole(user, 'admin');
   const body = asObject(await readJson(request));
@@ -139,7 +151,9 @@ export async function createInvite({ request, user, env, url }) {
   ]);
   // The token sits in the URL fragment so it isn't sent on page load or in Referer headers. The invite page
   // does send it in /api/invites/:token requests; it is single-use and expires in 7 days.
-  return json({ invite, invite_url: `${url.origin}/invite#${token}` }, 201);
+  const inviteUrl = `${url.origin}/invite#${token}`;
+  const emailStatus = await sendInviteEmail(env, { to: email, url: inviteUrl, from: me });
+  return json({ invite, invite_url: inviteUrl, email: emailStatus }, 201);
 }
 
 /**
@@ -155,17 +169,17 @@ async function findOpenInvite(env, token) {
     .first();
 }
 
-/** @param {import('../router.js').RouteContext} c */
+/** @param {import('../types.js').RouteContext} c */
 export async function getInvite({ env, params }) {
   const invite = await findOpenInvite(env, params.token);
   if (!invite) throw new HttpError(404, 'not_found', 'This invite link is invalid or has expired');
   return json({
     invite: { email: invite.email, role: invite.role },
-    team_name: env.TEAM_NAME ?? 'Open Logs',
+    team_name: await teamName(env),
   });
 }
 
-/** @param {import('../router.js').RouteContext} c */
+/** @param {import('../types.js').RouteContext} c */
 export async function acceptInvite({ request, env, params }) {
   await rateLimit(env.LOGIN_LIMITER, `invite:${clientIp(request)}`);
   const body = asObject(await readJson(request));
@@ -197,4 +211,28 @@ export async function acceptInvite({ request, env, params }) {
   const setCookie = await createSession(env, id);
   const user = { id, email: invite.email, name, role: invite.role, created_at: now, last_active_at: now };
   return json({ user }, 200, { 'set-cookie': setCookie });
+}
+
+/**
+ * Emails the invite link when Cloudflare Email Service is configured (EMAIL binding + EMAIL_FROM).
+ * The link is always returned to the inviter too, so a failed or unconfigured send never blocks an invite.
+ * @param {Env} env
+ * @param {{ to: string, url: string, from: { name: string } }} o
+ * @returns {Promise<{ sent: boolean, reason?: string }>}
+ */
+async function sendInviteEmail(env, o) {
+  if (!env.EMAIL || !env.EMAIL_FROM) return { sent: false, reason: 'not_configured' };
+  const team = await teamName(env);
+  try {
+    await env.EMAIL.send({
+      from: env.EMAIL_FROM,
+      to: o.to,
+      subject: `${o.from.name} invited you to ${team} on Open Logs`,
+      text: `${o.from.name} invited you to join ${team} on Open Logs.\n\nAccept the invite (valid for 7 days):\n${o.url}\n`,
+    });
+    return { sent: true };
+  } catch (err) {
+    console.error('invite email failed', err instanceof Error ? err.message : err);
+    return { sent: false, reason: 'send_failed' };
+  }
 }

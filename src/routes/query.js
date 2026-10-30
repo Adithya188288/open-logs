@@ -1,6 +1,7 @@
 // Log search, histogram, chart aggregates and freshness status.
 import { HttpError, json, readJson } from '../http.js';
 import { parseField, parseFilter, pickInterval } from '../query/filter.js';
+import { AGGREGATE_PARTS } from '../storage/aggregate.js';
 import { getStorage } from '../storage/index.js';
 import { findProject } from './projects.js';
 
@@ -35,7 +36,7 @@ export async function runQuery(fn) {
   }
 }
 
-/** @param {import('../router.js').RouteContext} c */
+/** @param {import('../types.js').RouteContext} c */
 export async function query({ request, env }) {
   const { filter } = await readFilter(request, env);
   return json(await runQuery(() => getStorage(env).query(filter)));
@@ -43,7 +44,7 @@ export async function query({ request, env }) {
 
 const MEASURES = new Set(['count', 'count_over_time', 'avg', 'p95']);
 
-/** @param {import('../router.js').RouteContext} c */
+/** @param {import('../types.js').RouteContext} c */
 export async function histogram({ request, env }) {
   const { filter } = await readFilter(request, env);
   const interval = pickInterval(filter.from, filter.to);
@@ -57,7 +58,7 @@ export async function histogram({ request, env }) {
   return json({ ...h, total, errors });
 }
 
-/** @param {import('../router.js').RouteContext} c */
+/** @param {import('../types.js').RouteContext} c */
 export async function aggregate({ request, env }) {
   const { filter, body } = await readFilter(request, env);
   const measure = String(body.measure);
@@ -68,16 +69,21 @@ export async function aggregate({ request, env }) {
     throw new HttpError(400, 'invalid_field', `${measure} needs a numeric fields.* field`);
   }
   const group_by = body.group_by ? parseField(body.group_by) : undefined;
+  const parts = body.parts === undefined ? undefined : body.parts;
+  if (parts !== undefined && (!Array.isArray(parts) || !parts.every((p) => AGGREGATE_PARTS.includes(p)))) {
+    throw new HttpError(400, 'invalid_field', `parts must be a list of: ${AGGREGATE_PARTS.join(', ')}`);
+  }
   const spec = {
     measure: /** @type {'count'} */ (measure),
     field,
     group_by,
     interval: pickInterval(filter.from, filter.to, 30),
+    parts,
   };
   return json(await runQuery(() => getStorage(env).aggregate(filter, spec)));
 }
 
-/** @param {import('../router.js').RouteContext} c */
+/** @param {import('../types.js').RouteContext} c */
 export async function status({ env, url }) {
   const storage = getStorage(env);
   const projectId = url.searchParams.get('project_id');

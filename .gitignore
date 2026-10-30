@@ -9,3 +9,4 @@ playwright-report/
 coverage/
 .claude/launch.json
 e2e/.auth/
+dist/

@@ -36,7 +36,7 @@ async function runUnique(stmt, message) {
   }
 }
 
-/** @param {import('../router.js').RouteContext} c */
+/** @param {import('../types.js').RouteContext} c */
 export async function listProjects({ env }) {
   const [projects, sources] = await Promise.all([
     env.DB.prepare('SELECT id, name, created_at FROM projects ORDER BY created_at').all(),
@@ -67,7 +67,7 @@ export async function listProjects({ env }) {
   });
 }
 
-/** @param {import('../router.js').RouteContext} c */
+/** @param {import('../types.js').RouteContext} c */
 export async function createProject({ request, env }) {
   const body = asObject(await readJson(request));
   const name = requireString(body.name, 'name', { max: 64, pattern: PROJECT_NAME });
@@ -89,7 +89,7 @@ export async function createProject({ request, env }) {
   return json({ project }, 201);
 }
 
-/** @param {import('../router.js').RouteContext} c */
+/** @param {import('../types.js').RouteContext} c */
 export async function getProject({ env, params }) {
   const project = await findProject(env, params.id);
   const sources = await env.DB.prepare(
@@ -100,7 +100,7 @@ export async function getProject({ env, params }) {
   return json({ project, sources: sources.results });
 }
 
-/** @param {import('../router.js').RouteContext} c */
+/** @param {import('../types.js').RouteContext} c */
 export async function renameProject({ request, env, params }) {
   const project = await findProject(env, params.id);
   const body = asObject(await readJson(request));
@@ -112,7 +112,7 @@ export async function renameProject({ request, env, params }) {
   return json({ project: { ...project, name } });
 }
 
-/** @param {import('../router.js').RouteContext} c */
+/** @param {import('../types.js').RouteContext} c */
 export async function deleteProject({ env, params, user }) {
   requireRole(user, 'admin');
   const project = await findProject(env, params.id);
@@ -121,7 +121,7 @@ export async function deleteProject({ env, params, user }) {
   return json({ ok: true });
 }
 
-/** @param {import('../router.js').RouteContext} c */
+/** @param {import('../types.js').RouteContext} c */
 export async function listSources({ env, params }) {
   const project = await findProject(env, params.id);
   const sources = await env.DB.prepare(
@@ -132,7 +132,7 @@ export async function listSources({ env, params }) {
   return json({ sources: sources.results });
 }
 
-/** @param {import('../router.js').RouteContext} c */
+/** @param {import('../types.js').RouteContext} c */
 export async function createSource({ request, env, params }) {
   const project = await findProject(env, params.id);
   const body = asObject(await readJson(request));
@@ -157,7 +157,7 @@ export async function createSource({ request, env, params }) {
   return json({ source, token }, 201);
 }
 
-/** @param {import('../router.js').RouteContext} c */
+/** @param {import('../types.js').RouteContext} c */
 export async function regenerateSource({ env, params }) {
   const token = newSourceToken();
   const res = await env.DB.prepare(
@@ -173,10 +173,36 @@ export async function regenerateSource({ env, params }) {
   return json({ source, token });
 }
 
-/** @param {import('../router.js').RouteContext} c */
+/** @param {import('../types.js').RouteContext} c */
 export async function deleteSource({ env, params, user }) {
   requireRole(user, 'admin');
   const res = await env.DB.prepare('DELETE FROM sources WHERE id = ?').bind(params.id).run();
   if (!res.meta.changes) throw new HttpError(404, 'not_found', 'Source not found');
   return json({ ok: true });
+}
+
+/** @param {import('../types.js').RouteContext} c */
+export async function getSource({ env, params }) {
+  const source = await env.DB.prepare(`SELECT ${SOURCE_COLUMNS} FROM sources WHERE id = ?`)
+    .bind(params.id)
+    .first();
+  if (!source) throw new HttpError(404, 'not_found', 'Source not found');
+  return json({ source, project: await findProject(env, String(source.project_id)) });
+}
+
+/** @param {import('../types.js').RouteContext} c */
+export async function renameSource({ request, env, params }) {
+  const name = requireString(asObject(await readJson(request)).name, 'name', {
+    max: 64,
+    pattern: SOURCE_NAME,
+  });
+  const res = await runUnique(
+    env.DB.prepare('UPDATE sources SET name = ? WHERE id = ?').bind(name, params.id),
+    'A source with that name already exists in this project',
+  );
+  if (!res.meta.changes) throw new HttpError(404, 'not_found', 'Source not found');
+  const source = await env.DB.prepare(`SELECT ${SOURCE_COLUMNS} FROM sources WHERE id = ?`)
+    .bind(params.id)
+    .first();
+  return json({ source });
 }

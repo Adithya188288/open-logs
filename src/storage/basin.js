@@ -7,13 +7,15 @@
 //   values as escaped literals (see sqlLiteral). Values only ever come from a validated Filter.
 // Verified on real Basin (staging, 2026-10-30): responses are `{ result: { schema, rows: [{…}], metrics }, success }`;
 // backslash is an ordinary character inside string literals; LIKE only accepts ESCAPE '\'.
-import { buildAggregateSql, buildEventsSql, buildHistogramSql, buildOverviewSql } from '../query/sql.js';
-import { aggregateShape, eventsPage, histogramBuckets, overviewShape } from './shape.js';
+import { buildEventsSql, buildHistogramSql, buildOverviewSql } from '../query/sql.js';
+import { runAggregate } from './aggregate.js';
+import { eventsPage, histogramBuckets, overviewShape } from './shape.js';
 
 const SQL_API = 'https://api.sql.cloudflarestorage.com/api/v1/accounts';
 const TABLE_NAME = /^[a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*$/;
-// The Iceberg sink rolls files every 60s (its minimum), so events become queryable about a minute late.
-const INGEST_LAG_MS = 60_000;
+// The Iceberg sink rolls files every 60s (its minimum) and then commits them to the catalog. On staging
+// (2026-10-30) events became queryable 1.5–3.5 minutes after ingest, so freshness is reported against 3 min.
+const INGEST_LAG_MS = 180_000;
 const NEWEST_LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
 
 /**
@@ -140,15 +142,7 @@ export class BasinStorage {
    * @param {import('./index.js').AggregateSpec} spec
    */
   async aggregate(filter, spec) {
-    const q = buildAggregateSql(filter, spec, this.dialect);
-    const [value, groups, series] = await Promise.all([
-      this.all(q.value),
-      q.groups ? this.all(q.groups) : [],
-      this.all(q.series),
-    ]);
-    const top = groups.filter((g) => g.k !== null).map((g) => ({ key: String(g.k), value: Number(g.v) }));
-    const gq = q.groupSeries(top.slice(0, 5).map((g) => g.key));
-    return aggregateShape(spec, filter, value, top, series, gq ? await this.all(gq) : []);
+    return runAggregate((q) => this.all(q), this.dialect, filter, spec);
   }
 
   /** @param {string} projectId */

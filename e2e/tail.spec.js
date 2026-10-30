@@ -11,6 +11,12 @@ test('search, field:value chips, time range and honest freshness', async ({ page
   await page.goto(`/tail?project=${project.id}`);
   await expect(page.getByTestId('event')).toHaveCount(40);
   await expect(page.getByTestId('summary')).toContainText('40 events · 15 min · 16 errors');
+  // The rows must actually be on screen, not clipped by a collapsed container (seen at small window sizes).
+  await page.setViewportSize({ width: 800, height: 622 });
+  await expect
+    .poll(async () => (await page.locator('.tail-body').boundingBox())?.height ?? 0)
+    .toBeGreaterThan(300);
+  await page.setViewportSize({ width: 1280, height: 720 });
   await expect(page.getByTestId('freshness')).toContainText(
     /Data through \d\d:\d\d:\d\d UTC · next check \ds/,
   );
@@ -51,7 +57,10 @@ test('histogram: click a bar to zoom, legend toggles a level', async ({ page, ap
   await expect(page.getByTestId('event')).toHaveCount(40);
 });
 
-test('expandable rows: Filter and Chart per field, keyboard j/k/Enter and /', async ({ page, app }) => {
+test('details open in a side panel with Filter and Chart per field; keyboard j/k/Enter and /', async ({
+  page,
+  app,
+}) => {
   const { project } = await seeded(app);
   await page.goto(`/tail?project=${project.id}`);
   const events = page.getByTestId('event');
@@ -65,30 +74,28 @@ test('expandable rows: Filter and Chart per field, keyboard j/k/Enter and /', as
   await expect(events.nth(1)).toHaveClass(/cursor/);
   await page.keyboard.press('Enter');
   await expect(events.nth(1)).toHaveClass(/open/);
-  await expect(events.nth(1).locator('.f')).toContainText(['timestamp', 'source', 'level']);
+  const panel = page.getByRole('complementary', { name: 'Event details' });
+  await expect(panel.locator('.f')).toContainText(['timestamp', 'source', 'level']);
+  await expect(panel.getByRole('button', { name: 'View events around this' })).toBeVisible();
+  await expect(panel.getByRole('button', { name: 'Copy link to event' })).toBeVisible();
 
-  const status = events
-    .nth(1)
-    .locator('.f')
-    .filter({ hasText: /^status/ });
-  if (await status.count()) {
-    await expect(status.getByRole('link', { name: 'Chart' })).toHaveAttribute('href', /chart=fields\.status/);
-  }
-  const level = events
-    .nth(1)
-    .locator('.f')
-    .filter({ hasText: /^level/ });
+  await page.keyboard.press('j');
+  await expect(events.nth(2)).toHaveClass(/open/);
+  const level = panel.locator('.f').filter({ hasText: /^level/ });
   const levelValue = await level.locator('.v').textContent();
   await level.getByRole('button', { name: '= Filter' }).click();
   await expect(page.locator('.chip')).toHaveText([`level = ${levelValue}×`]);
+  await expect(panel).toBeHidden();
 
-  await page.keyboard.press('Escape');
   await page.locator('body').click({ position: { x: 600, y: 10 } });
   await page.keyboard.press('/');
   await expect(page.getByLabel('Search events')).toBeFocused();
 });
 
-test('pause freezes the tail, new events wait behind a banner, wrap lines toggles', async ({ page, app }) => {
+test('pause freezes the tail; otherwise rows keep streaming, even with the panel open; wrap lines toggles', async ({
+  page,
+  app,
+}) => {
   const { project, token } = await seeded(app, 10);
   await page.goto(`/tail?project=${project.id}`);
   await expect(page.getByTestId('event')).toHaveCount(10);
@@ -103,12 +110,10 @@ test('pause freezes the tail, new events wait behind a banner, wrap lines toggle
   await expect(page.getByTestId('event').first()).toContainText('arrived while paused');
 
   await page.getByTestId('event').nth(2).locator('.row').click();
+  await expect(page.getByRole('complementary', { name: 'Event details' })).toBeVisible();
   await app.send(token, { level: 'warn', message: 'arrived while reading' });
-  await expect(page.getByRole('button', { name: /1 new event since you started reading/ })).toBeVisible({
-    timeout: 8000,
-  });
-  await page.getByRole('button', { name: /new event since you started reading/ }).click();
-  await expect(page.getByTestId('event').first()).toContainText('arrived while reading');
+  await expect(page.getByTestId('event').first()).toContainText('arrived while reading', { timeout: 8000 });
+  await expect(page.getByRole('complementary', { name: 'Event details' })).toBeVisible();
 
   const wrap = page.getByRole('button', { name: 'Wrap lines' });
   await wrap.click();
@@ -121,10 +126,12 @@ test('states: loading, no results, query too large, waiting', async ({ page, app
 
   await page.route('**/api/query', async (route) => {
     await new Promise((r) => setTimeout(r, 800));
-    await route.continue();
+    // The route may have been removed while this request waited.
+    await route.continue().catch(() => {});
   });
   await page.goto(`/tail?project=${project.id}`);
-  await expect(page.getByRole('status', { name: 'Loading events' })).toBeVisible();
+  // Live tail's first rows come with the single start-up load, so that's the loader you see.
+  await expect(page.getByRole('status', { name: 'Loading' })).toBeVisible();
   await page.unroute('**/api/query');
   await expect(page.getByTestId('event')).toHaveCount(40);
 
@@ -163,26 +170,38 @@ test('ingestion problem: a regenerated token shows rejected requests', async ({ 
   await expect(problem).toContainText('401 invalid token');
   await expect(page.getByRole('link', { name: 'Check source token' })).toHaveAttribute(
     'href',
-    /\/connect\?project=/,
+    /\/sources\?project=/,
   );
   await page.getByRole('button', { name: 'Dismiss' }).click();
   await expect(problem).toHaveCount(0);
 });
 
-test('saved views appear in the sidebar and re-apply their filter', async ({ page, app }) => {
+test('saved views live in the Views menu, re-apply their filter, and delete with DELETE', async ({
+  page,
+  app,
+}) => {
   const { project } = await seeded(app);
   await page.goto(`/tail?project=${project.id}`);
   await page.getByLabel('Search events').fill('level:warn');
   await page.getByLabel('Search events').press('Enter');
-  await page.getByRole('button', { name: 'Save view' }).click();
+  await expect(page.getByTestId('event')).toHaveCount(8);
+  await page.getByTestId('views-menu').click();
+  await page.getByRole('menuitem', { name: 'Save current view…' }).click();
   await page.getByLabel('Name', { exact: true }).fill('Warnings');
-  await page.getByRole('button', { name: 'Save view' }).last().click();
-  await expect(page.getByTestId('saved-view')).toHaveText(['Warnings×']);
+  await page.getByRole('button', { name: 'Save view' }).click();
 
   await page.getByRole('button', { name: 'Remove filter level = warn' }).click();
   await expect(page.getByTestId('event')).toHaveCount(40);
-  await page.getByTestId('saved-view').click();
+  await page.getByTestId('views-menu').click();
+  await page.getByTestId('saved-view').filter({ hasText: 'Warnings' }).click();
   await expect(page.getByTestId('event')).toHaveCount(8);
+
+  await page.getByTestId('views-menu').click();
+  await page.getByRole('button', { name: 'Delete view Warnings' }).click();
+  await page.getByLabel('Type DELETE to confirm').fill('DELETE');
+  await page.getByRole('button', { name: 'Delete view' }).click();
+  await page.getByTestId('views-menu').click();
+  await expect(page.getByTestId('saved-view')).toHaveCount(0);
 });
 
 test('export CSV downloads the visible events', async ({ page, app }) => {
@@ -197,4 +216,18 @@ test('export CSV downloads the visible events', async ({ page, app }) => {
   const text = Buffer.concat(csv).toString();
   expect(text.split('\r\n')).toHaveLength(6);
   expect(text).toContain('"time_utc","level","source","message","fields"');
+});
+
+test('source picker filters to one source; search help explains the syntax', async ({ page, app }) => {
+  const { project, token } = await app.projectWithSource(uniq('pick'), 'api');
+  const { token: workerToken } = await app.post(`/api/projects/${project.id}/sources`, { name: 'worker' });
+  await app.send(token, sampleEvents(Date.now(), 6));
+  await app.send(workerToken, [{ message: 'from worker', level: 'warn' }]);
+  await page.goto(`/tail?project=${project.id}`);
+  await expect(page.getByTestId('event')).toHaveCount(7);
+  await page.getByLabel('Source', { exact: true }).selectOption('worker');
+  await expect(page.getByTestId('event')).toHaveCount(1);
+  await expect(page).toHaveURL(/source=worker/);
+  await page.getByRole('button', { name: 'Search help' }).click();
+  await expect(page.getByTestId('search-help')).toContainText('status:>=500');
 });

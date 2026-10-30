@@ -103,6 +103,26 @@ describe('query api', () => {
     expect(badMeasure.status).toBe(400);
   });
 
+  it('computes only the requested parts of an aggregate', async () => {
+    const { cookie, range } = await seeded();
+    const only = await api('/api/aggregate', {
+      cookie,
+      body: { ...range, measure: 'count', field: 'level', parts: ['value'] },
+    });
+    expect(only.json).toMatchObject({ value: 5, groups: [], series: [], series_by_group: [] });
+    const groups = await api('/api/aggregate', {
+      cookie,
+      body: { ...range, measure: 'count', field: 'level', parts: ['groups'] },
+    });
+    expect(groups.json.groups).toHaveLength(3);
+    expect(groups.json.value).toBeNull();
+    const bad = await api('/api/aggregate', {
+      cookie,
+      body: { ...range, measure: 'count', parts: ['everything'] },
+    });
+    expect(bad.status).toBe(400);
+  });
+
   it('reports storage mode and freshness', async () => {
     const { cookie, project, now } = await seeded();
     const s = await api(`/api/status?project_id=${project.id}`, { cookie });
@@ -111,9 +131,10 @@ describe('query api', () => {
   });
 
   it('includes 24h stats on the projects list', async () => {
-    const { cookie } = await seeded();
+    const { cookie, project } = await seeded();
     const list = await api('/api/projects', { cookie });
-    expect(list.json.projects[0].stats).toMatchObject({ events_24h: 5, errors_24h: 2 });
-    expect(list.json.projects[0].stats.spark).toHaveLength(24);
+    const mine = list.json.projects.find((p) => p.id === project.id);
+    expect(mine.stats).toMatchObject({ events_24h: 5, errors_24h: 2 });
+    expect(mine.stats.spark).toHaveLength(24);
   });
 });

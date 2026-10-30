@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clauseLabel, clauseToSearch, parseSearch } from '../../public/js/search.js';
+import { clauseLabel, clauseToSearch, parseSearch } from '../../app/src/lib/search.js';
 
 describe('search syntax', () => {
   it('parses field:value tokens into clauses and keeps the rest as text', () => {
