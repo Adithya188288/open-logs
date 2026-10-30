@@ -1,6 +1,6 @@
 // Log search, histogram, chart aggregates and freshness status.
 import { HttpError, json, readJson } from '../http.js';
-import { parseFilter } from '../query/filter.js';
+import { parseField, parseFilter, pickInterval } from '../query/filter.js';
 import { getStorage } from '../storage/index.js';
 import { findProject } from './projects.js';
 
@@ -39,4 +39,48 @@ export async function runQuery(fn) {
 export async function query({ request, env }) {
   const { filter } = await readFilter(request, env);
   return json(await runQuery(() => getStorage(env).query(filter)));
+}
+
+const MEASURES = new Set(['count', 'count_over_time', 'avg', 'p95']);
+
+/** @param {import('../router.js').RouteContext} c */
+export async function histogram({ request, env }) {
+  const { filter } = await readFilter(request, env);
+  const interval = pickInterval(filter.from, filter.to);
+  const h = await runQuery(() => getStorage(env).histogram(filter, interval));
+  let total = 0;
+  let errors = 0;
+  for (const b of h.buckets) {
+    total += b.debug + b.info + b.warn + b.error + b.fatal;
+    errors += b.error + b.fatal;
+  }
+  return json({ ...h, total, errors });
+}
+
+/** @param {import('../router.js').RouteContext} c */
+export async function aggregate({ request, env }) {
+  const { filter, body } = await readFilter(request, env);
+  const measure = String(body.measure);
+  if (!MEASURES.has(measure))
+    throw new HttpError(400, 'invalid_field', 'measure must be count, count_over_time, avg or p95');
+  const field = body.field ? parseField(body.field) : undefined;
+  if ((measure === 'avg' || measure === 'p95') && !field?.startsWith('fields.')) {
+    throw new HttpError(400, 'invalid_field', `${measure} needs a numeric fields.* field`);
+  }
+  const group_by = body.group_by ? parseField(body.group_by) : undefined;
+  const spec = {
+    measure: /** @type {'count'} */ (measure),
+    field,
+    group_by,
+    interval: pickInterval(filter.from, filter.to, 30),
+  };
+  return json(await runQuery(() => getStorage(env).aggregate(filter, spec)));
+}
+
+/** @param {import('../router.js').RouteContext} c */
+export async function status({ env, url }) {
+  const storage = getStorage(env);
+  const projectId = url.searchParams.get('project_id');
+  const newest = projectId ? await storage.newest((await findProject(env, projectId)).id) : null;
+  return json({ storage: storage.mode, lag_ms: storage.lagMs, now: Date.now(), newest_event_at: newest });
 }
