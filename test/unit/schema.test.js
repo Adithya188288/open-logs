@@ -21,7 +21,9 @@ describe('D1 schema', () => {
   });
 
   it('indexes logs by project and time', async () => {
-    const { results } = await env.DB.prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'logs'").all();
+    const { results } = await env.DB.prepare(
+      "SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'logs'",
+    ).all();
     expect(results.map((r) => r.name)).toContain('logs_project_ts');
   });
 
