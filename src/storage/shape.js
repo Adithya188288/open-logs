@@ -60,7 +60,7 @@ export function histogramBuckets(rows, from, to, interval) {
  * @param {boolean} zeroFill  counts default to 0; averages leave gaps out
  */
 export function seriesPoints(rows, from, to, interval, zeroFill) {
-  const byT = new Map(rows.map((r) => [Number(r.k), Number(r.v)]));
+  const byT = new Map(rows.map((r) => [Number(r.t), Number(r.v)]));
   const out = [];
   for (let t = Math.floor(from / interval) * interval; t < to; t += interval) {
     if (byT.has(t)) out.push({ t, value: /** @type {number} */ (byT.get(t)) });
@@ -91,4 +91,29 @@ export function overviewShape(rows, projectIds, from, to, interval) {
     if (i >= 0 && i < count) o.series[i] += Number(r.n);
   }
   return out;
+}
+
+/**
+ * @param {import('./index.js').AggregateSpec} spec
+ * @param {import('../query/filter.js').Filter} filter
+ * @param {Record<string, unknown>[]} valueRows  { v }
+ * @param {{ key: string, value: number }[]} groups
+ * @param {Record<string, unknown>[]} seriesRows  { t, v }
+ * @param {Record<string, unknown>[]} groupRows  { k, t, v }
+ * @returns {import('./index.js').AggregateResult}
+ */
+export function aggregateShape(spec, filter, valueRows, groups, seriesRows, groupRows) {
+  const counting = spec.measure === 'count' || spec.measure === 'count_over_time';
+  const v = valueRows[0]?.v;
+  const byKey = Map.groupBy(groupRows, (r) => String(r.k));
+  return {
+    value: v === null || v === undefined ? (counting ? 0 : null) : Number(v),
+    groups,
+    series: seriesPoints(seriesRows, filter.from, filter.to, spec.interval, counting),
+    series_by_group: groups.slice(0, 5).map((g) => ({
+      key: g.key,
+      series: seriesPoints(byKey.get(g.key) ?? [], filter.from, filter.to, spec.interval, counting),
+    })),
+    interval_ms: spec.interval,
+  };
 }
