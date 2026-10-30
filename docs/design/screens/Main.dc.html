@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Projects</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+.t{--bg:#FFFFFF;--bg2:#FAFAFA;--bg3:#F4F4F5;--line:#E7E7E7;--line2:#D4D4D8;--tx:#0A0A0A;--tx2:#3F3F46;--tx3:#646464;--pri:#0A0A0A;--onpri:#FFFFFF;--err:#D92D20;--errtx:#B42318;--errbg:#FEF3F2;--errln:#FECDCA;--warn:#C4640A;--warntx:#B54708;--warnbg:#FFFAEB;--warnln:#FEDF89;--infobar:#8E8E96;--ok:#079455;--oktx:#067647;--okbg:#ECFDF3;--okln:#ABEFC6;--blue:#2563EB;--focus:#2563EB;--shadow:0 1px 2px rgba(0,0,0,.04),0 8px 24px rgba(0,0,0,.06)}
+.t[data-theme="dark"]{--bg:#0B0B0C;--bg2:#111113;--bg3:#1C1C1F;--line:#26262A;--line2:#3A3A40;--tx:#EDEDED;--tx2:#C4C4C8;--tx3:#9A9AA2;--pri:#EDEDED;--onpri:#0A0A0A;--err:#F04438;--errtx:#FDA29B;--errbg:#2A1211;--errln:#55160C;--warn:#F79009;--warntx:#FEC84B;--warnbg:#2A1E08;--warnln:#4E3A0B;--infobar:#6B6B73;--ok:#32D583;--oktx:#75E0A7;--okbg:#0A2A1B;--okln:#0E4A2E;--blue:#60A5FA;--focus:#60A5FA;--shadow:0 8px 24px rgba(0,0,0,.5)}
+.t a{color:var(--tx)}.t a:hover{color:var(--tx2)}
+.t :focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.t .card:hover{border-color:var(--line2)}
+.t .trow:hover{background:var(--bg2)}
+@media (prefers-reduced-motion: no-preference){@keyframes pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb, var(--ok) 45%, transparent)}100%{box-shadow:0 0 0 6px transparent}}.live{animation:pulse 1.8s ease-out infinite}}
+</style>
+</helmet>
+<div class="t" data-theme="{{theme}}" style="font-family: Geist, sans-serif; color: var(--tx); background: var(--bg); min-height: 860px; display: flex; flex-wrap: wrap">
+<nav aria-label="Main" style="flex: 1 1 232px; max-width: 232px; box-sizing: border-box; background: var(--bg2); border-right: 1px solid var(--line); padding: 14px 12px; display: flex; flex-direction: column; gap: 2px">
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 6px; margin-bottom: 14px; text-decoration: none"><span style="width: 22px; height: 22px; border-radius: 6px; background: var(--pri); display: inline-flex; align-items: center; justify-content: center"><span style="width: 8px; height: 8px; border-radius: 50%; background: #3DDC97"></span></span><span style="font-weight: 600; font-size: 15px">Acme</span></a>
+<div style="font-size: 11px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--tx3); padding: 4px 10px 6px">Workspace</div>
+<a href="Main.dc.html" aria-current="page" style="display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 6px; font-size: 13px; text-decoration: none; color: var(--tx); font-weight: 500; background: var(--bg); box-shadow: 0 0 0 1px var(--line)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"></path></svg>Projects<span style="margin-left: auto; font-family: 'Geist Mono', monospace; font-size: 11px; color: var(--tx3); font-weight: 400">3</span></a>
+<a href="#team" style="display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 6px; font-size: 13px; text-decoration: none; color: var(--tx2)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 20v-1a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v1M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM22 20v-1a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"></path></svg>Team</a>
+<a href="#" aria-disabled="true" title="Settings (coming soon)" style="display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 6px; font-size: 13px; text-decoration: none; color: var(--tx2)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1M15 4v4M9 10v4M17 16v4"></path></svg>Settings</a>
+<div style="flex-grow: 1; min-height: 24px"></div>
+<button onClick="{{toggleTheme}}" style="font: inherit; color: var(--tx2); text-align: left; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 7px 10px; border: none; border-radius: 6px; background: transparent; font-size: 13px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"></path></svg>{{themeLabel}}</button>
+<div style="display: flex; align-items: center; gap: 10px; padding: 10px 10px 2px 10px; margin-top: 6px; border-top: 1px solid var(--line)">
+<span aria-hidden="true" style="width: 24px; height: 24px; flex: 0 0 24px; border-radius: 50%; background: var(--bg3); box-shadow: 0 0 0 1px var(--line); color: var(--tx2); display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600">AS</span>
+<span style="font-size: 13px; font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">Adithya</span>
+<a href="Login.dc.html" style="margin-left: auto; font-size: 12px; color: var(--tx3)">Sign out</a>
+</div>
+</nav>
+<main style="flex: 999 1 560px; min-width: 0; box-sizing: border-box; display: flex; flex-direction: column">
+<header style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 24px; border-bottom: 1px solid var(--line)">
+<div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap">
+<h1 style="margin: 0; font-size: 15px; font-weight: 600">Projects</h1>
+<span style="font-size: 12px; color: var(--tx3)">3 projects · 2 live</span>
+</div>
+<div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap">
+<div style="display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 6px; padding: 0 10px; background: var(--bg); width: 220px; max-width: 100%; box-sizing: border-box">
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" style="color: var(--tx3); flex: 0 0 15px"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4"></path></svg>
+<label for="find" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap">Find a project</label>
+<input id="find" type="search" placeholder="Find a project" style="flex-grow: 1; min-width: 0; border: none; outline: none; background: transparent; color: var(--tx); font: inherit; font-size: 12px; padding: 7px 0">
+</div>
+<a href="Project.dc.html" style="display: inline-flex; align-items: center; gap: 6px; background: var(--pri); color: var(--onpri); text-decoration: none; font-size: 12px; font-weight: 500; padding: 6px 12px; border: 1px solid var(--pri); border-radius: 6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>New project</a>
+</div>
+</header>
+<div style="padding: 20px 24px 32px 24px; display: flex; flex-direction: column; gap: 28px">
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px">
+<sc-for list="{{projects}}" as="p" hint-placeholder-count="3">
+<article class="card" style="border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; background: var(--bg); min-width: 0">
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 8px">
+<a href="{{p.href}}" style="font-family: 'Geist Mono', monospace; font-size: 13px; font-weight: 500; text-decoration: none; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{p.name}}</a>
+<span style="{{p.statusStyle}}"><span class="{{p.dotClass}}" style="{{p.dotStyle}}"></span>{{p.status}}</span>
+</div>
+<svg width="100%" height="40" viewBox="0 0 240 40" preserveAspectRatio="none" aria-hidden="true" style="display: block"><polyline fill="none" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke" points="{{p.spark}}" style="{{p.lineStyle}}"></polyline></svg>
+<div style="display: flex; gap: 14px; font-size: 12px; color: var(--tx3); flex-wrap: wrap">
+<span><span style="color: var(--tx); font-weight: 500; font-family: 'Geist Mono', monospace">{{p.events}}</span> events · 24h</span>
+<span><span style="{{p.errStyle}}">{{p.errors}}</span> errors</span>
+</div>
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; padding-top: 12px; border-top: 1px solid var(--line)">
+<sc-if value="{{p.hasSources}}" hint-placeholder-val="{{ true }}">
+<div style="display: flex; gap: 4px; flex-wrap: wrap">
+<sc-for list="{{p.sources}}" as="s" hint-placeholder-count="2"><span style="font-family: 'Geist Mono', monospace; font-size: 11px; padding: 2px 6px; border-radius: 6px; background: var(--bg3); color: var(--tx2)">{{s}}</span></sc-for>
+</div>
+</sc-if>
+<sc-if value="{{p.empty}}" hint-placeholder-val="{{ false }}">
+<a href="Project.dc.html" style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--tx2); text-decoration: none"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 2v5M15 2v5M6 7h12v4a6 6 0 0 1-12 0zM12 17v5"></path></svg>Connect a source</a>
+</sc-if>
+<span style="font-size: 11px; color: var(--tx3); white-space: nowrap">{{p.seen}}</span>
+</div>
+</article>
+</sc-for>
+</div>
+<section id="team" aria-labelledby="team-h" style="border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--bg)">
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--bg2)">
+<div style="display: flex; flex-direction: column; gap: 2px">
+<h2 id="team-h" style="margin: 0; font-size: 13px; font-weight: 600">Team</h2>
+<p style="margin: 0; font-size: 12px; color: var(--tx3)">Everyone here can see every project in this deploy.</p>
+</div>
+<div role="group" aria-label="Invite a teammate" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap">
+<label for="inv" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap">Teammate email</label>
+<input id="inv" type="email" placeholder="teammate@acme.dev" style="font-family: 'Geist Mono', monospace; font-size: 12px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; width: 220px; max-width: 100%; box-sizing: border-box; background: var(--bg); color: var(--tx)">
+<label for="role" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap">Role</label>
+<select id="role" style="font: inherit; font-size: 12px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--tx); cursor: pointer"><option>Member</option><option>Admin</option></select>
+<button type="button" style="font: inherit; font-size: 12px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--tx2); cursor: pointer">Invite</button>
+</div>
+</div>
+<table style="width: 100%; border-collapse: collapse; font-size: 13px">
+<thead>
+<tr>
+<th scope="col" style="text-align: left; font-size: 11px; font-weight: 500; color: var(--tx3); padding: 8px 16px; border-bottom: 1px solid var(--line)">Name</th>
+<th scope="col" style="text-align: left; font-size: 11px; font-weight: 500; color: var(--tx3); padding: 8px 16px; border-bottom: 1px solid var(--line)">Email</th>
+<th scope="col" style="text-align: left; font-size: 11px; font-weight: 500; color: var(--tx3); padding: 8px 16px; border-bottom: 1px solid var(--line); width: 120px">Role</th>
+<th scope="col" style="text-align: left; font-size: 11px; font-weight: 500; color: var(--tx3); padding: 8px 16px; border-bottom: 1px solid var(--line); width: 120px">Last active</th>
+</tr>
+</thead>
+<tbody>
+<sc-for list="{{members}}" as="m" hint-placeholder-count="2">
+<tr class="trow">
+<td style="{{m.cell}}"><span style="display: inline-flex; align-items: center; gap: 10px; font-weight: 500"><span aria-hidden="true" style="width: 20px; height: 20px; border-radius: 50%; background: var(--bg3); box-shadow: 0 0 0 1px var(--line); color: var(--tx2); display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600">{{m.initial}}</span>{{m.name}}</span></td>
+<td style="{{m.cell}}"><span style="font-family: 'Geist Mono', monospace; font-size: 12px; color: var(--tx2)">{{m.email}}</span></td>
+<td style="{{m.cell}}"><span style="{{m.roleStyle}}">{{m.role}}</span></td>
+<td style="{{m.cell}}"><span style="font-size: 12px; color: var(--tx3)">{{m.seen}}</span></td>
+</tr>
+</sc-for>
+</tbody>
+</table>
+</section>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":860}}'>
+class Component extends DCLogic {
+constructor(props) { super(props); this.state = { theme: (function () { try { return localStorage.getItem('logs-theme') || 'light'; } catch (e) { return 'light'; } })() }; }
+renderVals() {
+var self = this, st = this.state;
+function spark(vals) {
+var max = Math.max.apply(null, vals);
+return vals.map(function (v, i) { return Math.round(i * 240 / (vals.length - 1)) + ',' + (37 - Math.round(v / max * 32)); }).join(' ');
+}
+var pill = 'display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 999px; white-space: nowrap; border: 1px solid ';
+var live = pill + 'var(--okln); color: var(--oktx); background: var(--okbg)';
+var idle = pill + 'var(--line); color: var(--tx3); background: var(--bg2)';
+var greenDot = 'width: 6px; height: 6px; border-radius: 50%; background: var(--ok)';
+var greyDot = 'width: 6px; height: 6px; border-radius: 50%; box-sizing: border-box; border: 1.5px solid var(--tx3)';
+function errStyle(n) { return n > 0 ? 'color: var(--errtx); font-weight: 500; font-family: \'Geist Mono\', monospace' : 'color: var(--tx); font-weight: 500; font-family: \'Geist Mono\', monospace'; }
+var projects = [
+{ name: 'checkout-app', href: 'LiveTail.dc.html', status: 'Live', statusStyle: live, dotStyle: greenDot, dotClass: 'live', lineStyle: 'stroke: var(--tx2)', spark: spark([30, 34, 31, 38, 36, 40, 44, 41, 47, 52, 49, 58, 62, 70]), events: '84.1k', errors: '2,140', errN: 2140, sources: ['api', 'worker', 'web'], seen: 'Last event 4s ago' },
+{ name: 'marketing-site', href: 'LiveTail.dc.html', status: 'Live', statusStyle: live, dotStyle: greenDot, dotClass: 'live', lineStyle: 'stroke: var(--tx2)', spark: spark([20, 22, 26, 24, 23, 27, 25, 24, 26, 28, 27, 25, 26, 27]), events: '12.9k', errors: '3', errN: 3, sources: ['web'], seen: 'Last event 1m ago' },
+{ name: 'billing-jobs', href: 'Project.dc.html', status: 'Waiting for data', statusStyle: idle, dotStyle: greyDot, dotClass: '', lineStyle: 'stroke: var(--line2); stroke-dasharray: 3 4', spark: '0,36 240,36', events: '0', errors: '0', errN: 0, sources: [], seen: 'Created 2h ago' }
+].map(function (p) {
+p.errStyle = errStyle(p.errN);
+p.hasSources = p.sources.length > 0;
+p.empty = p.sources.length === 0;
+return p;
+});
+var cell = 'padding: 10px 16px; border-bottom: 1px solid var(--line); vertical-align: middle';
+var last = 'padding: 10px 16px; vertical-align: middle';
+var rolePill = 'font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--tx2); background: var(--bg2)';
+var members = [
+{ name: 'Adithya', initial: 'A', email: 'you@acme.dev', role: 'Owner', seen: 'now' },
+{ name: '[Teammate]', initial: 'T', email: '[teammate]@acme.dev', role: 'Member', seen: '2h ago' }
+].map(function (m, i, arr) {
+m.cell = i === arr.length - 1 ? last : cell;
+m.roleStyle = rolePill;
+return m;
+});
+return {
+theme: st.theme, themeLabel: st.theme === 'dark' ? 'Light mode' : 'Dark mode',
+toggleTheme: function () { var t = st.theme === 'dark' ? 'light' : 'dark'; try { localStorage.setItem('logs-theme', t); } catch (e) {} self.setState({ theme: t }); },
+projects: projects, members: members
+};
+}
+}
+</script>
+</body>
+</html>

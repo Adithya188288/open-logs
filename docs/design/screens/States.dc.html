@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Empty, loading and error states</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+.t{--bg:#FFFFFF;--bg2:#FAFAFA;--bg3:#F4F4F5;--line:#E7E7E7;--line2:#D4D4D8;--tx:#0A0A0A;--tx2:#3F3F46;--tx3:#646464;--pri:#0A0A0A;--onpri:#FFFFFF;--err:#D92D20;--errtx:#B42318;--errbg:#FEF3F2;--errln:#FECDCA;--warn:#C4640A;--warntx:#B54708;--warnbg:#FFFAEB;--warnln:#FEDF89;--infobar:#8E8E96;--ok:#079455;--oktx:#067647;--okbg:#ECFDF3;--okln:#ABEFC6;--blue:#2563EB;--focus:#2563EB}
+.t[data-theme="dark"]{--bg:#0B0B0C;--bg2:#111113;--bg3:#1C1C1F;--line:#26262A;--line2:#3A3A40;--tx:#EDEDED;--tx2:#C4C4C8;--tx3:#9A9AA2;--pri:#EDEDED;--onpri:#0A0A0A;--err:#F04438;--errtx:#FDA29B;--errbg:#2A1211;--errln:#55160C;--warn:#F79009;--warntx:#FEC84B;--warnbg:#2A1E08;--warnln:#4E3A0B;--infobar:#6B6B73;--ok:#32D583;--oktx:#75E0A7;--okbg:#0A2A1B;--okln:#0E4A2E;--blue:#60A5FA;--focus:#60A5FA}
+.t a{color:var(--tx)}.t a:hover{color:var(--tx2)}
+.t :focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+@media (prefers-reduced-motion: no-preference){@keyframes shimmer{0%{opacity:.55}50%{opacity:1}100%{opacity:.55}}.sk{animation:shimmer 1.4s ease-in-out infinite}}
+</style>
+</helmet>
+<div class="t" data-theme="{{theme}}" style="font-family: Geist, sans-serif; color: var(--tx); background: var(--bg2); min-height: 900px; box-sizing: border-box; padding: 32px; display: flex; flex-direction: column; gap: 20px">
+<div style="display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 12px">
+<div><h1 style="margin: 0; font-size: 15px; font-weight: 600">Live tail states</h1><p style="margin: 4px 0 0 0; font-size: 13px; color: var(--tx3)">What the event table shows when there's nothing to show, while it loads, and when something breaks.</p></div>
+<button onClick="{{toggleTheme}}" style="font: inherit; font-size: 12px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--tx2); cursor: pointer">{{themeLabel}}</button>
+</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px">
+
+<section style="border: 1px solid var(--line); border-radius: 10px; background: var(--bg); overflow: hidden; display: flex; flex-direction: column">
+<div style="padding: 10px 14px; border-bottom: 1px solid var(--line); font-size: 11px; color: var(--tx3); font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase">No matching events</div>
+<div style="padding: 40px 24px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center">
+<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true" style="color: var(--tx3)"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4M8.5 11h5"></path></svg>
+<h2 style="margin: 0; font-size: 13px; font-weight: 600">No events match <code style="font-family: 'Geist Mono', monospace; background: var(--bg3); padding: 1px 6px; border-radius: 6px">status:503</code> in the last 15 min</h2>
+<p style="margin: 0; font-size: 12px; color: var(--tx3); max-width: 340px">8,412 events came in during that time, none with this value.</p>
+<div style="display: flex; gap: 8px; margin-top: 6px"><button style="font: inherit; font-size: 12px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--tx2); cursor: pointer">Search last 24h</button><button style="font: inherit; font-size: 12px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--tx2); cursor: pointer">Clear filters</button></div>
+</div>
+</section>
+
+<section style="border: 1px solid var(--line); border-radius: 10px; background: var(--bg); overflow: hidden; display: flex; flex-direction: column">
+<div style="padding: 10px 14px; border-bottom: 1px solid var(--line); font-size: 11px; color: var(--tx3); font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase">Loading</div>
+<div role="status" aria-label="Loading events" style="display: flex; flex-direction: column">
+<sc-for list="{{skeleton}}" as="s" hint-placeholder-count="7">
+<div class="sk" style="display: grid; grid-template-columns: 116px 64px 76px minmax(0, 1fr); gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--line); align-items: center"><span style="height: 10px; border-radius: 999px; background: var(--bg3)"></span><span style="height: 14px; border-radius: 6px; background: var(--bg3)"></span><span style="height: 10px; border-radius: 999px; background: var(--bg3)"></span><span style="{{s.msg}}"></span></div>
+</sc-for>
+<div style="padding: 10px 14px; font-size: 12px; color: var(--tx3)">Querying the last 15 minutes…</div>
+</div>
+</section>
+
+<section style="border: 1px solid var(--line); border-radius: 10px; background: var(--bg); overflow: hidden; display: flex; flex-direction: column">
+<div style="padding: 10px 14px; border-bottom: 1px solid var(--line); font-size: 11px; color: var(--tx3); font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase">Query too large</div>
+<div style="padding: 16px 14px; display: flex; flex-direction: column; gap: 12px">
+<div role="alert" style="display: flex; gap: 12px; padding: 12px 14px; border: 1px solid var(--warnln); background: var(--warnbg); border-radius: 6px">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" style="color: var(--warntx); flex: 0 0 16px; margin-top: 1px"><path d="M12 9v4M12 17h.01M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path></svg>
+<div style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 13px; font-weight: 500; color: var(--warntx)">This search would scan too much data</span><span style="font-size: 12px; color: var(--tx2)">Searching 7 days of every source for free text times out. Narrow the time range or add a field filter like <code style="font-family: 'Geist Mono', monospace">level:error</code>.</span></div>
+</div>
+<div style="display: flex; gap: 8px"><button style="font: inherit; font-size: 12px; font-weight: 500; padding: 6px 12px; border: 1px solid var(--pri); border-radius: 6px; background: var(--pri); color: var(--onpri); cursor: pointer">Try last 24h</button><button style="font: inherit; font-size: 12px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--tx2); cursor: pointer">Add level:error</button></div>
+</div>
+</section>
+
+<section style="border: 1px solid var(--line); border-radius: 10px; background: var(--bg); overflow: hidden; display: flex; flex-direction: column">
+<div style="padding: 10px 14px; border-bottom: 1px solid var(--line); font-size: 11px; color: var(--tx3); font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase">Ingestion problem</div>
+<div style="padding: 16px 14px; display: flex; flex-direction: column; gap: 12px">
+<div role="alert" style="display: flex; gap: 12px; padding: 12px 14px; border: 1px solid var(--errln); background: var(--errbg); border-radius: 6px">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" style="color: var(--errtx); flex: 0 0 16px; margin-top: 1px"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5M12 16h.01"></path></svg>
+<div style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 13px; font-weight: 500; color: var(--errtx)">No events from worker for 14 minutes</span><span style="font-size: 12px; color: var(--tx2)">The last 37 requests from this source were rejected with <code style="font-family: 'Geist Mono', monospace">401 invalid token</code>. The token may have been regenerated.</span></div>
+</div>
+<div style="font-family: 'Geist Mono', monospace; font-size: 12px; color: var(--tx2); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; background: var(--bg2)"><span>10:41:58  401  worker  POST /v1/logs</span><span>10:41:43  401  worker  POST /v1/logs</span><span style="color: var(--tx3)">… 35 more</span></div>
+<div style="display: flex; gap: 8px"><a href="Project.dc.html" style="font-size: 12px; font-weight: 500; padding: 6px 12px; border: 1px solid var(--pri); border-radius: 6px; background: var(--pri); color: var(--onpri); text-decoration: none">Check source token</a><button style="font: inherit; font-size: 12px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--tx2); cursor: pointer">Dismiss</button></div>
+</div>
+</section>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":900}}'>
+class Component extends DCLogic {
+constructor(props) { super(props); this.state = { theme: (function () { try { return localStorage.getItem('logs-theme') || 'light'; } catch (e) { return 'light'; } })() }; }
+renderVals() {
+var self = this, st = this.state;
+var widths = [72, 54, 88, 40, 66, 58, 80];
+return {
+theme: st.theme, themeLabel: st.theme === 'dark' ? 'Light mode' : 'Dark mode',
+toggleTheme: function () { var t = st.theme === 'dark' ? 'light' : 'dark'; try { localStorage.setItem('logs-theme', t); } catch (e) {} self.setState({ theme: t }); },
+skeleton: widths.map(function (w) { return { msg: 'height: 10px; border-radius: 999px; background: var(--bg3); width: ' + w + '%' }; })
+};
+}
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sign in</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+.t{--bg:#FFFFFF;--bg2:#FAFAFA;--bg3:#F4F4F5;--line:#E7E7E7;--line2:#D4D4D8;--tx:#0A0A0A;--tx2:#3F3F46;--tx3:#646464;--pri:#0A0A0A;--onpri:#FFFFFF;--err:#D92D20;--errtx:#B42318;--errbg:#FEF3F2;--errln:#FECDCA;--warn:#C4640A;--warntx:#B54708;--warnbg:#FFFAEB;--warnln:#FEDF89;--infobar:#8E8E96;--ok:#079455;--oktx:#067647;--okbg:#ECFDF3;--okln:#ABEFC6;--blue:#2563EB;--focus:#2563EB;--shadow:0 1px 2px rgba(0,0,0,.04),0 8px 24px rgba(0,0,0,.06)}
+.t[data-theme="dark"]{--bg:#0B0B0C;--bg2:#111113;--bg3:#1C1C1F;--line:#26262A;--line2:#3A3A40;--tx:#EDEDED;--tx2:#C4C4C8;--tx3:#9A9AA2;--pri:#EDEDED;--onpri:#0A0A0A;--err:#F04438;--errtx:#FDA29B;--errbg:#2A1211;--errln:#55160C;--warn:#F79009;--warntx:#FEC84B;--warnbg:#2A1E08;--warnln:#4E3A0B;--infobar:#6B6B73;--ok:#32D583;--oktx:#75E0A7;--okbg:#0A2A1B;--okln:#0E4A2E;--blue:#60A5FA;--focus:#60A5FA;--shadow:0 8px 24px rgba(0,0,0,.5)}
+.t a{color:var(--tx)}.t a:hover{color:var(--tx2)}
+.t :focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+</style>
+</helmet>
+<div class="t" data-theme="{{theme}}" style="width: 480px; height: 600px; box-sizing: border-box; font-family: Geist, sans-serif; color: var(--tx); background-color: var(--bg2); background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px); background-size: 24px 24px; background-position: -1px -1px; display: flex; align-items: center; justify-content: center; padding: 40px">
+<form style="width: 100%; max-width: 360px; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); padding: 28px; box-sizing: border-box; display: flex; flex-direction: column; gap: 16px">
+<span style="width: 28px; height: 28px; border-radius: 6px; background: var(--pri); display: inline-flex; align-items: center; justify-content: center"><span style="width: 10px; height: 10px; border-radius: 50%; background: #3DDC97"></span></span>
+<div style="display: flex; flex-direction: column; gap: 4px">
+<h1 style="margin: 0; font-size: 24px; font-weight: 600; letter-spacing: -0.02em">Sign in to Acme</h1>
+<p style="margin: 0; font-size: 13px; color: var(--tx3)">Logs for your team, on your own Cloudflare account.</p>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<label for="email" style="font-size: 12px; font-weight: 500; color: var(--tx2)">Email</label>
+<input id="email" type="email" autocomplete="username" value="you@acme.dev" style="font: inherit; font-size: 13px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--tx)">
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<div style="display: flex; justify-content: space-between; align-items: baseline"><label for="pw" style="font-size: 12px; font-weight: 500; color: var(--tx2)">Password</label><a href="#" aria-disabled="true" title="Ask a team admin to reset your password" style="font-size: 12px; color: var(--tx3)">Forgot?</a></div>
+<input id="pw" type="password" autocomplete="current-password" value="password123" style="font: inherit; font-size: 13px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--tx)">
+</div>
+<a href="Main.dc.html" style="background: var(--pri); color: var(--onpri); text-decoration: none; text-align: center; padding: 9px 12px; border-radius: 6px; font-size: 13px; font-weight: 500; margin-top: 4px">Sign in</a>
+<div style="border-top: 1px solid var(--line); padding-top: 14px; font-family: 'Geist Mono', monospace; font-size: 11px; line-height: 1.6; color: var(--tx3)">First sign-in uses the <span style="color: var(--tx2)">ADMIN_PASSWORD</span> secret set at deploy.</div>
+</form>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":480,"height":600}}'>
+class Component extends DCLogic {
+renderVals() {
+var th = 'light';
+try { th = localStorage.getItem('logs-theme') || 'light'; } catch (e) {}
+return { theme: th };
+}
+}
+</script>
+</body>
+</html>

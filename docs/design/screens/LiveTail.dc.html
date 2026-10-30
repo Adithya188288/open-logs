@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Live tail</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+.t{--bg:#FFFFFF;--bg2:#FAFAFA;--bg3:#F4F4F5;--line:#E7E7E7;--line2:#D4D4D8;--tx:#0A0A0A;--tx2:#3F3F46;--tx3:#646464;--pri:#0A0A0A;--onpri:#FFFFFF;--err:#D92D20;--errtx:#B42318;--errbg:#FEF3F2;--errln:#FECDCA;--warn:#C4640A;--warntx:#B54708;--warnbg:#FFFAEB;--warnln:#FEDF89;--infobar:#8E8E96;--ok:#079455;--oktx:#067647;--okbg:#ECFDF3;--okln:#ABEFC6;--blue:#2563EB;--focus:#2563EB;--shadow:0 1px 2px rgba(0,0,0,.04),0 8px 24px rgba(0,0,0,.06)}
+.t[data-theme="dark"]{--bg:#0B0B0C;--bg2:#111113;--bg3:#1C1C1F;--line:#26262A;--line2:#3A3A40;--tx:#EDEDED;--tx2:#C4C4C8;--tx3:#9A9AA2;--pri:#EDEDED;--onpri:#0A0A0A;--err:#F04438;--errtx:#FDA29B;--errbg:#2A1211;--errln:#55160C;--warn:#F79009;--warntx:#FEC84B;--warnbg:#2A1E08;--warnln:#4E3A0B;--infobar:#6B6B73;--ok:#32D583;--oktx:#75E0A7;--okbg:#0A2A1B;--okln:#0E4A2E;--blue:#60A5FA;--focus:#60A5FA;--shadow:0 8px 24px rgba(0,0,0,.5)}
+.t a{color:var(--tx)}.t a:hover{color:var(--tx2)}
+.t :focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.t .row:hover{background:var(--bg2)}
+.t .row:focus-visible{outline-offset:-2px}
+.t .bar{font:inherit;border:none;background:transparent;padding:0;cursor:pointer}
+.t .bar:hover{opacity:.7}
+.t .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (prefers-reduced-motion: no-preference){@keyframes pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb, var(--ok) 45%, transparent)}100%{box-shadow:0 0 0 6px transparent}}.live{animation:pulse 1.8s ease-out infinite}@keyframes flash{0%{background:var(--okbg)}100%{background:transparent}}.fresh{animation:flash 2.4s ease-out}}
+</style>
+</helmet>
+<div class="t" data-theme="{{theme}}" style="font-family: Geist, sans-serif; color: var(--tx); background: var(--bg); min-height: 900px; display: flex; flex-wrap: wrap">
+<nav aria-label="Main" style="flex: 1 1 232px; max-width: 232px; box-sizing: border-box; background: var(--bg2); border-right: 1px solid var(--line); padding: 14px 12px; display: flex; flex-direction: column; gap: 2px">
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 6px; margin-bottom: 14px; text-decoration: none"><span style="width: 22px; height: 22px; border-radius: 6px; background: var(--pri); display: inline-flex; align-items: center; justify-content: center"><span style="width: 8px; height: 8px; border-radius: 50%; background: #3DDC97"></span></span><span style="font-weight: 600; font-size: 15px">Acme</span></a>
+<div style="font-size: 11px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--tx3); padding: 4px 10px 6px">Project</div>
+<button style="font: inherit; color: inherit; text-align: left; cursor: pointer; display: flex; align-items: center; justify-content: space-between; font-family: 'Geist Mono', monospace; font-size: 13px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); margin-bottom: 10px">checkout-app<span style="color: var(--tx3); font-size: 11px">▾</span></button>
+<a href="LiveTail.dc.html" aria-current="page" style="display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 6px; font-size: 13px; text-decoration: none; color: var(--tx); font-weight: 500; background: var(--bg); box-shadow: 0 0 0 1px var(--line)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h10M4 18h13"></path></svg>Live tail</a>
+<a href="Dashboard.dc.html" style="display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 6px; font-size: 13px; text-decoration: none; color: var(--tx2)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M5 20V11M11 20V5M17 20v-6M3 20h18"></path></svg>Dashboards</a>
+<a href="Project.dc.html" style="display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 6px; font-size: 13px; text-decoration: none; color: var(--tx2)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 2v5M15 2v5M6 7h12v4a6 6 0 0 1-12 0zM12 17v5"></path></svg>Sources<span style="margin-left: auto; font-family: 'Geist Mono', monospace; font-size: 11px; color: var(--tx3)">3</span></a>
+<div style="font-size: 11px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--tx3); padding: 18px 10px 6px">Saved views</div>
+<sc-for list="{{views}}" as="v" hint-placeholder-count="3">
+<button style="{{v.style}}"><span style="{{v.dotStyle}}"></span>{{v.name}}</button>
+</sc-for>
+<div style="flex-grow: 1; min-height: 24px"></div>
+<button onClick="{{toggleTheme}}" style="font: inherit; color: var(--tx2); text-align: left; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 7px 10px; border: none; border-radius: 6px; background: transparent; font-size: 13px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"></path></svg>{{themeLabel}}</button>
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 6px; font-size: 13px; text-decoration: none; color: var(--tx2)">← All projects</a>
+</nav>
+<main style="flex: 999 1 560px; min-width: 0; box-sizing: border-box; display: flex; flex-direction: column">
+<header style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 24px; border-bottom: 1px solid var(--line)">
+<div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap">
+<h1 style="margin: 0; font-size: 15px; font-weight: 600">Live tail</h1>
+<span style="{{statusStyle}}"><span class="{{dotClass}}" style="{{dotStyle}}"></span>{{statusText}}</span>
+</div>
+<div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap">
+<div role="group" aria-label="Time range" style="display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden">
+<sc-for list="{{ranges}}" as="g" hint-placeholder-count="5"><button onClick="{{g.pick}}" aria-pressed="{{g.on}}" style="{{g.style}}">{{g.name}}</button></sc-for>
+</div>
+<button onClick="{{togglePause}}" style="font: inherit; font-size: 12px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--tx2); cursor: pointer; display: inline-flex; align-items: center; gap: 6px">{{pauseLabel}}</button>
+<button style="font: inherit; font-size: 12px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--tx2); cursor: pointer">Export CSV</button>
+</div>
+</header>
+<div style="padding: 14px 24px 0 24px; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; gap: 8px; flex-wrap: wrap">
+<div style="flex: 1 1 360px; min-width: 0; display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px 5px 12px; background: var(--bg)">
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" style="color: var(--tx3); flex: 0 0 15px"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4"></path></svg>
+<span style="font-family: 'Geist Mono', monospace; font-size: 12px; padding: 3px 4px 3px 8px; border-radius: 6px; background: var(--bg3); color: var(--tx2); display: inline-flex; align-items: center; gap: 4px; white-space: nowrap">source = <span style="color: var(--tx)">api, worker</span><button aria-label="Remove filter source" style="font: inherit; border: none; background: transparent; color: var(--tx3); cursor: pointer; padding: 0 4px">×</button></span>
+<label for="q" style="position: absolute; width: 1px; height: 1px; overflow: hidden">Search events</label>
+<input id="q" placeholder="Search message, or field:value  e.g. status:500" style="flex-grow: 1; min-width: 0; border: none; outline: none; background: transparent; color: var(--tx); font-family: 'Geist Mono', monospace; font-size: 13px; padding: 4px 2px">
+<kbd style="font-family: 'Geist Mono', monospace; font-size: 11px; color: var(--tx3); border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px">/</kbd>
+</div>
+<button onClick="{{toggleWrap}}" aria-pressed="{{wrap}}" style="{{wrapBtnStyle}}">Wrap lines</button>
+<button style="font: inherit; font-size: 12px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--tx2); cursor: pointer">Save view</button>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px"><span style="font-size: 12px; color: var(--tx3); display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap"><span><span style="color: var(--tx); font-weight: 500">{{sumEvents}}</span> events · {{sumWindow}} · <span style="color: var(--errtx); font-weight: 500">{{sumErrors}} errors</span></span><sc-if value="{{zoomed}}" hint-placeholder-val="{{ false }}"><span style="display: inline-flex; align-items: center; gap: 6px; font-family: 'Geist Mono', monospace; font-size: 11px; padding: 2px 4px 2px 8px; border-radius: 6px; background: var(--bg3); color: var(--tx)">{{zoomLabel}}<button onClick="{{unzoom}}" style="font: inherit; font-family: Geist, sans-serif; font-size: 11px; border: none; background: var(--bg); color: var(--tx2); border-radius: 6px; padding: 1px 6px; cursor: pointer">Back to now</button></span></sc-if></span><span role="group" aria-label="Show levels" style="display: flex; gap: 4px"><sc-for list="{{legend}}" as="lg" hint-placeholder-count="3"><button onClick="{{lg.toggle}}" aria-pressed="{{lg.on}}" style="{{lg.style}}"><span style="{{lg.sw}}"></span>{{lg.name}}</button></sc-for></span></div>
+<div style="display: flex; gap: 8px">
+<div aria-hidden="true" style="display: flex; flex-direction: column; justify-content: space-between; height: 64px; font-family: 'Geist Mono', monospace; font-size: 11px; line-height: 1; color: var(--tx3); text-align: right; width: 24px"><span>90</span><span>0</span></div>
+<div style="flex-grow: 1; position: relative; display: flex; align-items: flex-end; gap: 2px; height: 64px; border-bottom: 1px solid var(--line2)">
+<div aria-hidden="true" style="position: absolute; left: 0; right: 0; top: 0; border-top: 1px dashed var(--line)"></div>
+<sc-for list="{{bars}}" as="b" hint-placeholder-count="60"><button class="bar" onClick="{{b.pick}}" title="{{b.title}}" aria-label="{{b.title}}" style="{{b.wrap}}"><span style="{{b.err}}"></span><span style="{{b.warn}}"></span><span style="{{b.info}}"></span></button></sc-for>
+</div>
+</div>
+<div style="display: flex; justify-content: space-between; font-family: 'Geist Mono', monospace; font-size: 11px; color: var(--tx3); padding-left: 32px"><span>10:28</span><span>10:32</span><span>10:35</span><span>10:39</span><span>10:42</span></div>
+</div>
+</div>
+<div style="margin: 12px 24px 0 24px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; display: flex; flex-direction: column">
+<div style="display: grid; grid-template-columns: 116px 64px 76px minmax(0, 1fr) 24px; gap: 12px; padding: 8px 14px; background: var(--bg2); border-bottom: 1px solid var(--line); font-size: 11px; color: var(--tx3); font-weight: 500; align-items: center">
+<button onClick="{{toggleRel}}" title="Switch absolute / relative time" style="font: inherit; color: inherit; text-align: left; border: none; background: transparent; cursor: pointer; padding: 0; display: inline-flex; gap: 4px; align-items: center">{{timeHead}} ⇄</button><span>Level</span><span>Source</span><span>Message</span>
+<button aria-label="Choose columns" title="Columns" style="font: inherit; color: var(--tx3); border: none; background: transparent; cursor: pointer; padding: 0">⋮</button>
+</div>
+<sc-if value="{{showBanner}}" hint-placeholder-val="{{ true }}">
+<button onClick="{{showNew}}" style="font: inherit; font-size: 12px; cursor: pointer; border: none; border-bottom: 1px solid var(--okln); background: var(--okbg); color: var(--oktx); padding: 7px 14px; text-align: center; font-weight: 500">↑ 2 new events since you started reading · show</button>
+</sc-if>
+<div class="sr" aria-live="polite">{{announce}}</div>
+<sc-if value="{{noRows}}" hint-placeholder-val="{{ false }}"><div style="padding: 32px 14px; text-align: center; font-size: 13px; color: var(--tx3)">No events here. Turn a level back on, or go back to now.</div></sc-if>
+<div tabindex="0" onKeyDown="{{onKey}}" aria-label="Event list. j and k move between events, Enter expands, slash jumps to search." style="display: flex; flex-direction: column; outline-offset: -2px">
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="12">
+<div class="{{r.cls}}" style="{{r.wrapStyle}}">
+<button class="row" tabindex="-1" onClick="{{r.toggle}}" aria-expanded="{{r.open}}" style="font: inherit; color: inherit; text-align: left; border: none; background: transparent; cursor: pointer; width: 100%; display: grid; grid-template-columns: 116px 64px 76px minmax(0, 1fr) 24px; gap: 12px; padding: 7px 14px; font-family: 'Geist Mono', monospace; font-size: 13px; align-items: center"><span style="color: var(--tx3); font-size: 12px">{{r.time}}</span><span style="{{r.lvlStyle}}">{{r.lvl}}</span><span style="color: var(--tx2)">{{r.service}}</span><span style="{{msgStyle}}">{{r.message}}</span><span style="color: var(--tx3); text-align: center">{{r.chev}}</span></button>
+<sc-if value="{{r.open}}" hint-placeholder-val="{{ false }}">
+<div style="padding: 2px 14px 14px 14px; display: flex; flex-wrap: wrap; gap: 16px">
+<div style="flex: 999 1 420px; min-width: 0; display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 6px; background: var(--bg)">
+<sc-for list="{{r.fields}}" as="f" hint-placeholder-count="5">
+<div style="display: grid; grid-template-columns: 120px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 5px 10px; border-bottom: 1px solid var(--line); font-family: 'Geist Mono', monospace; font-size: 12px"><span style="color: var(--tx3)">{{f.k}}</span><span style="color: var(--tx); overflow-wrap: anywhere">{{f.v}}</span><span style="display: flex; gap: 4px; font-family: Geist, sans-serif"><button title="Filter on this value" style="font: inherit; font-size: 11px; padding: 2px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--tx2); cursor: pointer">= Filter</button><a href="Dashboard.dc.html" title="Chart this field" style="font-size: 11px; padding: 2px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--tx2); text-decoration: none">Chart</a></span></div>
+</sc-for>
+</div>
+<div style="flex: 1 1 180px; display: flex; flex-direction: column; gap: 6px">
+<button style="font: inherit; font-size: 12px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--tx2); cursor: pointer; text-align: left">Copy as JSON</button>
+<button style="font: inherit; font-size: 12px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--tx2); cursor: pointer; text-align: left">Show surrounding events</button>
+<button style="font: inherit; font-size: 12px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--tx2); cursor: pointer; text-align: left">Copy link to event</button>
+</div>
+</div>
+</sc-if>
+</div>
+</sc-for>
+</div>
+</div>
+<div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding: 10px 24px 24px 24px; font-size: 11px; color: var(--tx3)"><span>Showing 12 of 8,412 · newest first</span><span><kbd style="font-family: 'Geist Mono', monospace">j</kbd>/<kbd style="font-family: 'Geist Mono', monospace">k</kbd> move · <kbd style="font-family: 'Geist Mono', monospace">Enter</kbd> expand · <kbd style="font-family: 'Geist Mono', monospace">/</kbd> search</span></div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":900}}'>
+class Component extends DCLogic {
+constructor(props) { super(props); this.state = { open: 1, cursor: 1, theme: (function () { try { return localStorage.getItem('logs-theme') || 'light'; } catch (e) { return 'light'; } })(), paused: false, rel: false, fresh: false, range: '15m', wrap: false, zoom: -1, hide: { info: false, warn: false, error: false } }; }
+renderVals() {
+var self = this, st = this.state;
+var newRows = [
+{ isNew: true, t: '10:42:31.640', r: 'just now', l: 'error', s: 'worker', m: 'payment failed: card_declined', f: { order_id: 4830, provider: 'stripe', code: 'card_declined' } },
+{ isNew: true, t: '10:42:29.118', r: '2s ago', l: 'info', s: 'api', m: 'POST /checkout 200 204ms', f: { route: '/checkout', status: 200, duration_ms: 204 } }
+];
+var data = [
+{ t: '10:42:18.204', r: '13s ago', l: 'info', s: 'api', m: 'POST /checkout 200 182ms', f: { route: '/checkout', status: 200, duration_ms: 182, user_id: 'u_1093' } },
+{ t: '10:42:16.871', r: '15s ago', l: 'error', s: 'worker', m: 'payment failed: card_declined', f: { order_id: 4821, provider: 'stripe', code: 'card_declined', amount: 4900, attempt: 2 } },
+{ t: '10:42:15.330', r: '16s ago', l: 'warn', s: 'api', m: 'slow query on orders took 1402ms', f: { table: 'orders', duration_ms: 1402, rows: 3120 } },
+{ t: '10:42:11.019', r: '20s ago', l: 'info', s: 'web', m: 'GET /pricing 200 38ms', f: { path: '/pricing', country: 'IN', device: 'mobile' } },
+{ t: '10:42:09.552', r: '22s ago', l: 'info', s: 'worker', m: 'invoice #8812 emailed', f: { invoice_id: 8812, duration_ms: 640 } },
+{ t: '10:42:04.118', r: '27s ago', l: 'error', s: 'api', m: 'POST /checkout 500 upstream timeout after 10000ms', f: { route: '/checkout', status: 500, upstream: 'payments', duration_ms: 10000 } },
+{ t: '10:41:58.760', r: '33s ago', l: 'info', s: 'api', m: 'GET /orders 200 41ms', f: { route: '/orders', status: 200, duration_ms: 41 } },
+{ t: '10:41:55.403', r: '36s ago', l: 'warn', s: 'worker', m: 'retrying job sync-inventory (2/5)', f: { job: 'sync-inventory', attempt: 2, max: 5 } },
+{ t: '10:41:50.207', r: '41s ago', l: 'info', s: 'web', m: 'GET /checkout 200 64ms', f: { path: '/checkout', country: 'US', device: 'desktop' } },
+{ t: '10:41:47.981', r: '43s ago', l: 'info', s: 'api', m: 'POST /login 200 96ms', f: { route: '/login', status: 200, duration_ms: 96 } },
+{ t: '10:41:44.336', r: '47s ago', l: 'error', s: 'worker', m: 'payment failed: insufficient_funds', f: { order_id: 4809, provider: 'stripe', code: 'insufficient_funds' } },
+{ t: '10:41:40.090', r: '51s ago', l: 'info', s: 'api', m: 'GET /health 200 3ms', f: { route: '/health', status: 200, duration_ms: 3 } }
+];
+var bucketOf = function (t) { var p = t.split(':'); return (Number(p[1]) - 28) * 4 + Math.floor(Number(p[2]) / 15); };
+var list = (st.fresh ? newRows.concat(data) : data).filter(function (d) { return !st.hide[d.l] && (st.zoom < 0 || bucketOf(d.t) === st.zoom); });
+var pill = 'font-size: 11px; font-weight: 500; border-radius: 999px; padding: 1px 0; text-align: center; border: 1px solid ';
+var lv = {
+error: { txt: 'ERROR', st: pill + 'var(--errln); color: var(--errtx); background: var(--errbg)' },
+warn: { txt: 'WARN', st: pill + 'var(--warnln); color: var(--warntx); background: var(--warnbg)' },
+info: { txt: 'INFO', st: pill + 'var(--line); color: var(--tx2); background: var(--bg3)' }
+};
+var rows = list.map(function (d, i) {
+var open = st.open === i, cur = st.cursor === i, isNew = !!d.isNew;
+var fields = [{ k: 'timestamp', v: '2026-10-30T' + d.t + 'Z' }, { k: 'source', v: d.s }, { k: 'level', v: d.l }].concat(Object.keys(d.f).map(function (k) { return { k: k, v: String(d.f[k]) }; }));
+return {
+time: st.rel ? d.r : d.t, lvl: lv[d.l].txt, lvlStyle: lv[d.l].st, service: d.s, message: d.m, open: open, fields: fields, chev: open ? '▾' : '▸',
+cls: isNew ? 'fresh' : '',
+wrapStyle: 'border-bottom: 1px solid var(--line); ' + (open ? 'background: var(--bg2); ' : '') + (cur ? 'box-shadow: inset 2px 0 0 var(--tx)' : (isNew ? 'box-shadow: inset 2px 0 0 var(--ok)' : '')),
+toggle: function () { self.setState({ open: open ? -1 : i, cursor: i }); }
+};
+});
+var bars = [], tallies = [];
+for (var i = 0; i < 60; i++) {
+var inf = 30 + ((i * 7) % 19) + (i > 44 ? 8 : 0);
+var wr = 3 + ((i * 5) % 6);
+var er = (i % 11 === 3 ? 6 : 1 + (i % 3)) + (i > 52 ? 10 + (i - 52) * 2 : 0);
+var k = 64 / 90;
+tallies.push([inf, wr, er]);
+var mm = 28 + Math.floor(i / 4), ss = (i % 4) * 15;
+var stamp = '10:' + mm + ':' + (ss < 10 ? '0' + ss : ss);
+var dim = st.zoom >= 0 && st.zoom !== i;
+(function (idx, label) {
+bars.push({
+title: label + ' UTC · info ' + inf + ', warn ' + wr + ', error ' + er + ' · click to zoom to 15s',
+pick: function () { self.setState({ zoom: idx, open: -1, cursor: 0 }); },
+wrap: 'flex: 1 1 0; display: flex; flex-direction: column; justify-content: flex-end; height: 100%; opacity: ' + (dim ? '0.3' : '1') + (st.zoom === idx ? '; box-shadow: 0 0 0 1px var(--tx)' : ''),
+err: st.hide.error ? 'display: none' : 'display: block; height: ' + Math.round(er * k) + 'px; background: var(--err); border-radius: 2px 2px 0 0',
+warn: st.hide.warn ? 'display: none' : 'display: block; height: ' + Math.round(wr * k) + 'px; background: var(--warn)',
+info: st.hide.info ? 'display: none' : 'display: block; height: ' + Math.round(inf * k) + 'px; background: var(--infobar)'
+});
+})(i, stamp);
+}
+var zoomLabel = '';
+if (st.zoom >= 0) { var zm = 28 + Math.floor(st.zoom / 4), zs = (st.zoom % 4) * 15, ze = zs + 15; zoomLabel = '10:' + zm + ':' + (zs < 10 ? '0' + zs : zs) + '–' + (ze === 60 ? '10:' + (zm + 1) + ':00' : '10:' + zm + ':' + ze) + ' UTC'; }
+var lvMeta = [{ k: 'info', sw: 'var(--infobar)' }, { k: 'warn', sw: 'var(--warn)' }, { k: 'error', sw: 'var(--err)' }];
+var legend = lvMeta.map(function (m) {
+var off = st.hide[m.k];
+return {
+name: m.k, on: !off,
+sw: 'width: 8px; height: 8px; border-radius: 2px; background: ' + (off ? 'transparent; box-shadow: inset 0 0 0 1px ' + m.sw : m.sw),
+style: 'font: inherit; font-size: 11px; display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 6px; cursor: pointer; border: 1px solid var(--line); background: ' + (off ? 'transparent; color: var(--tx3); text-decoration: line-through' : 'var(--bg); color: var(--tx2)'),
+toggle: function () { var h = { info: st.hide.info, warn: st.hide.warn, error: st.hide.error }; h[m.k] = !h[m.k]; self.setState({ hide: h, open: -1, cursor: 0 }); }
+};
+});
+var cursorRow = list[st.cursor];
+var fmt = function (x) { return Math.round(x).toLocaleString('en-US'); };
+var sumE, sumR, sumW;
+if (st.zoom >= 0) { var tz = tallies[st.zoom]; sumE = fmt(tz[0] + tz[1] + tz[2]); sumR = fmt(tz[2]); sumW = '15 s'; }
+else { var mult = { '15m': 1, '1h': 4.1, '24h': 92.6, '7d': 611.4, 'Custom': 1 }[st.range]; sumE = fmt(8412 * mult); sumR = fmt(412 * mult); sumW = { '15m': '15 min', '1h': '1 h', '24h': '24 h', '7d': '7 days', 'Custom': 'custom range' }[st.range]; }
+var segOn = 'font: inherit; font-size: 12px; padding: 6px 10px; border: none; border-left: 1px solid var(--line); background: var(--pri); color: var(--onpri); cursor: pointer';
+var segOff = 'font: inherit; font-size: 12px; padding: 6px 10px; border: none; border-left: 1px solid var(--line); background: var(--bg); color: var(--tx2); cursor: pointer';
+var ranges = ['15m', '1h', '24h', '7d', 'Custom'].map(function (n, ix) { return { name: n, on: st.range === n, style: (st.range === n ? segOn : segOff) + (ix === 0 ? '; border-left: none' : ''), pick: function () { self.setState({ range: n }); } }; });
+var vbtn = 'font: inherit; color: var(--tx2); text-align: left; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 7px 10px; border: none; border-radius: 6px; background: transparent; font-size: 13px';
+var n = list.length;
+return {
+theme: st.theme, themeLabel: st.theme === 'dark' ? 'Light mode' : 'Dark mode',
+toggleTheme: function () { var t = st.theme === 'dark' ? 'light' : 'dark'; try { localStorage.setItem('logs-theme', t); } catch (e) {} self.setState({ theme: t }); },
+paused: st.paused, pauseLabel: st.paused ? '▶ Resume' : '❚❚ Pause',
+togglePause: function () { self.setState({ paused: !st.paused }); },
+statusText: st.paused ? 'Paused · frozen at data through 10:42:18 UTC' : 'Data through 10:42:18 UTC · ~60s ingest lag · next check 48s',
+wrap: st.wrap, toggleWrap: function () { self.setState({ wrap: !st.wrap }); },
+wrapBtnStyle: 'font: inherit; font-size: 12px; padding: 6px 12px; border-radius: 6px; cursor: pointer; border: 1px solid ' + (st.wrap ? 'var(--tx2); background: var(--bg3); color: var(--tx)' : 'var(--line); background: var(--bg); color: var(--tx2)'),
+msgStyle: st.wrap ? 'color: var(--tx); white-space: pre-wrap; overflow-wrap: anywhere' : 'color: var(--tx); white-space: nowrap; overflow: hidden; text-overflow: ellipsis',
+sumEvents: sumE, sumErrors: sumR, sumWindow: sumW,
+zoomed: st.zoom >= 0, zoomLabel: zoomLabel, unzoom: function () { self.setState({ zoom: -1, cursor: 0 }); },
+legend: legend, noRows: n === 0,
+announce: cursorRow ? 'Event ' + (st.cursor + 1) + ' of ' + n + ': ' + cursorRow.l + ', ' + cursorRow.s + ', ' + cursorRow.m : '',
+statusStyle: 'display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 2px 8px; border-radius: 999px; border: 1px solid ' + (st.paused ? 'var(--line); color: var(--tx3); background: var(--bg2)' : 'var(--okln); color: var(--oktx); background: var(--okbg)'),
+dotStyle: 'width: 6px; height: 6px; border-radius: 50%; background: ' + (st.paused ? 'var(--tx3)' : 'var(--ok)'),
+dotClass: st.paused ? '' : 'live',
+timeHead: st.rel ? 'Age' : 'Time · UTC',
+toggleRel: function () { self.setState({ rel: !st.rel }); },
+showBanner: !st.fresh && !st.paused,
+showNew: function () { self.setState({ fresh: true, open: -1, cursor: 0 }); },
+onKey: function (e) {
+if (e.key === '/') { e.preventDefault(); var q = document.getElementById('q'); if (q) q.focus(); return; }
+if (e.target !== e.currentTarget && e.key === 'Enter') return;
+if (e.key === 'j') { e.preventDefault(); self.setState({ cursor: Math.min(n - 1, st.cursor + 1) }); }
+else if (e.key === 'k') { e.preventDefault(); self.setState({ cursor: Math.max(0, st.cursor - 1) }); }
+else if (e.key === 'Enter') { e.preventDefault(); self.setState({ open: st.open === st.cursor ? -1 : st.cursor }); }
+},
+ranges: ranges, rows: rows, bars: bars,
+views: [
+{ name: 'Errors only', dot: 'var(--err)', dotStyle: 'width: 6px; height: 6px; border-radius: 2px; background: var(--err)', style: vbtn },
+{ name: 'Checkout path', dot: 'var(--blue)', dotStyle: 'width: 6px; height: 6px; border-radius: 2px; background: var(--blue)', style: vbtn },
+{ name: 'Slow requests > 1s', dot: 'var(--warn)', dotStyle: 'width: 6px; height: 6px; border-radius: 2px; background: var(--warn)', style: vbtn }
+]
+};
+}
+}
+</script>
+</body>
+</html>
