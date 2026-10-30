@@ -97,7 +97,15 @@ async function render() {
       sendPanel({ sourceName: source.name, tokenPrefix: source.token_prefix }),
     ),
   );
-  count.replaceWith(h('span', { 'data-testid': 'events-24h' }, await events24h()));
+  const recent = source.last_event_at && Date.now() - source.last_event_at < 5 * 60_000;
+  count.replaceWith(
+    h(
+      'span',
+      null,
+      h('span', { 'data-testid': 'events-24h' }, await events24h()),
+      recent ? h('span.tiny.muted', null, ' · new events take 1–3 minutes to appear') : null,
+    ),
+  );
 }
 
 async function rename() {

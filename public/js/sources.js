@@ -1,7 +1,7 @@
 // Sources (/sources): the project's sources, and a modal to create one.
 import { api, ApiError } from './api.js';
 import { h, icon, modal, mount } from './dom.js';
-import { ago } from './format.js';
+import { ago, lagLabel } from './format.js';
 import { sendPanel } from './sendpanel.js';
 import { page, topbar } from './shell.js';
 
@@ -77,7 +77,7 @@ async function render() {
               h('td', null, h('code.small.muted', null, `${s.token_prefix}…`)),
               h('td', null, h('span.small.muted', null, s.last_event_at ? ago(s.last_event_at) : 'never')),
               h('td', null, statusPill(s)),
-              h('td.right', null, icon('chevron', 14)),
+              h('td.right', null, icon('right', 14)),
             ),
           ),
         ),
@@ -152,7 +152,7 @@ function newSource() {
             null,
             got
               ? 'You’re connected.'
-              : `${lagMs > 0 ? `Events land about ${Math.round(lagMs / 1000)}s after they’re sent.` : 'Events show up within seconds.'} This updates on its own.`,
+              : `${lagMs > 0 ? `Events land ${lagLabel(lagMs).replace('~', 'about ')} after they’re sent.` : 'Events show up within seconds.'} This updates on its own.`,
           ),
         ),
         h(

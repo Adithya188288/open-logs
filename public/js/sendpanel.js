@@ -28,6 +28,22 @@ export function sendPanel(o) {
     const snip = snippets(endpoint, o.sourceName, hint)[platform];
     mount(
       root,
+      o.token
+        ? h(
+            'div.tokenrow',
+            null,
+            h('span.k', null, 'Token'),
+            h('code', { 'data-testid': 'token' }, o.token),
+            h(
+              'button.btn',
+              {
+                type: 'button',
+                onclick: async (/** @type {Event} */ e) => flashCopied(e, await copyText(o.token ?? '')),
+              },
+              'Copy token',
+            ),
+          )
+        : null,
       h(
         'div.platforms',
         { role: 'group', 'aria-label': 'Platform' },
@@ -66,22 +82,6 @@ export function sendPanel(o) {
         ),
         h('pre', { 'data-testid': 'snippet' }, snip.code),
       ),
-      o.token
-        ? h(
-            'div.tokenrow',
-            null,
-            h('span.k', null, 'Token'),
-            h('code', { 'data-testid': 'token' }, o.token),
-            h(
-              'button.btn',
-              {
-                type: 'button',
-                onclick: async (/** @type {Event} */ e) => flashCopied(e, await copyText(o.token ?? '')),
-              },
-              'Copy token',
-            ),
-          )
-        : null,
       o.token
         ? h(
             'p.tiny.warn-text',

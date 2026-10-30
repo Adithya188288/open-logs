@@ -219,7 +219,7 @@ Filter plus:
 
 ### `GET /api/status?project_id=…`
 `200 { "storage": "local" | "basin", "lag_ms": 0, "now": 0, "newest_event_at": 0 | null }`.
-The UI uses this for honest freshness ("Data through 10:42:18 UTC · ~60s ingest lag").
+The UI uses this for honest freshness ("Data through 10:42:18 UTC · ~1–3 min ingest lag").
 
 ---
 

@@ -859,6 +859,10 @@ kbd {
 .dialog.wide {
   max-width: 640px;
 }
+.dialog {
+  max-height: calc(100vh - 14vh - 16px);
+  overflow-y: auto;
+}
 .dialog-backdrop {
   overflow-y: auto;
 }

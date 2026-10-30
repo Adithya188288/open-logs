@@ -136,6 +136,30 @@ function tile(c) {
 
 function renderTiles() {
   results.clear();
+  if (!project.sources.length) {
+    // Nothing can have arrived yet, so don't spend Basin queries on empty charts.
+    mount(
+      tilesEl,
+      h(
+        'div.empty-board',
+        { 'data-testid': 'no-logs-yet' },
+        h('h2', null, 'No logs yet'),
+        h(
+          'p.small',
+          null,
+          'Add a source (one per service), send it a log, and these charts fill in on their own.',
+        ),
+        h(
+          'a.btn.primary',
+          { href: `/sources?project=${encodeURIComponent(project.id)}&new=1` },
+          icon('plus', 14),
+          'Add a source',
+        ),
+      ),
+    );
+    metaEl.textContent = `${charts.length} charts, waiting for data`;
+    return;
+  }
   if (!charts.length) {
     mount(
       tilesEl,

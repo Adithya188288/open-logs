@@ -98,6 +98,7 @@ const ICONS = {
   home: 'M4 20V10l8-6 8 6v10h-5v-6H9v6z',
   folders: 'M3 7h6l2 2h10v10H3zM3 7V5h6l2 2',
   chevron: 'M8 10l4 4 4-4',
+  right: 'M10 8l4 4-4 4',
   more: 'M5 12h.01M12 12h.01M19 12h.01',
   help: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01',
   x: 'M6 6l12 12M18 6L6 18',
@@ -296,6 +297,7 @@ export function modal(title, build, opts = {}) {
     box,
   );
   const close = () => {
+    document.removeEventListener('keydown', onKey);
     backdrop.remove();
     opts.onClose?.();
   };
@@ -308,7 +310,8 @@ export function modal(title, build, opts = {}) {
     ),
     ...build(close),
   );
-  box.addEventListener('keydown', (e) => e.key === 'Escape' && close());
+  const onKey = (/** @type {KeyboardEvent} */ e) => e.key === 'Escape' && close();
+  document.addEventListener('keydown', onKey);
   document.body.appendChild(backdrop);
   /** @type {HTMLElement | null} */ (box.querySelector('input, select, button:not(.iconbtn)'))?.focus();
   return { box, close };

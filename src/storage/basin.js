@@ -13,8 +13,9 @@ import { eventsPage, histogramBuckets, overviewShape } from './shape.js';
 
 const SQL_API = 'https://api.sql.cloudflarestorage.com/api/v1/accounts';
 const TABLE_NAME = /^[a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*$/;
-// The Iceberg sink rolls files every 60s (its minimum), so events become queryable about a minute late.
-const INGEST_LAG_MS = 60_000;
+// The Iceberg sink rolls files every 60s (its minimum) and then commits them to the catalog. On staging
+// (2026-10-30) events became queryable 1.5–3.5 minutes after ingest, so freshness is reported against 3 min.
+const INGEST_LAG_MS = 180_000;
 const NEWEST_LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
 
 /**

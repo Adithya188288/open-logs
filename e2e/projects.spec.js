@@ -11,6 +11,8 @@ test('switcher under the logo lists projects and creates a new one', async ({ pa
   await expect(page).toHaveURL(/\/sources\?project=prj_/);
   await expect(page.getByTestId('project-switcher')).toHaveText(new RegExp(name));
   await expect(page.getByTestId('no-sources')).toContainText('Add your first source');
+  await page.getByRole('link', { name: 'Dashboard' }).click();
+  await expect(page.getByTestId('no-logs-yet')).toContainText('No logs yet');
 });
 
 test('All projects shows live and waiting projects; delete needs DELETE', async ({ page, app }) => {

@@ -2,7 +2,7 @@
 import { api, ApiError } from './api.js';
 import { downloadCsv, toCsv } from './csv.js';
 import { confirmDelete, copyText, formDialog, h, icon, mount, popMenu, toast } from './dom.js';
-import { ago, hm, hms, hmsms, num, span } from './format.js';
+import { ago, hm, hms, hmsms, lagLabel, num, span } from './format.js';
 import { clauseLabel, clauseToSearch, parseSearch } from './search.js';
 import { page, topbar } from './shell.js';
 
@@ -255,7 +255,7 @@ function render() {
 }
 
 function renderStatus() {
-  const lag = status.lag_ms > 0 ? ` · ~${Math.round(status.lag_ms / 1000)}s ingest lag` : '';
+  const lag = status.lag_ms > 0 ? ` · ${lagLabel(status.lag_ms)} ingest lag` : '';
   let text;
   let live = false;
   if (!state.dataThrough) text = 'Loading…';
@@ -1119,7 +1119,7 @@ async function main() {
   project = ctx.project;
   sources = project.sources;
   status = await api(`/api/status?project_id=${project.id}`);
-  // Basin data is ~60s behind anyway, so polling more often than every 30s only adds query cost.
+  // Basin data is 1–3 minutes behind anyway, so polling more often than every 30s only adds query cost.
   pollMs = status.lag_ms > 0 ? 30_000 : 3000;
   loadViews();
 

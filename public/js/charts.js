@@ -186,7 +186,7 @@ function stackedBars(c, data) {
         'div.yaxis',
         { 'aria-hidden': 'true' },
         h('span', null, compact(max)),
-        h('span', null, compact(max / 2)),
+        h('span', null, max >= 4 ? compact(max / 2) : ''),
         h('span', null, '0'),
       ),
       h('div.vbars', { role: 'img', 'aria-label': `${c.title} over time` }, ...cols),
@@ -234,7 +234,7 @@ function lineChart(c, data) {
         'div.yaxis',
         { 'aria-hidden': 'true' },
         h('span', null, compact(max)),
-        h('span', null, compact(max / 2)),
+        h('span', null, max >= 4 ? compact(max / 2) : ''),
         h('span', null, '0'),
       ),
       h('div', { class: 'grow' }, svg),
@@ -307,6 +307,11 @@ function donut(c, data) {
 export function renderChart(c, data, opts = {}) {
   const linkFor = opts.linkFor ?? (() => null);
   if (c.viz === 'number') return numberChart(c, data, opts.prev ?? null);
+  const empty =
+    !data.groups.length &&
+    data.series.every((p) => !p.value) &&
+    data.series_by_group.every((g) => g.series.every((p) => !p.value));
+  if (empty) return [h('div.nodata', null, 'No events in this range')];
   const hasGroups = data.groups.length > 0;
   if (c.viz === 'pie')
     return hasGroups ? [donut(c, data)] : [h('div.nodata', null, 'Pick a field to split by')];

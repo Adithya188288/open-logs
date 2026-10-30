@@ -63,6 +63,12 @@ export function cap(s) {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
+/** "~1–3 min" style label for the Basin ingest lag. @param {number} ms */
+export function lagLabel(ms) {
+  if (ms < 90_000) return `~${Math.round(ms / 1000)}s`;
+  return `~1–${Math.round(ms / 60_000)} min`;
+}
+
 /** Duration label for a range in ms. @param {number} ms */
 export function span(ms) {
   if (ms < 60_000) return `${Math.round(ms / 1000)} s`;
