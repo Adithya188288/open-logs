@@ -10,11 +10,11 @@
     "not_found_handling": "none",
     "run_worker_first": ["/v1/*", "/api/*"]
   },
+  // No database_id: wrangler creates the D1 database on first deploy.
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "open-logs",
-      "database_id": "00000000-0000-0000-0000-000000000000",
       "migrations_dir": "migrations"
     }
   ],
@@ -32,7 +32,7 @@
     "staging": {
       "name": "open-logs-staging",
       "d1_databases": [
-        { "binding": "DB", "database_name": "open-logs-staging", "database_id": "REPLACE_WITH_D1_ID", "migrations_dir": "migrations" }
+        { "binding": "DB", "database_name": "open-logs-staging", "migrations_dir": "migrations" }
       ],
       "pipelines": [{ "binding": "LOG_STREAM", "stream": "REPLACE_WITH_STREAM_ID" }],
       "ratelimits": [

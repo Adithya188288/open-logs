@@ -1,0 +1,16 @@
+{
+  "name": "create-open-logs",
+  "version": "0.1.0",
+  "description": "Install Open Logs (self-hosted log management) into your own Cloudflare account.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "create-open-logs": "index.js"
+  },
+  "files": [
+    "index.js"
+  ],
+  "engines": {
+    "node": ">=20"
+  }
+}
