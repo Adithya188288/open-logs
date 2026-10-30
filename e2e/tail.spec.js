@@ -120,7 +120,8 @@ test('states: loading, no results, query too large, waiting', async ({ page, app
 
   await page.route('**/api/query', async (route) => {
     await new Promise((r) => setTimeout(r, 800));
-    await route.continue();
+    // The route may have been removed while this request waited.
+    await route.continue().catch(() => {});
   });
   await page.goto(`/tail?project=${project.id}`);
   await expect(page.getByRole('status', { name: 'Loading events' })).toBeVisible();

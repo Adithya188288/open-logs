@@ -52,7 +52,7 @@ Inside the repo, on a feature branch, you may write code, run tests, and commit 
 This repo defines four subagents in `.claude/agents/`. You (the main session) are the **lead**:
 you own the plan, git, branches, merges, and the API contract. Delegate:
 - `backend`: Worker, API, D1, auth, storage adapters, Basin.
-- `ui-builder`: the dashboard app (static HTML/CSS/JS served by the Worker).
+- `ui-builder`: the dashboard app (React + Vite in `app/`, built to `dist/` and served by the Worker).
 - `landing-page`: the public landing page, README, install docs.
 - `security-reviewer`: reviews every feature branch diff before merge. **A critical finding blocks the merge.**
 
@@ -61,8 +61,11 @@ Landing page can run in parallel any time. Security review runs at the end of ev
 Give each agent a narrow, explicit brief (branch name, files it owns, tests that must pass).
 
 ### Code style
-- Plain JavaScript (ES modules) with JSDoc types. No TypeScript build step, no frontend framework.
-- UI: vanilla HTML/CSS/JS, no bundler required. Small, readable files.
+- Plain JavaScript (ES modules, JSX in the UI) with JSDoc types. No TypeScript.
+- Backend: Hono on Cloudflare Workers (`src/`). Handlers are small functions; routing lives in `src/routes/index.js`.
+- UI: React + Vite single-page app (`app/`), React Router, plain CSS with the design tokens. No UI kit.
+  Loading states use the app logo with its green dot pulsing (`<Loader/>`). Small, readable components.
+  (Owner decision 2026-10-30: moved from vanilla multi-page HTML to React + Hono for instant navigation.)
 - Clear names over clever code. No dead code, no commented-out blocks.
 - Never log secrets or full tokens. Never commit `.dev.vars` or real credentials.
 

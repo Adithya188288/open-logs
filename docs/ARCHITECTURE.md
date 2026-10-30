@@ -9,7 +9,7 @@
   Browser (team) ──cookie session─────────▶  Open Logs Worker         │
                                           │  /v1/logs   ingest        │
                                           │  /api/*     app API       │
-                                          │  /*         static UI     │
+                                          │  /*         React app     │
                                           └──────┬───────────┬───────┘
                                                  │           │
                                          D1 (app data)   LogStorage adapter
@@ -22,8 +22,10 @@ One Worker, one deploy. Single team per deployment (no multi-tenancy across cust
 everyone who signs in belongs to the same team and sees every project).
 
 ## Stack and dependencies
-Allowed without asking: `wrangler`, `vitest`, `@cloudflare/vitest-pool-workers`, `@playwright/test`,
-a linter (`eslint` or `biome`). Anything else: ask first. Prefer Web Crypto and platform APIs over libraries.
+Allowed without asking: `wrangler`, `vitest`, `@cloudflare/vitest-plugin` (the renamed `vitest-pool-workers`),
+`@playwright/test`, `@biomejs/biome`, and (owner-approved 2026-10-30) `hono` for the Worker and `react`,
+`react-dom`, `react-router`, `vite`, `@vitejs/plugin-react` for the UI. Anything else: ask first.
+Prefer Web Crypto and platform APIs over libraries.
 
 ## Data model (D1)
 

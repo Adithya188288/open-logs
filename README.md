@@ -133,7 +133,9 @@ npm run test:e2e                       # Playwright against wrangler dev, light 
 npm run lint
 ```
 
-Plain JavaScript with JSDoc, no build step, no frontend framework. Git Flow: feature branches into `develop`,
+Worker: Hono on Cloudflare Workers (`src/`). UI: React + Vite (`app/`), built to `dist/` and served by the Worker.
+`npm run dev` builds the UI and runs `wrangler dev`; for hot reload run `npm run dev:ui` alongside it.
+Plain JavaScript with JSDoc. Git Flow: feature branches into `develop`,
 releases into `main`. See [CLAUDE.md](CLAUDE.md) and [docs/PLAN.md](docs/PLAN.md).
 
 ## Security

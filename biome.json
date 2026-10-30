@@ -3,7 +3,7 @@
   "files": {
     "includes": [
       "src/**",
-      "public/**",
+      "app/**",
       "test/**",
       "e2e/**",
       "scripts/**",
@@ -23,7 +23,7 @@
       "preset": "recommended",
       "style": { "noDescendingSpecificity": "off" },
       "complexity": { "noImportantStyles": "off" },
-      "a11y": { "noSvgWithoutTitle": "off" }
+      "a11y": { "noSvgWithoutTitle": "off", "noAutofocus": "off", "useSemanticElements": "off" }
     }
   },
   "assist": { "enabled": false }

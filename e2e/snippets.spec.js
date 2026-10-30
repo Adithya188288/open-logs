@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { snippets } from '../public/js/snippets.js';
+import { snippets } from '../app/src/lib/snippets.js';
 import { expect, test, uniq } from './fixtures.js';
 
 const has = (cmd) => spawnSync('which', [cmd]).status === 0;
