@@ -69,7 +69,6 @@ wrangler('pipeline', [
   '--sql',
   'INSERT INTO open_logs_sink SELECT * FROM open_logs_stream',
 ]);
-const d1 = wrangler('D1 database', ['d1', 'create', 'open-logs-staging']);
 
 const streamId = stream.match(/[0-9a-f]{32}/)?.[0] ?? '(see `npx wrangler basin pipelines streams list`)';
 const d1Id =
@@ -79,13 +78,12 @@ console.log(`
 Next steps
   1. In wrangler.jsonc → env.staging set:
        stream id      ${streamId}
-       D1 id          ${d1Id}
        BASIN_BUCKET   ${bucket}
        BASIN_TABLE    ${NAMESPACE}.${TABLE}
        BASIN_ACCOUNT_ID  your account id (npx wrangler whoami)
   2. Create an API token with Basin SQL read, Basin Catalog read and R2 read, then:
        npx wrangler secret put BASIN_SQL_TOKEN --env staging
        npx wrangler secret put ADMIN_PASSWORD --env staging
-  3. npx wrangler d1 migrations apply DB --remote --env staging
-  4. npx wrangler deploy --env staging
+  3. npx wrangler deploy --env staging        (creates the D1 database on first deploy)
+  4. npx wrangler d1 migrations apply DB --remote --env staging
 `);
