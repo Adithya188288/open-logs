@@ -220,10 +220,11 @@ export function Dashboard() {
           <span className="freshness small muted" data-testid="dashboard-freshness">
             {freshness}
             <button
-              className="btn link small"
+              className="btn ghost"
               type="button"
               onClick={() => queryClient.invalidateQueries({ queryKey: ['agg', project.id] })}
             >
+              <Icon name="refresh" size={14} />
               Refresh
             </button>
           </span>

@@ -202,7 +202,6 @@ function Sidebar() {
             {projects.map((x) => (
               <Link
                 key={x.id}
-                className="mono"
                 role="menuitem"
                 to={`${page}?project=${encodeURIComponent(x.id)}`}
                 aria-current={x.id === project?.id ? 'true' : undefined}

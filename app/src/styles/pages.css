@@ -21,7 +21,6 @@
   gap: var(--s-8);
 }
 .project .name {
-  font-family: var(--mono);
   font-size: 13px;
   font-weight: 500;
   text-decoration: none;
@@ -306,10 +305,10 @@ table.grid .email {
   box-shadow: 0 0 0 1px var(--tx);
 }
 .code {
-  border: 1px solid #222;
+  border: 1px solid var(--code-line);
   border-radius: 10px;
   overflow: hidden;
-  background: #0a0a0a;
+  background: var(--code-bg);
 }
 .code .bar {
   display: flex;
@@ -317,17 +316,17 @@ table.grid .email {
   align-items: center;
   gap: var(--s-8);
   padding: var(--s-6) var(--s-8) var(--s-6) var(--s-16);
-  border-bottom: 1px solid #222;
+  border-bottom: 1px solid var(--code-line);
   font-family: var(--mono);
   font-size: 12px;
-  color: #a3a3a3;
+  color: var(--code-tx2);
 }
 .code .bar button {
   font: inherit;
   font-size: 12px;
-  color: #e5e5e5;
-  background: #1a1a1a;
-  border: 1px solid #333;
+  color: var(--code-tx);
+  background: var(--code-raised);
+  border: 1px solid var(--code-line2);
   border-radius: 6px;
   padding: var(--s-4) var(--s-12);
   cursor: pointer;
@@ -341,7 +340,7 @@ table.grid .email {
   font-family: var(--mono);
   font-size: 12px;
   line-height: 1.7;
-  color: #e5e5e5;
+  color: var(--code-tx);
   overflow-x: auto;
   white-space: pre;
 }

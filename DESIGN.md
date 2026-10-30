@@ -177,6 +177,11 @@ levels and status.
 - **Focus Blue** (#2563eb / #60a5fa): focus rings and links to act; not a decorative accent.
 - **Series 1 to 5** (blue, teal, violet, amber, grey): chart series in order.
 
+### Fixed surfaces
+- **Code block** (`--code-bg` #0a0a0a, `--code-raised` #1a1a1a, `--code-line` #222222, `--code-line2` #333333,
+  `--code-tx` #e5e5e5, `--code-tx2` #a3a3a3): the install snippet is a dark terminal in both themes.
+- **Scrim** (`--scrim`, black at 35% light / 60% dark): behind dialogs and the chart drawer.
+
 ### Named Rules
 **The Colour Means State Rule.** Every coloured pixel answers "what state is this in?" Level, status, focus or a
 chart series. Decoration stays grey.
@@ -201,8 +206,11 @@ wrote. The split is semantic, not decorative.
 - **Data** (Geist Mono 400, 11 to 12px): timestamps, field names and values, tokens, counts, code.
 
 ### Named Rules
+**The One Primary Rule.** A screen has at most one primary (filled) button: its main action. Settings forms,
+toolbars and secondary actions use the default or ghost button.
+
 **The Machine Wrote It Rule.** If a machine produced the text (a timestamp, a field, a value, a token), it is set in
-Geist Mono. Human-written copy never is.
+Geist Mono. Human-written copy never is, including names people choose for projects and the team.
 
 ## Layout
 
@@ -251,7 +259,10 @@ for tiny marks such as legend swatches. Borders are always 1px.
   strengthens the border and darkens the text.
 - **Primary:** Ink Primary fill with Canvas text, weight 500; hover lowers opacity to 0.9.
 - **Pressed toggle:** `aria-pressed="true"` gets Well background and an Ink Secondary border.
-- **Danger:** default button with Error text. **Link:** borderless, underlined with a 2px offset.
+- **Ghost:** no border or fill until hover (Well). For low-emphasis toolbar actions such as Refresh and Export
+  CSV, always with an icon.
+- **Danger:** default button with Error text. **Link:** borderless, underlined with a 2px offset; only inside
+  sentences, never as a toolbar action.
 - **Disabled:** 50% opacity.
 
 ### Chips

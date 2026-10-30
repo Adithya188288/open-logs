@@ -48,6 +48,14 @@
   --s-64: 64px;
   --control-h: 32px;
   --topbar-h: 56px;
+  --scrim: rgba(0, 0, 0, 0.35);
+  /* The install snippet is always a dark terminal, in both themes. */
+  --code-bg: #0a0a0a;
+  --code-raised: #1a1a1a;
+  --code-line: #222222;
+  --code-line2: #333333;
+  --code-tx: #e5e5e5;
+  --code-tx2: #a3a3a3;
   color-scheme: light;
 }
 :root[data-theme="dark"] {
@@ -83,6 +91,7 @@
   --c4: #f79009;
   --c5: #6b6b73;
   --shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --scrim: rgba(0, 0, 0, 0.6);
   color-scheme: dark;
 }
 
@@ -187,6 +196,16 @@ p {
 .btn.danger {
   color: var(--errtx);
 }
+.btn.ghost {
+  border-color: transparent;
+  background: transparent;
+}
+
+.btn.ghost:hover {
+  background: var(--bg3);
+  border-color: transparent;
+}
+
 .btn.link {
   border: none;
   background: transparent;
@@ -561,8 +580,8 @@ kbd {
   align-items: center;
   justify-content: space-between;
   gap: var(--s-8);
-  font-family: var(--mono);
   font-size: 13px;
+  font-weight: 500;
   padding: var(--s-8) var(--s-12);
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -732,7 +751,7 @@ kbd {
 .dialog-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.35);
+  background: var(--scrim);
   z-index: 40;
   display: flex;
   align-items: flex-start;

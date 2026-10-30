@@ -30,7 +30,7 @@ function Section({ title, hint, submitLabel, readOnly, onSubmit, children }) {
       </p>
       {!readOnly && (
         <div>
-          <button className="btn primary" type="submit">
+          <button className="btn" type="submit">
             {submitLabel}
           </button>
         </div>

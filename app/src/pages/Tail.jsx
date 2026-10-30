@@ -464,18 +464,21 @@ export function Tail() {
           ))}
         </div>
         <button
-          className="btn"
+          className="btn ghost"
           type="button"
           onClick={() => pollNow.current()}
           disabled={!live}
           title="Check for new events now"
         >
+          <Icon name="refresh" size={14} />
           Refresh
         </button>
-        <button className="btn" type="button" onClick={() => setPaused((p) => !p)}>
-          {paused ? '▶ Resume' : '❚❚ Pause'}
+        <button className="btn" type="button" aria-pressed={paused} onClick={() => setPaused((p) => !p)}>
+          <Icon name={paused ? 'play' : 'pause'} size={14} />
+          {paused ? 'Resume' : 'Pause'}
         </button>
-        <button className="btn" type="button" onClick={exportCsv}>
+        <button className="btn ghost" type="button" onClick={exportCsv}>
+          <Icon name="download" size={14} />
           Export CSV
         </button>
       </Topbar>

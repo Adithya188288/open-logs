@@ -100,13 +100,13 @@ test('pause freezes the tail; otherwise rows keep streaming, even with the panel
   await page.goto(`/tail?project=${project.id}`);
   await expect(page.getByTestId('event')).toHaveCount(10);
 
-  await page.getByRole('button', { name: '❚❚ Pause' }).click();
+  await page.getByRole('button', { name: 'Pause' }).click();
   await expect(page.getByTestId('freshness')).toContainText('Paused · frozen at data through');
   await app.send(token, { level: 'info', message: 'arrived while paused' });
   await page.waitForTimeout(3500);
   await expect(page.getByTestId('event')).toHaveCount(10);
 
-  await page.getByRole('button', { name: '▶ Resume' }).click();
+  await page.getByRole('button', { name: 'Resume' }).click();
   await expect(page.getByTestId('event').first()).toContainText('arrived while paused');
 
   await page.getByTestId('event').nth(2).locator('.row').click();
