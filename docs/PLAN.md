@@ -81,10 +81,13 @@ Match `docs/design/` (layout, tokens, type scale 11/12/13/15/24, radii 6/10, lig
 **Agent:** backend. Branch: `feature/basin`. **Needs owner:** Workers Paid plan, `wrangler login`.
 **Ask first** before creating any Cloudflare resource or deploying.
 
-- [ ] Verify current Basin docs (Pipelines streams/binding, Catalog sink, Basin SQL query API, limits)
-- [ ] `BasinStorage.write`: Pipelines stream binding; `query`/`histogram`: Basin SQL with the same filter → SQL builder
-- [ ] Event schema for the stream matches `docs/ARCHITECTURE.md`; roll interval 60s
-- [ ] `scripts/setup-basin.js`: creates bucket, catalog, stream, sink, pipeline via wrangler (idempotent)
+- [x] Verify current Basin docs (Pipelines streams/binding, Catalog sink, Basin SQL query API, limits)
+      (checked 2026-10-30; findings under Known constraints)
+- [x] `BasinStorage.write`: Pipelines stream binding; `query`/`histogram`: Basin SQL with the same filter → SQL builder
+      (unit-tested with a mocked SQL API; **not yet run against real Basin**)
+- [x] Event schema for the stream matches `docs/ARCHITECTURE.md`; roll interval 60s (`basin/stream-schema.json`, plus an `id` column)
+- [x] `scripts/setup-basin.js`: creates bucket, catalog, stream, sink, pipeline via wrangler (idempotent)
+      (written, **not run**: needs the owner's go-ahead and Workers Paid)
 - [ ] Deploy to a **staging** Worker on the owner's account; shared query test suite passes against Basin
 - [ ] UI shows ingest lag honestly; document every Basin limitation found in `docs/PLAN.md` and README
 
@@ -134,3 +137,17 @@ Match `docs/design/` (layout, tokens, type scale 11/12/13/15/24, radii 6/10, lig
 - Iceberg sink roll interval minimum is 60s, so prod data is ~60s+ behind. The live tail is "near real time".
 - Basin SQL is read-only and can time out on heavy queries: always time-bound, select columns, use LIMIT.
 - Whether Basin runs inside `wrangler dev` is unconfirmed; local dev uses `LocalStorage` regardless.
+- **Basin SQL has no bound parameters** (the HTTP API takes one `query` string). The Basin dialect inlines
+  values as SQL literals (`'…'` with quotes doubled, NUL stripped, numbers must be finite). Values only ever
+  come from a validated filter; table names are checked against `^[a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*$`.
+- The Basin SQL **response JSON shape is not documented**. `BasinStorage` accepts `result.rows` as objects or
+  `{ columns, rows }` arrays. Confirm on the first staging deploy.
+- Nested JSON keys use variadic paths (`json_get_float(fields, 'http', 'status')`); docs only show single
+  keys. Confirm on staging.
+- p95 on Basin uses `approx_percentile_cont` (T-Digest), so it can differ slightly from the exact
+  nearest-rank p95 used locally.
+- Free-text search on Basin uses `lower(x) LIKE lower('%…%')` (no ILIKE). Window functions and
+  PERCENTILE_CONT are budget-gated; queries that would scan too much return 400 → shown as "query too large".
+- Deleting a project does not delete its Basin data (Basin SQL is read-only); files stay in R2.
+- Ingest on Basin: invalid events on a structured stream are dropped, not rejected, so the Worker validates
+  and normalises every event before `send()`.

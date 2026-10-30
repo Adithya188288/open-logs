@@ -15,13 +15,15 @@
  *   path: (key: string) => string,
  *   like: (expr: string, pattern: string) => string,
  *   bucket: (b: Builder, interval: number) => string,
+ *   percentile?: (numberExpr: string) => string,
  * }} Dialect
+ * @typedef {string | Dialect} DialectRef  a registered name (`d1`) or a dialect object
  */
 
-class Builder {
-  /** @param {Dialect} dialect */
+export class Builder {
+  /** @param {DialectRef} dialect */
   constructor(dialect) {
-    this.d = dialect;
+    this.d = typeof dialect === 'string' ? DIALECTS[dialect] : dialect;
     /** @type {unknown[]} */
     this.params = [];
   }
@@ -32,7 +34,7 @@ class Builder {
   }
 }
 
-/** @type {Dialect} */
+/** SQLite / D1: values are bound as `?` parameters. @type {Dialect} */
 const D1 = {
   table: 'logs',
   fieldsColumn: 'fields_json',
@@ -54,15 +56,7 @@ const D1 = {
 };
 
 /** @type {Record<string, Dialect>} */
-export const DIALECTS = { d1: D1 };
-
-/**
- * @param {string} name
- * @param {Dialect} dialect
- */
-export function registerDialect(name, dialect) {
-  DIALECTS[name] = dialect;
-}
+const DIALECTS = { d1: D1 };
 
 /** @param {string} s */
 function escapeLike(s) {
@@ -137,10 +131,10 @@ function whereSql(b, f) {
 
 /**
  * @param {Filter} f
- * @param {string} dialect
+ * @param {DialectRef} dialect
  */
 export function buildEventsSql(f, dialect) {
-  const b = new Builder(DIALECTS[dialect]);
+  const b = new Builder(dialect);
   let where = whereSql(b, f);
   if (f.cursor) {
     where += ` AND (ts < ${b.param(f.cursor.ts)} OR (ts = ${b.param(f.cursor.ts)} AND id < ${b.param(f.cursor.id)}))`;
@@ -154,10 +148,10 @@ export function buildEventsSql(f, dialect) {
 /**
  * @param {Filter} f
  * @param {number} interval
- * @param {string} dialect
+ * @param {DialectRef} dialect
  */
 export function buildHistogramSql(f, interval, dialect) {
-  const b = new Builder(DIALECTS[dialect]);
+  const b = new Builder(dialect);
   const bucket = b.d.bucket(b, interval);
   const sql = `SELECT ${bucket} AS t, level, COUNT(*) AS n FROM ${b.d.table} WHERE ${whereSql(b, f)} GROUP BY t, level ORDER BY t`;
   return { sql, params: b.params };
@@ -168,10 +162,10 @@ export function buildHistogramSql(f, interval, dialect) {
  * (given the top group keys) one series per group. avg / p95 use nearest-rank on numeric `field`.
  * @param {Filter} f
  * @param {{ measure: 'count' | 'count_over_time' | 'avg' | 'p95', field?: string, group_by?: string, interval: number }} spec
- * @param {string} dialect
+ * @param {DialectRef} dialect
  */
 export function buildAggregateSql(f, spec, dialect) {
-  const d = DIALECTS[dialect];
+  const d = new Builder(dialect).d;
   const counting = spec.measure === 'count' || spec.measure === 'count_over_time';
   const groupField = counting ? spec.field : (spec.group_by ?? 'source');
 
@@ -195,8 +189,12 @@ export function buildAggregateSql(f, spec, dialect) {
     const groupBy = names.length ? ` GROUP BY ${names.join(', ')}` : '';
     const order = bucket ? ' ORDER BY t' : names.length ? ' ORDER BY v DESC, k LIMIT 10' : '';
 
-    if (spec.measure !== 'p95') {
-      const agg = counting ? 'COUNT(*)' : `AVG(${num})`;
+    if (spec.measure !== 'p95' || d.percentile) {
+      const agg = counting
+        ? 'COUNT(*)'
+        : spec.measure === 'avg'
+          ? `AVG(${num})`
+          : /** @type {(x: string) => string} */ (d.percentile)(num);
       return {
         sql: `SELECT ${select}${agg} AS v FROM ${d.table} WHERE ${where}${groupBy}${order}`,
         params: b.params,
@@ -226,10 +224,10 @@ export function buildAggregateSql(f, spec, dialect) {
  * @param {number} from
  * @param {number} to
  * @param {number} interval
- * @param {string} dialect
+ * @param {DialectRef} dialect
  */
 export function buildOverviewSql(projectIds, from, to, interval, dialect) {
-  const b = new Builder(DIALECTS[dialect]);
+  const b = new Builder(dialect);
   const bucket = b.d.bucket(b, interval);
   const ids = projectIds.map((id) => b.param(id)).join(', ');
   const sql =
