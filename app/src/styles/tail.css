@@ -591,6 +591,11 @@
 @media (max-width: 1000px) {
   .tail-body {
     flex-direction: column;
+    align-items: stretch;
+  }
+  /* In a column, flex-basis 0 would mean zero height: let the table size to its rows. */
+  .tail-body .table {
+    flex: none;
   }
   .evpanel {
     position: static;
