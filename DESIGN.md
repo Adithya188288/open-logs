@@ -293,6 +293,15 @@ for tiny marks such as legend swatches. Borders are always 1px.
   square mark plus an 11px uppercase label, never as a pill and never by row background: info and debug are
   muted grey, warn uses Warn text, error uses Error text at weight 600.
 
+### Dashboard grid
+- Three columns; number tiles span 1, charts 1 or 2. The last tile stretches to close its row, so the grid never
+  ends in a hole. Below 900px everything is one column.
+- Ranked bar lists share columns across rows (CSS subgrid): the label column is as wide as the longest label (up to
+  60%), bars start right after it and line up. Error messages are never cut off when there is room.
+- A pie chart with a single slice renders as a ranked bar; a donut needs at least two slices to say anything.
+- Number tiles compare with the previous period: "▲ 12% vs previous period", "Same as previous period", or
+  "No data for the previous period". Trend colour shows good or bad, not direction.
+
 ### Loader
 - A small pulsing green dot, shown once at start-up and when switching project. No other spinners between screens.
 

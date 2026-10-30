@@ -137,3 +137,37 @@ test('"Chart" on a live tail field opens the chart builder for that field', asyn
   await expect(drawer.getByLabel('Measure', { exact: true })).toHaveValue('p95');
   await expect(drawer.getByTestId('preview')).toContainText('10,000 ms');
 });
+
+test('Overview layout: one source is a ranked bar, the last tile fills its row, top errors are not cut off', async ({
+  page,
+  app,
+}) => {
+  const { project } = await seeded(app);
+  await page.goto(`/dashboard?project=${project.id}`);
+  const tile = (name) =>
+    page.getByTestId('chart').filter({ has: page.getByRole('heading', { name, exact: true }) });
+
+  const bySource = tile('Events by source');
+  await expect(bySource.locator('.hbar')).toHaveCount(1);
+  await expect(bySource.locator('.donut')).toHaveCount(0);
+
+  const topErrors = tile('Top errors');
+  await expect(topErrors.locator('.hbar')).toHaveCount(2);
+  const [topBox, levelBox] = [await topErrors.boundingBox(), await tile('Events by level').boundingBox()];
+  expect(topBox.width).toBeGreaterThan(levelBox.width);
+  const cut = await topErrors
+    .locator('.hbar span')
+    .evaluateAll((spans) => spans.filter((s) => s.scrollWidth > s.clientWidth).length);
+  expect(cut).toBe(0);
+});
+
+test('a number tile says "Same as previous period" when nothing changed', async ({ page, app }) => {
+  const { project, token } = await seeded(app);
+  await app.send(token, sampleEvents(Date.now() - 3_600_000, 40));
+  await page.goto(`/dashboard?project=${project.id}`);
+  const events = page
+    .getByTestId('chart')
+    .filter({ has: page.getByRole('heading', { name: 'Events', exact: true }) });
+  await expect(events.getByTestId('chart-value')).toHaveText('40');
+  await expect(events.locator('.delta')).toHaveText('Same as previous period');
+});

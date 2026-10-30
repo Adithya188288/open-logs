@@ -9,7 +9,9 @@
   .tiles {
     grid-template-columns: minmax(0, 1fr);
   }
-  .tile.lg {
+  .tile.lg,
+  .tile.span-2,
+  .tile.span-3 {
     grid-column: auto !important;
   }
 }
@@ -23,8 +25,12 @@
   background: var(--bg);
   min-width: 0;
 }
-.tile.lg {
+.tile.lg,
+.tile.span-2 {
   grid-column: span 2;
+}
+.tile.span-3 {
+  grid-column: span 3;
 }
 .tile .head {
   display: flex;
@@ -125,14 +131,16 @@
   display: inline-block;
 }
 .hbars {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-8);
+  display: grid;
+  grid-template-columns: fit-content(60%) minmax(64px, 1fr) auto;
+  column-gap: var(--s-12);
+  row-gap: var(--s-8);
 }
+/* Rows share the list's columns, so bars line up and start right after the longest label. */
 .hbar {
   display: grid;
-  grid-template-columns: minmax(0, 140px) minmax(0, 1fr) auto;
-  gap: var(--s-8);
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
   align-items: center;
   font-family: var(--mono);
   font-size: 12px;
