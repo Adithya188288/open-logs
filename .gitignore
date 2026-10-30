@@ -11,3 +11,4 @@ coverage/
 e2e/.auth/
 dist/
 .claude/skills/impeccable/scripts/bin/
+docs/design-passes/

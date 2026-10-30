@@ -65,6 +65,7 @@ typography:
     fontWeight: 400
 rounded:
   tick: "2px"
+  key: "4px"
   control: "6px"
   card: "10px"
   pill: "999px"
@@ -76,6 +77,12 @@ spacing:
   "12": "12px"
   "16": "16px"
   "24": "24px"
+  "32": "32px"
+  "40": "40px"
+  "48": "48px"
+  "64": "64px"
+  control-height: "32px"
+  topbar-height: "56px"
 components:
   button:
     backgroundColor: "{colors.canvas}"
@@ -205,12 +212,17 @@ sides. Live tail is a vertical stack: search and filters, histogram, then the ev
 panel. Dashboards use a tile grid that collapses to one column below 900px. Below about 1000px the tail side panel
 stacks under the table.
 
-Spacing today uses many one-off values (gaps of 2, 4, 5, 6, 8, 10, 12, 14 and 16px; paddings such as 7px 10px and
-14px 18px). The frontmatter scale (2, 4, 6, 8, 12, 16, 24) is the target that refinement passes move toward.
+All padding, margin and gap values come from the spacing tokens `--s-2` to `--s-64` (2, 4, 6, 8, 12, 16, 24, 32,
+40, 48, 64) in `app/src/styles/app.css`. Small steps (2 to 12) space items inside a group, 16 and 24 separate groups
+and inset content from the page edge, 32 and up are for empty states and page-level breathing room. Buttons,
+inputs, selects and the segmented range control share one height (`--control-h`, 32px), and every screen's top
+bar is the same height (`--topbar-h`, 56px), so nothing shifts when moving between screens.
 
 ### Named Rules
-**The One Scale Rule.** Spacing comes from the scale (2, 4, 6, 8, 12, 16, 24). A value off the scale needs a
-reason, such as optical alignment of an icon.
+**The One Scale Rule.** Spacing comes from the `--s-*` tokens. Only 1px hairline offsets stay literal; any other
+value off the scale needs a written reason.
+
+**The Fixed Frame Rule.** The sidebar width, top bar height and content inset are the same on every screen.
 
 ## Elevation & Depth
 
@@ -228,8 +240,8 @@ Only things that float get the Float shadow.
 ## Shapes
 
 Gently rounded and consistent: 6px for controls (buttons, inputs, chips, nav items), 10px for containers (cards,
-tiles, the event table, dialogs), full pills (999px) only for small status badges, 2px for tiny marks such as
-legend swatches. Borders are always 1px.
+tiles, the event table, dialogs), full pills (999px) only for small status badges, 4px for keyboard key caps, 2px
+for tiny marks such as legend swatches. Borders are always 1px.
 
 ## Components
 

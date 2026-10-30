@@ -528,7 +528,7 @@ function ChartDrawer({ projectId, dashboard, range, existing, preset, onClose, o
         <div className="dhead">
           <h2>{existing ? 'Edit chart' : 'New chart'}</h2>
           <button type="button" aria-label="Close" onClick={onClose}>
-            ×
+            <Icon name="x" size={16} />
           </button>
         </div>
         <div className="dbody">

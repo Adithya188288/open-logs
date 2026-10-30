@@ -23,7 +23,7 @@ test('search, field:value chips, time range and honest freshness', async ({ page
 
   await page.getByLabel('Search events').fill('level:error checkout');
   await page.getByLabel('Search events').press('Enter');
-  await expect(page.locator('.chip')).toHaveText(['level = error×']);
+  await expect(page.locator('.chip')).toHaveText(['level = error']);
   await expect(page.getByTestId('event')).toHaveCount(8);
   await expect(page.getByTestId('event').first()).toContainText('POST /checkout 500');
 
@@ -84,7 +84,7 @@ test('details open in a side panel with Filter and Chart per field; keyboard j/k
   const level = panel.locator('.f').filter({ hasText: /^level/ });
   const levelValue = await level.locator('.v').textContent();
   await level.getByRole('button', { name: '= Filter' }).click();
-  await expect(page.locator('.chip')).toHaveText([`level = ${levelValue}×`]);
+  await expect(page.locator('.chip')).toHaveText([`level = ${levelValue}`]);
   await expect(panel).toBeHidden();
 
   await page.locator('body').click({ position: { x: 600, y: 10 } });

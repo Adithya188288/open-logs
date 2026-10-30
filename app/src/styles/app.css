@@ -34,6 +34,20 @@
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.06);
   --sans: Geist, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* Spacing scale (DESIGN.md "The One Scale Rule"); 1px hairlines stay literal. */
+  --s-2: 2px;
+  --s-4: 4px;
+  --s-6: 6px;
+  --s-8: 8px;
+  --s-12: 12px;
+  --s-16: 16px;
+  --s-24: 24px;
+  --s-32: 32px;
+  --s-40: 40px;
+  --s-48: 48px;
+  --s-64: 64px;
+  --control-h: 32px;
+  --topbar-h: 56px;
   color-scheme: light;
 }
 :root[data-theme="dark"] {
@@ -128,7 +142,7 @@ p {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  gap: 8px;
+  gap: var(--s-8);
 }
 .tiny {
   font-size: 11px;
@@ -140,8 +154,8 @@ p {
   font-size: 12px;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
+  gap: var(--s-6);
+  padding: var(--s-6) var(--s-12);
   border: 1px solid var(--line);
   border-radius: 6px;
   background: var(--bg);
@@ -150,6 +164,12 @@ p {
   text-decoration: none;
   white-space: nowrap;
 }
+.btn:not(.link),
+.input:not(textarea),
+.select {
+  min-height: var(--control-h);
+}
+
 .btn:hover {
   border-color: var(--line2);
   color: var(--tx);
@@ -170,7 +190,7 @@ p {
 .btn.link {
   border: none;
   background: transparent;
-  padding: 4px 6px;
+  padding: var(--s-4) var(--s-6);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
@@ -190,7 +210,7 @@ p {
 .select {
   font: inherit;
   font-size: 13px;
-  padding: 7px 10px;
+  padding: var(--s-8) var(--s-12);
   border: 1px solid var(--line);
   border-radius: 6px;
   background: var(--bg);
@@ -212,7 +232,7 @@ p {
 .field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--s-6);
 }
 .seg {
   display: inline-flex;
@@ -223,7 +243,8 @@ p {
 .seg button {
   font: inherit;
   font-size: 12px;
-  padding: 6px 10px;
+  min-height: calc(var(--control-h) - 2px);
+  padding: var(--s-6) var(--s-12);
   border: none;
   border-left: 1px solid var(--line);
   background: var(--bg);
@@ -240,10 +261,10 @@ p {
 .pill {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--s-6);
   font-size: 11px;
   font-weight: 500;
-  padding: 2px 8px;
+  padding: var(--s-2) var(--s-8);
   border-radius: 999px;
   white-space: nowrap;
   border: 1px solid var(--line);
@@ -282,10 +303,10 @@ p {
 .chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--s-4);
   font-family: var(--mono);
   font-size: 12px;
-  padding: 2px 4px 2px 8px;
+  padding: var(--s-2) var(--s-4) var(--s-2) var(--s-8);
   border-radius: 6px;
   background: var(--bg3);
   color: var(--tx2);
@@ -301,21 +322,20 @@ p {
   background: transparent;
   color: var(--tx3);
   cursor: pointer;
-  padding: 0 4px;
-  font-size: 13px;
-  line-height: 1;
+  display: inline-flex;
+  padding: var(--s-2);
 }
 .tag {
   font-family: var(--mono);
   font-size: 11px;
-  padding: 2px 6px;
+  padding: var(--s-2) var(--s-6);
   border-radius: 6px;
   background: var(--bg3);
   color: var(--tx2);
 }
 kbd {
   font-size: 11px;
-  padding: 1px 5px;
+  padding: 1px var(--s-4);
   border: 1px solid var(--line);
   border-bottom-width: 2px;
   border-radius: 4px;
@@ -329,9 +349,9 @@ kbd {
 }
 .alert {
   display: flex;
-  gap: 10px;
+  gap: var(--s-8);
   align-items: flex-start;
-  padding: 12px 14px;
+  padding: var(--s-12) var(--s-16);
   border-radius: 10px;
   border: 1px solid var(--line);
 }
@@ -353,7 +373,7 @@ kbd {
 .alert .body {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--s-2);
   font-size: 12px;
   min-width: 0;
 }
@@ -445,10 +465,10 @@ kbd {
   max-width: 232px;
   background: var(--bg2);
   border-right: 1px solid var(--line);
-  padding: 14px 12px;
+  padding: var(--s-16) var(--s-12);
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--s-2);
   position: sticky;
   top: 0;
   height: 100vh;
@@ -457,10 +477,10 @@ kbd {
 .nav .brand {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 6px 8px;
+  gap: var(--s-8);
+  padding: var(--s-6) var(--s-8);
   border-radius: 6px;
-  margin-bottom: 14px;
+  margin-bottom: var(--s-16);
   text-decoration: none;
   font-weight: 600;
   font-size: 15px;
@@ -471,17 +491,17 @@ kbd {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--tx3);
-  padding: 12px 10px 6px;
+  padding: var(--s-12) var(--s-12) var(--s-6);
 }
 .nav .section:first-of-type {
-  padding-top: 4px;
+  padding-top: var(--s-4);
 }
 .nav .item {
   font: inherit;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 7px 10px;
+  gap: var(--s-8);
+  padding: var(--s-8) var(--s-12);
   border-radius: 6px;
   font-size: 13px;
   text-decoration: none;
@@ -528,7 +548,7 @@ kbd {
   background: none;
   cursor: pointer;
   font: inherit;
-  padding: 0 2px;
+  padding: 0 var(--s-2);
 }
 .nav .item:hover .x {
   visibility: visible;
@@ -540,14 +560,14 @@ kbd {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--s-8);
   font-family: var(--mono);
   font-size: 13px;
-  padding: 7px 10px;
+  padding: var(--s-8) var(--s-12);
   border: 1px solid var(--line);
   border-radius: 6px;
   background: var(--bg);
-  margin-bottom: 10px;
+  margin-bottom: var(--s-12);
   width: 100%;
   text-align: left;
 }
@@ -564,7 +584,7 @@ kbd {
   border: 1px solid var(--line);
   border-radius: 10px;
   box-shadow: var(--shadow);
-  padding: 4px;
+  padding: var(--s-4);
   display: flex;
   flex-direction: column;
 }
@@ -573,7 +593,7 @@ kbd {
   font: inherit;
   font-size: 13px;
   text-align: left;
-  padding: 7px 10px;
+  padding: var(--s-8) var(--s-12);
   border-radius: 6px;
   border: none;
   background: transparent;
@@ -597,9 +617,9 @@ kbd {
 .nav .me {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 10px 2px;
-  margin-top: 6px;
+  gap: var(--s-8);
+  padding: var(--s-12) var(--s-12) var(--s-2);
+  margin-top: var(--s-6);
   border-top: 1px solid var(--line);
 }
 .avatar {
@@ -643,14 +663,15 @@ kbd {
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 12px 24px;
+  gap: var(--s-12);
+  min-height: var(--topbar-h);
+  padding: var(--s-8) var(--s-24);
   border-bottom: 1px solid var(--line);
 }
 .topbar .title {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--s-12);
   flex-wrap: wrap;
   min-width: 0;
 }
@@ -660,23 +681,23 @@ kbd {
 }
 .topbar .actions {
   display: flex;
-  gap: 8px;
+  gap: var(--s-8);
   align-items: center;
   flex-wrap: wrap;
 }
 .page {
-  padding: 20px 24px 32px;
+  padding: var(--s-24) var(--s-24) var(--s-32);
   display: flex;
   flex-direction: column;
-  gap: 28px;
+  gap: var(--s-24);
 }
 .searchbox {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--s-8);
   border: 1px solid var(--line);
   border-radius: 6px;
-  padding: 0 10px;
+  padding: 0 var(--s-12);
   background: var(--bg);
   min-width: 0;
 }
@@ -693,7 +714,7 @@ kbd {
   color: var(--tx);
   font: inherit;
   font-size: 12px;
-  padding: 7px 0;
+  padding: var(--s-8) 0;
 }
 .toast {
   position: fixed;
@@ -703,7 +724,7 @@ kbd {
   background: var(--pri);
   color: var(--onpri);
   font-size: 12px;
-  padding: 8px 14px;
+  padding: var(--s-8) var(--s-16);
   border-radius: 6px;
   box-shadow: var(--shadow);
   z-index: 50;
@@ -716,7 +737,7 @@ kbd {
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding: 12vh 16px 16px;
+  padding: 12vh var(--s-16) var(--s-16);
 }
 .dialog {
   width: 100%;
@@ -725,10 +746,10 @@ kbd {
   border: 1px solid var(--line);
   border-radius: 10px;
   box-shadow: var(--shadow);
-  padding: 20px;
+  padding: var(--s-24);
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--s-12);
 }
 .dialog h2 {
   font-size: 15px;
@@ -736,7 +757,7 @@ kbd {
 }
 .dialog .row {
   display: flex;
-  gap: 8px;
+  gap: var(--s-8);
   justify-content: flex-end;
 }
 
@@ -746,7 +767,7 @@ kbd {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 40px 16px;
+  padding: var(--s-40) var(--s-16);
   background-color: var(--bg2);
   background-image:
     linear-gradient(var(--line) 1px, transparent 1px),
@@ -761,10 +782,10 @@ kbd {
   border: 1px solid var(--line);
   border-radius: 10px;
   box-shadow: var(--shadow);
-  padding: 28px;
+  padding: var(--s-32);
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--s-16);
 }
 .auth .logo {
   width: 28px;
@@ -786,12 +807,12 @@ kbd {
 .auth .btn.primary {
   justify-content: center;
   font-size: 13px;
-  padding: 9px 12px;
-  margin-top: 4px;
+  padding: var(--s-8) var(--s-12);
+  margin-top: var(--s-4);
 }
 .auth .foot {
   border-top: 1px solid var(--line);
-  padding-top: 14px;
+  padding-top: var(--s-16);
   font-family: var(--mono);
   font-size: 11px;
   line-height: 1.6;
@@ -837,7 +858,7 @@ kbd {
 .menu hr {
   border: none;
   border-top: 1px solid var(--line);
-  margin: 4px 2px;
+  margin: var(--s-4) var(--s-2);
 }
 .menu .menu-label {
   font-size: 11px;
@@ -845,13 +866,13 @@ kbd {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--tx3);
-  padding: 6px 10px 4px;
+  padding: var(--s-6) var(--s-12) var(--s-4);
 }
 .menu a,
 .menu button {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--s-8);
 }
 .menu .danger {
   color: var(--errtx);
@@ -867,7 +888,7 @@ kbd {
   overflow-y: auto;
 }
 .nav .switcher {
-  margin: 0 0 12px;
+  margin: 0 0 var(--s-12);
 }
 .nav .switcher svg {
   color: var(--tx3);
@@ -877,12 +898,12 @@ kbd {
   max-width: 640px;
 }
 .empty {
-  padding: 48px 24px;
+  padding: var(--s-48) var(--s-24);
   text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: var(--s-8);
   color: var(--tx3);
   border: 1px dashed var(--line2);
   border-radius: 10px;
@@ -899,7 +920,7 @@ kbd {
   color: var(--warntx);
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--s-4);
 }
 .bad {
   color: var(--errtx);
@@ -957,12 +978,12 @@ kbd {
   background: var(--bg);
 }
 .page-loader {
-  padding: 64px 24px;
+  padding: var(--s-64) var(--s-24);
   display: flex;
   justify-content: center;
 }
 .list-loading {
-  padding: 40px 14px;
+  padding: var(--s-40) var(--s-16);
   display: flex;
   justify-content: center;
 }

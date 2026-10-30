@@ -1,13 +1,13 @@
 /* Live tail. Layout from docs/design/screens/LiveTail. */
 .tail-tools {
-  padding: 14px 24px 0;
+  padding: var(--s-16) var(--s-24) 0;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--s-12);
 }
-.tail-tools .row {
+.tail-tools .tools-row {
   display: flex;
-  gap: 8px;
+  gap: var(--s-8);
   flex-wrap: wrap;
 }
 .query {
@@ -15,11 +15,11 @@
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--s-8);
   flex-wrap: wrap;
   border: 1px solid var(--line);
   border-radius: 6px;
-  padding: 5px 8px 5px 12px;
+  padding: var(--s-4) var(--s-8) var(--s-4) var(--s-12);
   background: var(--bg);
 }
 .query svg {
@@ -36,7 +36,7 @@
   font: inherit;
   font-family: var(--mono);
   font-size: 12px;
-  padding: 3px 0;
+  padding: var(--s-4) 0;
 }
 .query kbd {
   margin-left: auto;
@@ -44,14 +44,14 @@
 .hist {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--s-6);
 }
 .hist .summary {
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--s-8);
   font-size: 12px;
   color: var(--tx3);
 }
@@ -66,22 +66,22 @@
 .hist .zoomed {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  margin-left: 10px;
+  gap: var(--s-8);
+  margin-left: var(--s-12);
   font-family: var(--mono);
   color: var(--tx2);
 }
 .legend {
   display: inline-flex;
-  gap: 6px;
+  gap: var(--s-6);
 }
 .legend button {
   font: inherit;
   font-size: 11px;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 3px 8px;
+  gap: var(--s-4);
+  padding: var(--s-4) var(--s-8);
   border-radius: 6px;
   cursor: pointer;
   border: 1px solid var(--line);
@@ -124,7 +124,7 @@
 }
 .plot {
   display: flex;
-  gap: 8px;
+  gap: var(--s-8);
 }
 .plot .yaxis {
   display: flex;
@@ -142,7 +142,7 @@
   position: relative;
   display: flex;
   align-items: flex-end;
-  gap: 2px;
+  gap: var(--s-2);
   height: 64px;
   border-bottom: 1px solid var(--line2);
 }
@@ -180,11 +180,11 @@
   font-family: var(--mono);
   font-size: 11px;
   color: var(--tx3);
-  padding-left: 32px;
+  padding-left: var(--s-32);
 }
 
 .table {
-  margin: 12px 24px 0;
+  margin: var(--s-12) var(--s-24) 0;
   border: 1px solid var(--line);
   border-radius: 10px;
   overflow: hidden;
@@ -195,11 +195,11 @@
 .row {
   display: grid;
   grid-template-columns: 116px 64px 76px minmax(0, 1fr) 24px;
-  gap: 12px;
+  gap: var(--s-12);
   align-items: center;
 }
 .thead {
-  padding: 8px 14px;
+  padding: var(--s-8) var(--s-16);
   background: var(--bg2);
   border-bottom: 1px solid var(--line);
   font-size: 11px;
@@ -243,7 +243,7 @@
   background: transparent;
   cursor: pointer;
   width: 100%;
-  padding: 7px 14px;
+  padding: var(--s-8) var(--s-16);
   font-family: var(--mono);
   font-size: 13px;
 }
@@ -306,10 +306,10 @@
   background: var(--errbg);
 }
 .detail {
-  padding: 2px 14px 14px;
+  padding: var(--s-2) var(--s-16) var(--s-16);
   display: flex;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: var(--s-16);
 }
 .fields {
   flex: 999 1 420px;
@@ -323,9 +323,9 @@
 .fields .f {
   display: grid;
   grid-template-columns: 140px minmax(0, 1fr) auto;
-  gap: 12px;
+  gap: var(--s-12);
   align-items: center;
-  padding: 5px 10px;
+  padding: var(--s-4) var(--s-12);
   border-bottom: 1px solid var(--line);
   font-family: var(--mono);
   font-size: 12px;
@@ -346,18 +346,18 @@
 }
 .fields .acts {
   display: flex;
-  gap: 4px;
+  gap: var(--s-4);
 }
 .fields .acts .btn {
   font-size: 11px;
-  padding: 2px 8px;
+  padding: var(--s-2) var(--s-8);
   font-family: var(--sans);
 }
 .detail .side {
   flex: 1 1 180px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--s-6);
 }
 .detail .side .btn {
   justify-content: flex-start;
@@ -366,7 +366,7 @@
   font: inherit;
   font-size: 12px;
   text-align: center;
-  padding: 7px 14px;
+  padding: var(--s-8) var(--s-16);
   border: none;
   border-bottom: 1px solid var(--line);
   background: var(--okbg);
@@ -378,23 +378,23 @@
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
-  padding: 10px 24px 24px;
+  gap: var(--s-8);
+  padding: var(--s-12) var(--s-24) var(--s-24);
   font-size: 11px;
   color: var(--tx3);
 }
 .tfoot .btn {
   font-size: 11px;
-  padding: 3px 10px;
+  padding: var(--s-4) var(--s-12);
 }
 
 .state {
-  padding: 40px 24px;
+  padding: var(--s-40) var(--s-24);
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 8px;
+  gap: var(--s-8);
   color: var(--tx3);
 }
 .state svg {
@@ -408,7 +408,7 @@
 .state h2 code {
   font-size: 13px;
   background: var(--bg3);
-  padding: 1px 6px;
+  padding: 1px var(--s-6);
   border-radius: 6px;
 }
 .state p {
@@ -416,34 +416,34 @@
 }
 .state .rowline {
   display: flex;
-  gap: 8px;
-  margin-top: 6px;
+  gap: var(--s-8);
+  margin-top: var(--s-6);
   flex-wrap: wrap;
   justify-content: center;
 }
 .problem {
-  margin: 14px 24px 0;
+  margin: var(--s-16) var(--s-24) 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--s-8);
 }
 .problem .acts,
 .toolarge .acts {
   display: flex;
-  gap: 8px;
+  gap: var(--s-8);
   flex-wrap: wrap;
 }
 .toolarge {
-  padding: 18px;
+  padding: var(--s-16);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--s-12);
 }
 .sk {
   display: grid;
   grid-template-columns: 116px 64px 76px minmax(0, 1fr);
-  gap: 12px;
-  padding: 11px 14px;
+  gap: var(--s-12);
+  padding: var(--s-12) var(--s-16);
   border-bottom: 1px solid var(--line);
 }
 .sk span {
@@ -452,13 +452,13 @@
   background: var(--bg3);
 }
 .sk-label {
-  padding: 12px 14px;
+  padding: var(--s-12) var(--s-16);
   font-size: 12px;
   color: var(--tx3);
 }
 .custom-range {
   display: flex;
-  gap: 8px;
+  gap: var(--s-8);
   align-items: center;
   flex-wrap: wrap;
   font-size: 12px;
@@ -466,7 +466,7 @@
 .custom-range input {
   font: inherit;
   font-size: 12px;
-  padding: 5px 8px;
+  padding: var(--s-4) var(--s-8);
   border: 1px solid var(--line);
   border-radius: 6px;
   background: var(--bg);
@@ -474,9 +474,9 @@
 }
 
 /* Toolbar: source picker, views menu, search help */
-.tail-tools .row > .select {
+.tail-tools .tools-row > .select {
   font-size: 12px;
-  padding: 6px 8px;
+  padding: var(--s-6) var(--s-8);
   max-width: 180px;
 }
 .query .iconbtn {
@@ -487,20 +487,20 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 4px;
+  gap: var(--s-4);
 }
 .menu-row > button:first-child {
   flex: 1;
 }
 .menu-note {
-  padding: 4px 10px 6px;
+  padding: var(--s-4) var(--s-12) var(--s-6);
   max-width: 280px;
 }
 .help {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 6px 14px;
-  padding: 4px 10px 8px;
+  gap: var(--s-6) var(--s-12);
+  padding: var(--s-4) var(--s-12) var(--s-8);
   font-size: 12px;
   color: var(--tx2);
 }
@@ -513,8 +513,8 @@
 .tail-body {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  margin: 12px 24px 0;
+  gap: var(--s-12);
+  margin: var(--s-12) var(--s-24) 0;
 }
 .tail-body .table {
   margin: 0;
@@ -541,17 +541,17 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
+  gap: var(--s-8);
+  padding: var(--s-12) var(--s-12);
   border-bottom: 1px solid var(--line);
   background: var(--bg2);
 }
 .evpanel .panelhead .lvl {
   display: inline-block;
-  padding: 1px 8px;
+  padding: 1px var(--s-8);
 }
 .evpanel .panelmsg {
-  padding: 12px;
+  padding: var(--s-12);
   font-family: var(--mono);
   font-size: 13px;
   white-space: pre-wrap;
@@ -565,7 +565,7 @@
 }
 .evpanel .fields .f {
   grid-template-columns: 104px minmax(0, 1fr) auto;
-  padding: 6px 12px;
+  padding: var(--s-6) var(--s-12);
 }
 .evpanel .fields .f .acts {
   opacity: 0;
@@ -576,7 +576,7 @@
 }
 .evpanel .side {
   flex: none;
-  padding: 12px;
+  padding: var(--s-12);
   border-top: 1px solid var(--line);
 }
 .with-panel .row {
@@ -608,7 +608,7 @@
 .list-refreshing {
   display: flex;
   justify-content: center;
-  padding: 6px 0;
+  padding: var(--s-6) 0;
   border-bottom: 1px solid var(--line);
 }
 .list.refreshing .ev {

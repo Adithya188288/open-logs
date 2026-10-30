@@ -1,9 +1,10 @@
 // Starts a fresh `wrangler dev` for Playwright: builds the React app, wipes local state, applies migrations, serves.
+// Usage: node scripts/e2e-server.js [port] [persist dir]
 import { spawn, spawnSync } from 'node:child_process';
 import { rmSync } from 'node:fs';
 
 const port = process.argv[2] || '8788';
-const persist = '.wrangler/e2e';
+const persist = process.argv[3] || '.wrangler/e2e';
 
 rmSync(persist, { recursive: true, force: true });
 const build = spawnSync('npx', ['vite', 'build'], { stdio: 'inherit' });

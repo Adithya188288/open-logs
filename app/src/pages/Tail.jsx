@@ -526,7 +526,7 @@ export function Tail() {
             }}
           />
         )}
-        <div className="row">
+        <div className="tools-row">
           <label className="sr" htmlFor="srcsel">
             Source
           </label>
@@ -556,7 +556,7 @@ export function Tail() {
                     aria-label={`Remove filter ${clauseLabel(c)}`}
                     onClick={() => setChips((cs) => cs.filter((x) => x !== c))}
                   >
-                    ×
+                    <Icon name="x" size={12} />
                   </button>
                 </span>
               ))}
