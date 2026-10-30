@@ -28,6 +28,18 @@ export function hmsms(ts) {
   return `${hms(ts)}.${pad(new Date(ts).getUTCMilliseconds(), 3)}`;
 }
 
+/** "10:42:18.204", or "Oct 30 10:42:18.204" when the range needs the date @param {number} ts @param {boolean} withDate */
+export function eventTime(ts, withDate) {
+  if (!withDate) return hmsms(ts);
+  const d = new Date(ts);
+  return `${d.toLocaleString('en-US', { month: 'short', timeZone: 'UTC' })} ${d.getUTCDate()} ${hmsms(ts)}`;
+}
+
+/** A time column needs dates when its range is longer than a day or crosses midnight UTC. @param {{ from: number, to: number }} w */
+export function needsDate(w) {
+  return w.to - w.from > 86_400_000 || new Date(w.from).getUTCDate() !== new Date(w.to).getUTCDate();
+}
+
 /** "10:42" or "Oct 30 10:42" for longer ranges @param {number} ts @param {boolean} [withDate] */
 export function hm(ts, withDate = false) {
   const d = new Date(ts);

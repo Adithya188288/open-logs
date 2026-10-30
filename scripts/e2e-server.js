@@ -1,9 +1,16 @@
 // Starts a fresh `wrangler dev` for Playwright: builds the React app, wipes local state, applies migrations, serves.
+// Usage: node scripts/e2e-server.js [port] [persist dir]
 import { spawn, spawnSync } from 'node:child_process';
 import { rmSync } from 'node:fs';
+import { resolve, sep } from 'node:path';
 
 const port = process.argv[2] || '8788';
-const persist = '.wrangler/e2e';
+const persist = process.argv[3] || '.wrangler/e2e';
+// This folder is wiped on start, so only ever accept one inside the repo's .wrangler/.
+if (!resolve(persist).startsWith(resolve('.wrangler') + sep)) {
+  console.error(`Refusing to wipe ${persist}: the persist dir must be inside .wrangler/`);
+  process.exit(1);
+}
 
 rmSync(persist, { recursive: true, force: true });
 const build = spawnSync('npx', ['vite', 'build'], { stdio: 'inherit' });

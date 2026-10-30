@@ -2,13 +2,13 @@
 .projects {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 12px;
+  gap: var(--s-12);
 }
 .project {
-  padding: 14px 16px;
+  padding: var(--s-16) var(--s-16);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--s-12);
   min-width: 0;
 }
 .project:hover {
@@ -18,10 +18,9 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 8px;
+  gap: var(--s-8);
 }
 .project .name {
-  font-family: var(--mono);
   font-size: 13px;
   font-weight: 500;
   text-decoration: none;
@@ -52,7 +51,7 @@
 }
 .project .stats {
   display: flex;
-  gap: 14px;
+  gap: var(--s-12);
   font-size: 12px;
   color: var(--tx3);
   flex-wrap: wrap;
@@ -69,14 +68,14 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--s-8);
   flex-wrap: wrap;
-  padding-top: 12px;
+  padding-top: var(--s-12);
   border-top: 1px solid var(--line);
 }
 .project .foot .tags {
   display: flex;
-  gap: 4px;
+  gap: var(--s-4);
   flex-wrap: wrap;
 }
 .project .foot .seen {
@@ -85,12 +84,12 @@
   white-space: nowrap;
 }
 .empty-projects {
-  padding: 40px 24px;
+  padding: var(--s-40) var(--s-24);
   text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: var(--s-8);
   color: var(--tx3);
   border: 1px dashed var(--line2);
   border-radius: 10px;
@@ -109,8 +108,8 @@
   flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
+  gap: var(--s-12);
+  padding: var(--s-12) var(--s-16);
   border-bottom: 1px solid var(--line);
   background: var(--bg2);
 }
@@ -121,31 +120,31 @@
 .team .bar p {
   font-size: 12px;
   color: var(--tx3);
-  margin-top: 2px;
+  margin-top: var(--s-2);
 }
 .team .invite {
   display: flex;
-  gap: 8px;
+  gap: var(--s-8);
   align-items: center;
   flex-wrap: wrap;
 }
 .team .invite .input {
   font-family: var(--mono);
   font-size: 12px;
-  padding: 6px 10px;
+  padding: var(--s-6) var(--s-12);
   width: 220px;
   max-width: 100%;
 }
 .team .invite .select {
   font-size: 12px;
-  padding: 6px 8px;
+  padding: var(--s-6) var(--s-8);
 }
 .invite-link {
   display: flex;
-  gap: 10px;
+  gap: var(--s-8);
   align-items: center;
   flex-wrap: wrap;
-  padding: 10px 16px;
+  padding: var(--s-12) var(--s-16);
   border-bottom: 1px solid var(--line);
   background: var(--okbg);
   font-size: 12px;
@@ -166,11 +165,11 @@ table.grid th {
   font-size: 11px;
   font-weight: 500;
   color: var(--tx3);
-  padding: 8px 16px;
+  padding: var(--s-8) var(--s-16);
   border-bottom: 1px solid var(--line);
 }
 table.grid td {
-  padding: 10px 16px;
+  padding: var(--s-12) var(--s-16);
   border-bottom: 1px solid var(--line);
   vertical-align: middle;
 }
@@ -183,7 +182,7 @@ table.grid tbody tr:hover {
 table.grid .who {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--s-8);
   font-weight: 500;
 }
 table.grid .email {
@@ -193,10 +192,10 @@ table.grid .email {
 }
 
 .connect {
-  padding: 24px 24px 32px;
+  padding: var(--s-24) var(--s-24) var(--s-32);
   display: flex;
   flex-wrap: wrap;
-  gap: 32px;
+  gap: var(--s-32);
   align-items: flex-start;
 }
 .steps {
@@ -210,8 +209,8 @@ table.grid .email {
 }
 .step {
   display: flex;
-  gap: 14px;
-  padding-bottom: 24px;
+  gap: var(--s-12);
+  padding-bottom: var(--s-24);
 }
 .step:last-child {
   padding-bottom: 0;
@@ -226,7 +225,7 @@ table.grid .email {
   flex-grow: 1;
   width: 1px;
   background: var(--line);
-  margin-top: 6px;
+  margin-top: var(--s-6);
 }
 .step:last-child .rail::after {
   display: none;
@@ -256,8 +255,8 @@ table.grid .email {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding-top: 2px;
+  gap: var(--s-8);
+  padding-top: var(--s-2);
 }
 .step h2 {
   font-size: 13px;
@@ -269,14 +268,14 @@ table.grid .email {
 }
 .step .rowline {
   display: flex;
-  gap: 8px;
+  gap: var(--s-8);
   align-items: center;
   flex-wrap: wrap;
 }
 .platforms {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 8px;
+  gap: var(--s-8);
   max-width: 560px;
 }
 .platforms button {
@@ -286,8 +285,8 @@ table.grid .email {
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 10px 12px;
+  gap: var(--s-2);
+  padding: var(--s-12) var(--s-12);
   border-radius: 6px;
   background: var(--bg);
   border: 1px solid var(--line);
@@ -306,53 +305,53 @@ table.grid .email {
   box-shadow: 0 0 0 1px var(--tx);
 }
 .code {
-  border: 1px solid #222;
+  border: 1px solid var(--code-line);
   border-radius: 10px;
   overflow: hidden;
-  background: #0a0a0a;
+  background: var(--code-bg);
 }
 .code .bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 8px;
-  padding: 6px 8px 6px 14px;
-  border-bottom: 1px solid #222;
+  gap: var(--s-8);
+  padding: var(--s-6) var(--s-8) var(--s-6) var(--s-16);
+  border-bottom: 1px solid var(--code-line);
   font-family: var(--mono);
   font-size: 12px;
-  color: #a3a3a3;
+  color: var(--code-tx2);
 }
 .code .bar button {
   font: inherit;
   font-size: 12px;
-  color: #e5e5e5;
-  background: #1a1a1a;
-  border: 1px solid #333;
+  color: var(--code-tx);
+  background: var(--code-raised);
+  border: 1px solid var(--code-line2);
   border-radius: 6px;
-  padding: 4px 10px;
+  padding: var(--s-4) var(--s-12);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--s-6);
 }
 .code pre {
   margin: 0;
-  padding: 14px;
+  padding: var(--s-16);
   font-family: var(--mono);
   font-size: 12px;
   line-height: 1.7;
-  color: #e5e5e5;
+  color: var(--code-tx);
   overflow-x: auto;
   white-space: pre;
 }
 .tokenrow {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--s-8);
   flex-wrap: wrap;
   border: 1px solid var(--line);
   border-radius: 6px;
-  padding: 6px 6px 6px 10px;
+  padding: var(--s-6) var(--s-6) var(--s-6) var(--s-12);
   background: var(--bg2);
 }
 .tokenrow .k {
@@ -372,10 +371,10 @@ table.grid .email {
 .verify {
   border: 1px dashed var(--line2);
   border-radius: 10px;
-  padding: 14px 16px;
+  padding: var(--s-16) var(--s-16);
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: var(--s-12);
   flex-wrap: wrap;
   background: var(--bg);
 }
@@ -402,7 +401,7 @@ table.grid .email {
 .verify .text {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--s-2);
   flex: 1 1 240px;
   min-width: 0;
 }
@@ -417,10 +416,10 @@ table.grid .email {
 .aside {
   flex: 1 1 240px;
   max-width: 300px;
-  padding: 14px 16px;
+  padding: var(--s-16) var(--s-16);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--s-8);
   background: var(--bg2);
 }
 .aside h2 {
@@ -435,10 +434,10 @@ table.grid .email {
 .aside dl {
   margin: 0;
   border-top: 1px solid var(--line);
-  padding-top: 10px;
+  padding-top: var(--s-12);
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  gap: 6px 14px;
+  gap: var(--s-6) var(--s-12);
   font-family: var(--mono);
   font-size: 12px;
 }
@@ -453,7 +452,7 @@ table.grid .email {
   overflow: hidden;
 }
 .sources .bar {
-  padding: 12px 16px;
+  padding: var(--s-12) var(--s-16);
   border-bottom: 1px solid var(--line);
   background: var(--bg2);
   font-size: 13px;
@@ -461,7 +460,7 @@ table.grid .email {
 }
 .sources td .acts {
   display: flex;
-  gap: 6px;
+  gap: var(--s-6);
   justify-content: flex-end;
 }
 .empty-projects {
@@ -472,11 +471,11 @@ table.grid .email {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 32px;
+  gap: var(--s-32);
 }
 .rowline {
   display: flex;
-  gap: 8px;
+  gap: var(--s-8);
   align-items: center;
   flex-wrap: wrap;
 }
@@ -489,14 +488,14 @@ table.grid .email {
 .project .headr {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--s-4);
 }
 
 /* Team */
 .invite-url {
   display: block;
   font-size: 12px;
-  padding: 10px;
+  padding: var(--s-12);
   background: var(--bg2);
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -509,15 +508,15 @@ table.grid .email {
 
 /* Settings */
 form.settings {
-  padding: 18px 20px;
+  padding: var(--s-16) var(--s-24);
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--s-12);
 }
 form.settings h2 {
   font-size: 13px;
   font-weight: 600;
-  margin-bottom: 2px;
+  margin-bottom: var(--s-2);
 }
 form.settings .input {
   max-width: 360px;
@@ -534,7 +533,7 @@ table.grid.clickable td.right {
 .crumbs {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--s-6);
   min-width: 0;
 }
 .crumbs a {
@@ -547,22 +546,22 @@ table.grid.clickable td.right {
 .stats-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
+  gap: var(--s-12);
 }
 .stat {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 12px 14px;
+  gap: var(--s-4);
+  padding: var(--s-12) var(--s-16);
   border: 1px solid var(--line);
   border-radius: 10px;
   font-size: 13px;
 }
 .card.panel {
-  padding: 16px 18px;
+  padding: var(--s-16) var(--s-16);
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--s-12);
 }
 .card.panel h2 {
   font-size: 13px;
@@ -571,7 +570,7 @@ table.grid.clickable td.right {
 .sendpanel {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--s-8);
 }
 .sendpanel .platforms {
   max-width: none;

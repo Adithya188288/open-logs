@@ -32,7 +32,7 @@ test('New source modal: name → snippet with token once → listening → first
   await dialog.getByRole('button', { name: 'Done' }).click();
 
   await expect(page.getByTestId('source-row')).toHaveCount(1);
-  await expect(page.getByTestId('source-row')).toContainText('Receiving');
+  await expect(page.getByTestId('source-row')).toContainText('Live');
   await page.reload();
   await expect(page.getByTestId('token')).toHaveCount(0);
 });

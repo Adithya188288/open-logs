@@ -220,10 +220,11 @@ export function Dashboard() {
           <span className="freshness small muted" data-testid="dashboard-freshness">
             {freshness}
             <button
-              className="btn link small"
+              className="btn ghost"
               type="button"
               onClick={() => queryClient.invalidateQueries({ queryKey: ['agg', project.id] })}
             >
+              <Icon name="refresh" size={14} />
               Refresh
             </button>
           </span>
@@ -267,10 +268,11 @@ export function Dashboard() {
             </button>
           </div>
         ) : (
-          charts.map((c) => (
+          charts.map((c, i) => (
             <Tile
               key={c.id}
               c={c}
+              fill={i === charts.length - 1 ? lastRowFill(charts) : 0}
               projectId={project.id}
               range={range}
               onEdit={() => setDrawer({ existing: c })}
@@ -321,10 +323,28 @@ export function Dashboard() {
   );
 }
 
+const SPAN = { sm: 1, md: 1, lg: 2 };
+const COLUMNS = 3;
+
 /**
- * @param {{ c: ChartRow, projectId: string, range: Range, onEdit: () => void, onDuplicate: () => void, onRemove: () => void }} props
+ * Columns the last tile should span so the final grid row has no hole (0 = its own size already fits).
+ * @param {ChartRow[]} charts
  */
-function Tile({ c, projectId, range, onEdit, onDuplicate, onRemove }) {
+function lastRowFill(charts) {
+  let used = 0;
+  for (const c of charts) {
+    const span = SPAN[/** @type {keyof typeof SPAN} */ (c.size)] ?? 1;
+    used = (used % COLUMNS) + span > COLUMNS ? span : (used % COLUMNS) + span;
+  }
+  const last = SPAN[/** @type {keyof typeof SPAN} */ (charts[charts.length - 1].size)] ?? 1;
+  const free = COLUMNS - (used % COLUMNS || COLUMNS);
+  return free ? last + free : 0;
+}
+
+/**
+ * @param {{ c: ChartRow, projectId: string, range: Range, fill: number, onEdit: () => void, onDuplicate: () => void, onRemove: () => void }} props
+ */
+function Tile({ c, projectId, range, fill, onEdit, onDuplicate, onRemove }) {
   const { data: result, error } = useQuery(chartQuery(projectId, c, range));
   const state = error
     ? { error: error instanceof ApiError ? error.message : 'Could not load this chart' }
@@ -340,7 +360,11 @@ function Tile({ c, projectId, range, onEdit, onDuplicate, onRemove }) {
   };
 
   return (
-    <section className={`tile ${c.size}`} data-testid="chart" aria-label={c.title}>
+    <section
+      className={`tile ${c.size}${fill ? ` span-${fill}` : ''}`}
+      data-testid="chart"
+      aria-label={c.title}
+    >
       <div className="head">
         <h2>{c.title}</h2>
         <div className="headr">
@@ -528,7 +552,7 @@ function ChartDrawer({ projectId, dashboard, range, existing, preset, onClose, o
         <div className="dhead">
           <h2>{existing ? 'Edit chart' : 'New chart'}</h2>
           <button type="button" aria-label="Close" onClick={onClose}>
-            ×
+            <Icon name="x" size={16} />
           </button>
         </div>
         <div className="dbody">

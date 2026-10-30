@@ -103,14 +103,16 @@ function NumberChart({ c, data, prev }) {
   let worse = false;
   if (prev?.value && data.value !== null) {
     const pct = Math.round(((data.value - prev.value) / prev.value) * 100);
-    const arrow = pct > 0 ? '▲' : pct < 0 ? '▼' : '■';
     const judged = bad && pct !== 0;
     worse = judged && pct > 0;
-    delta = (
-      <span
-        className={`delta${judged ? (pct > 0 ? ' bad' : ' good') : ''}`}
-      >{`${arrow} ${Math.abs(pct)}% vs previous period${judged ? (pct > 0 ? ' · worse' : ' · better') : ''}`}</span>
-    );
+    delta =
+      pct === 0 ? (
+        <span className="delta">Same as previous period</span>
+      ) : (
+        <span
+          className={`delta${judged ? (pct > 0 ? ' bad' : ' good') : ''}`}
+        >{`${pct > 0 ? '▲' : '▼'} ${Math.abs(pct)}% vs previous period${judged ? (pct > 0 ? ' · worse' : ' · better') : ''}`}</span>
+      );
   }
   return (
     <>
@@ -313,8 +315,9 @@ export function Chart({ c, data, prev = null, linkFor = () => null }) {
     data.series_by_group.every((g) => g.series.every((p) => !p.value));
   if (empty) return <div className="nodata">No events in this range</div>;
   const hasGroups = data.groups.length > 0;
-  if (c.viz === 'pie')
-    return hasGroups ? <Donut c={c} data={data} /> : <div className="nodata">Pick a field to split by</div>;
+  if (c.viz === 'pie' && !hasGroups) return <div className="nodata">Pick a field to split by</div>;
+  // A donut with one slice says nothing; a single group reads better as a ranked bar.
+  if (c.viz === 'pie' && data.groups.length > 1) return <Donut c={c} data={data} />;
   if (c.viz === 'line') return <LineChart c={c} data={data} />;
   if (c.measure === 'count_over_time' || !hasGroups) return <StackedBars c={c} data={data} />;
   return <HorizontalBars c={c} data={data} linkFor={linkFor} />;

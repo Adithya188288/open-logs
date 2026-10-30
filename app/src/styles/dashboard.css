@@ -1,36 +1,42 @@
 /* Dashboards and chart builder. Layout from docs/design/screens/Dashboard. */
 .tiles {
-  padding: 20px 24px 28px;
+  padding: var(--s-24) var(--s-24) var(--s-32);
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  gap: var(--s-12);
 }
 @media (max-width: 900px) {
   .tiles {
     grid-template-columns: minmax(0, 1fr);
   }
-  .tile.lg {
+  .tile.lg,
+  .tile.span-2,
+  .tile.span-3 {
     grid-column: auto !important;
   }
 }
 .tile {
   border: 1px solid var(--line);
   border-radius: 10px;
-  padding: 14px 16px;
+  padding: var(--s-16) var(--s-16);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--s-8);
   background: var(--bg);
   min-width: 0;
 }
-.tile.lg {
+.tile.lg,
+.tile.span-2 {
   grid-column: span 2;
+}
+.tile.span-3 {
+  grid-column: span 3;
 }
 .tile .head {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 8px;
+  gap: var(--s-8);
 }
 .tile h2 {
   font-size: 13px;
@@ -55,7 +61,7 @@
   border: none;
   background: transparent;
   cursor: pointer;
-  padding: 0 4px;
+  padding: 0 var(--s-4);
   font-size: 15px;
   opacity: 0.8;
   border-radius: 6px;
@@ -66,7 +72,7 @@
 }
 .tile .headr {
   display: flex;
-  gap: 10px;
+  gap: var(--s-8);
   align-items: center;
 }
 .tile .err {
@@ -76,14 +82,14 @@
 .tile .nodata {
   font-size: 12px;
   color: var(--tx3);
-  padding: 16px 0;
+  padding: var(--s-16) 0;
   text-align: center;
 }
 .bigrow {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  gap: 12px;
+  gap: var(--s-12);
 }
 .big {
   font-size: 24px;
@@ -109,14 +115,14 @@
 .keys {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: var(--s-8);
   font-size: 11px;
   color: var(--tx3);
 }
 .keys span {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--s-4);
 }
 .keys i {
   width: 8px;
@@ -125,14 +131,16 @@
   display: inline-block;
 }
 .hbars {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: fit-content(60%) minmax(64px, 1fr) auto;
+  column-gap: var(--s-12);
+  row-gap: var(--s-8);
 }
+/* Rows share the list's columns, so bars line up and start right after the longest label. */
 .hbar {
   display: grid;
-  grid-template-columns: minmax(0, 140px) minmax(0, 1fr) auto;
-  gap: 10px;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
   align-items: center;
   font-family: var(--mono);
   font-size: 12px;
@@ -167,7 +175,7 @@
 }
 .vplot {
   display: flex;
-  gap: 8px;
+  gap: var(--s-8);
 }
 .vplot .yaxis {
   display: flex;
@@ -184,7 +192,7 @@
   flex-grow: 1;
   display: flex;
   align-items: flex-end;
-  gap: 3px;
+  gap: var(--s-4);
   height: 134px;
   border-bottom: 1px solid var(--line2);
   position: relative;
@@ -209,7 +217,7 @@
   font-family: var(--mono);
   font-size: 11px;
   color: var(--tx3);
-  padding-left: 36px;
+  padding-left: var(--s-32);
 }
 .line-svg {
   width: 100%;
@@ -228,7 +236,7 @@
 .donut {
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: var(--s-16);
   flex-wrap: wrap;
 }
 .donut svg {
@@ -257,14 +265,14 @@
 }
 .donut .keys {
   flex-direction: column;
-  gap: 6px;
+  gap: var(--s-6);
   font-size: 12px;
 }
 .donut .keys b {
   font-family: var(--mono);
   font-weight: 500;
   color: var(--tx);
-  margin-left: 6px;
+  margin-left: var(--s-6);
 }
 .spark {
   width: 96px;
@@ -338,7 +346,7 @@ circle[class^="k-"] {
 .drawer-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
+  background: var(--scrim);
   display: flex;
   justify-content: flex-end;
   z-index: 40;
@@ -357,7 +365,7 @@ circle[class^="k-"] {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 14px 18px;
+  padding: var(--s-16) var(--s-16);
   border-bottom: 1px solid var(--line);
 }
 .drawer .dhead h2 {
@@ -365,37 +373,42 @@ circle[class^="k-"] {
   font-weight: 600;
 }
 .drawer .dhead button {
-  font: inherit;
-  font-size: 18px;
-  color: var(--tx3);
+  display: inline-flex;
+  padding: var(--s-4);
   border: none;
+  border-radius: 6px;
   background: none;
+  color: var(--tx3);
   cursor: pointer;
 }
+.drawer .dhead button:hover {
+  background: var(--bg3);
+  color: var(--tx);
+}
 .drawer .dbody {
-  padding: 16px 18px;
+  padding: var(--s-16) var(--s-16);
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--s-12);
   overflow-y: auto;
   flex-grow: 1;
 }
 .drawer .two {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  gap: var(--s-8);
 }
 .drawer .vizs {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 6px;
+  gap: var(--s-6);
 }
 .drawer .vizs button {
   font: inherit;
   cursor: pointer;
   text-align: center;
   font-size: 12px;
-  padding: 7px 0;
+  padding: var(--s-8) 0;
   border-radius: 6px;
   border: 1px solid var(--line);
   background: var(--bg);
@@ -410,10 +423,10 @@ circle[class^="k-"] {
 .drawer .preview {
   border: 1px solid var(--line);
   border-radius: 10px;
-  padding: 14px;
+  padding: var(--s-16);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--s-8);
   background: var(--bg2);
 }
 .drawer .preview > span {
@@ -425,8 +438,8 @@ circle[class^="k-"] {
 }
 .drawer .dfoot {
   display: flex;
-  gap: 8px;
-  padding: 14px 18px;
+  gap: var(--s-8);
+  padding: var(--s-16) var(--s-16);
   border-top: 1px solid var(--line);
 }
 .drawer .dfoot .primary {
@@ -435,14 +448,14 @@ circle[class^="k-"] {
 }
 .empty-board {
   grid-column: 1 / -1;
-  padding: 40px;
+  padding: var(--s-40);
   text-align: center;
   color: var(--tx3);
   border: 1px dashed var(--line2);
   border-radius: 10px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--s-8);
   align-items: center;
 }
 .vplot .grow {
@@ -453,12 +466,12 @@ circle[class^="k-"] {
   font: inherit;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--s-6);
   border: none;
   background: transparent;
   color: var(--tx);
   cursor: pointer;
-  padding: 4px 6px;
+  padding: var(--s-4) var(--s-6);
   margin-left: -6px;
   border-radius: 6px;
 }
@@ -475,6 +488,6 @@ circle[class^="k-"] {
 .freshness {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--s-4);
   white-space: nowrap;
 }
