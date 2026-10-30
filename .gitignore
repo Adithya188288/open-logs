@@ -7,3 +7,5 @@ node_modules/
 test-results/
 playwright-report/
 coverage/
+.claude/launch.json
+e2e/.auth/
