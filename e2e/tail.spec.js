@@ -240,3 +240,74 @@ test('the time column shows the date for ranges longer than a day', async ({ pag
   await page.getByRole('group', { name: 'Time range' }).getByRole('button', { name: '7d' }).click();
   await expect(firstTime).toHaveText(/^[A-Z][a-z]{2} \d{1,2} \d\d:\d\d:\d\d\.\d{3}$/);
 });
+
+test('a burst of more events than one check fetches leaves no gap in the live tail', async ({
+  page,
+  app,
+}) => {
+  const { project, token } = await app.projectWithSource(uniq('burst'), 'api');
+  const start = Date.now() - 120_000;
+  await app.send(
+    token,
+    Array.from({ length: 10 }, (_, i) => ({ ts: start + i, message: `old ${i}` })),
+  );
+  await page.goto(`/tail?project=${project.id}`);
+  await expect(page.getByTestId('event')).toHaveCount(10);
+
+  const burstStart = Date.now() - 60_000;
+  await app.send(
+    token,
+    Array.from({ length: 300 }, (_, i) => ({ ts: burstStart + i * 100, message: `burst ${i}` })),
+  );
+  await page.getByRole('button', { name: 'Refresh' }).click();
+  await expect(page.getByTestId('event').first()).toContainText('burst 299');
+  // Newest 200 in one unbroken run; the rest (burst 0-99, then the old rows) stay reachable through Load older.
+  await expect(page.getByTestId('event')).toHaveCount(200);
+  await expect(page.getByTestId('event').last()).toContainText('burst 100');
+  await expect(page.getByTestId('event').filter({ hasText: 'old ' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Load older' }).click();
+  await expect(page.getByTestId('event').nth(200)).toContainText('burst 99');
+});
+
+test('an event that arrives late, with an earlier time, still shows in the live tail', async ({
+  page,
+  app,
+}) => {
+  const { project, token } = await app.projectWithSource(uniq('late'), 'api');
+  const now = Date.now();
+  await app.send(token, [{ ts: now - 1000, message: 'on time' }]);
+  await page.goto(`/tail?project=${project.id}`);
+  await expect(page.getByTestId('event')).toHaveCount(1);
+
+  await app.send(token, [{ ts: now - 90_000, message: 'late arrival' }]);
+  await page.getByRole('button', { name: 'Refresh' }).click();
+  await expect(page.getByTestId('event')).toHaveCount(2);
+  await expect(page.getByTestId('event').nth(1)).toContainText('late arrival');
+});
+
+test('Load older ignores a reply that arrives after the view changed', async ({ page, app }) => {
+  const { project, token } = await app.projectWithSource(uniq('older'), 'api');
+  const now = Date.now();
+  await app.send(
+    token,
+    Array.from({ length: 150 }, (_, i) => ({ ts: now - 600_000 + i * 1000, message: `row ${i}` })),
+  );
+  await page.goto(`/tail?project=${project.id}`);
+  await expect(page.getByTestId('event')).toHaveCount(100);
+
+  // Hold the Load older reply until the range has changed underneath it.
+  let release = () => {};
+  const held = new Promise((r) => {
+    release = r;
+  });
+  await page.route('**/api/query', async (route) => {
+    if (route.request().postDataJSON()?.cursor) await held;
+    await route.continue();
+  });
+  await page.getByRole('button', { name: 'Load older' }).click();
+  await page.getByRole('group', { name: 'Time range' }).getByRole('button', { name: '1h' }).click();
+  await expect(page.getByTestId('event')).toHaveCount(100);
+  release();
+  await page.waitForTimeout(800);
+  await expect(page.getByTestId('event')).toHaveCount(100);
+});
