@@ -71,9 +71,6 @@ wrangler('pipeline', [
 ]);
 
 const streamId = stream.match(/[0-9a-f]{32}/)?.[0] ?? '(see `npx wrangler basin pipelines streams list`)';
-const d1Id =
-  d1.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/)?.[0] ??
-  '(see `npx wrangler d1 list`)';
 console.log(`
 Next steps
   1. In wrangler.jsonc → env.staging set:

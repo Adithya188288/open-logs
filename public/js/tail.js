@@ -321,7 +321,10 @@ function renderChips() {
           {
             type: 'button',
             'aria-label': `Remove filter ${clauseLabel(c)}`,
-            onclick: () => (state.chips.splice(i, 1), load()),
+            onclick: () => {
+              state.chips.splice(i, 1);
+              load();
+            },
           },
           '×',
         ),
@@ -453,7 +456,13 @@ function renderHistogram() {
               `${hms(state.zoom.from)}–${hms(state.zoom.to)} UTC`,
               h(
                 'button.btn',
-                { type: 'button', onclick: () => ((state.zoom = null), load()) },
+                {
+                  type: 'button',
+                  onclick: () => {
+                    state.zoom = null;
+                    load();
+                  },
+                },
                 'Back to now',
               ),
             )
@@ -498,7 +507,10 @@ function renderHead() {
       {
         type: 'button',
         title: 'Switch absolute / relative time',
-        onclick: () => ((state.relative = !state.relative), render()),
+        onclick: () => {
+          state.relative = !state.relative;
+          render();
+        },
       },
       state.relative ? 'Age ⇄' : 'Time · UTC ⇄',
     ),
@@ -666,7 +678,14 @@ function renderList() {
           null,
           h(
             'button.btn',
-            { type: 'button', onclick: () => ((state.range = '24h'), (state.zoom = null), load()) },
+            {
+              type: 'button',
+              onclick: () => {
+                state.range = '24h';
+                state.zoom = null;
+                load();
+              },
+            },
             'Try last 24h',
           ),
           h('button.btn', { type: 'button', onclick: () => addFilter('level', 'error') }, 'Add level:error'),
@@ -755,7 +774,13 @@ function emptyState() {
         state.range !== '24h' && !state.zoom
           ? h(
               'button.btn',
-              { type: 'button', onclick: () => ((state.range = '24h'), load()) },
+              {
+                type: 'button',
+                onclick: () => {
+                  state.range = '24h';
+                  load();
+                },
+              },
               'Search last 24h',
             )
           : null,
@@ -795,7 +820,14 @@ function emptyState() {
       null,
       h(
         'button.btn',
-        { type: 'button', onclick: () => ((state.zoom = null), (state.range = '7d'), load()) },
+        {
+          type: 'button',
+          onclick: () => {
+            state.zoom = null;
+            state.range = '7d';
+            load();
+          },
+        },
         'Search last 7 days',
       ),
     ),

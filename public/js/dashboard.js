@@ -141,7 +141,11 @@ function renderRanges() {
         {
           type: 'button',
           'aria-pressed': String(r === range),
-          onclick: () => ((range = /** @type {keyof typeof RANGES} */ (r)), renderRanges(), renderTiles()),
+          onclick: () => {
+            range = /** @type {keyof typeof RANGES} */ (r);
+            renderRanges();
+            renderTiles();
+          },
         },
         r,
       ),
@@ -353,7 +357,11 @@ async function openDrawer(existing, presetField) {
           {
             type: 'button',
             'aria-pressed': String(draft.viz === v),
-            onclick: () => ((draft.viz = v), renderViz(), refresh()),
+            onclick: () => {
+              draft.viz = v;
+              renderViz();
+              refresh();
+            },
           },
           v[0].toUpperCase() + v.slice(1),
         ),
