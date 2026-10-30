@@ -52,8 +52,11 @@ export function normalizeLevel(raw) {
  */
 function normalizeTime(raw, now) {
   let ms = Number.NaN;
-  if (typeof raw === 'number') ms = raw < 1e11 ? raw * 1000 : raw;
-  else if (typeof raw === 'string' && raw) ms = /^\d+(\.\d+)?$/.test(raw) ? Number(raw) : Date.parse(raw);
+  const numeric =
+    typeof raw === 'number' ? raw : typeof raw === 'string' && /^\d+(\.\d+)?$/.test(raw) ? Number(raw) : null;
+  // Epoch numbers below 1e11 are seconds (1e11 s is the year 5138; 1e11 ms is 1973).
+  if (numeric !== null) ms = numeric < 1e11 ? numeric * 1000 : numeric;
+  else if (typeof raw === 'string' && raw) ms = Date.parse(raw);
   if (!Number.isFinite(ms) || Math.abs(ms - now) > DAY_MS) return now;
   return Math.round(ms);
 }

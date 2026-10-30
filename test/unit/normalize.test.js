@@ -39,6 +39,8 @@ describe('normalizeEvent', () => {
   it('accepts client time in ms, seconds or ISO within ±24h, else uses server time', () => {
     expect(normalizeEvent({ ts: NOW - 1000 }, source, NOW).ts).toBe(NOW - 1000);
     expect(normalizeEvent({ timestamp: (NOW - 5000) / 1000 }, source, NOW).ts).toBe(NOW - 5000);
+    expect(normalizeEvent({ ts: String((NOW - 5000) / 1000) }, source, NOW).ts).toBe(NOW - 5000);
+    expect(normalizeEvent({ ts: String(NOW - 5000) }, source, NOW).ts).toBe(NOW - 5000);
     expect(normalizeEvent({ dt: new Date(NOW - 60_000).toISOString() }, source, NOW).ts).toBe(NOW - 60_000);
     expect(normalizeEvent({ ts: NOW - 2 * 86_400_000 }, source, NOW).ts).toBe(NOW);
     expect(normalizeEvent({ ts: 'garbage' }, source, NOW).ts).toBe(NOW);
