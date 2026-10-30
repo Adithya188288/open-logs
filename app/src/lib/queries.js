@@ -3,6 +3,7 @@
 // refetches in a background tab, and changes refresh exactly the data they affect via `refresh.*`.
 import { QueryClient, queryOptions } from '@tanstack/react-query';
 import { api } from './api.js';
+import { chartQuery, DEFAULT_DASHBOARD_RANGE, fetchTail, RANGES, tailKey } from './live.js';
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -100,16 +101,65 @@ export const refresh = {
   views: (projectId) => queryClient.invalidateQueries({ queryKey: ['project', projectId, 'views'] }),
 };
 
+/** Workspace-wide data: loaded once at start-up, not again when switching project. */
+let workspaceLoad = /** @type {Promise<unknown> | null} */ (null);
+function loadWorkspace() {
+  workspaceLoad ??= Promise.allSettled([
+    queryClient.fetchQuery(q.team()),
+    queryClient.fetchQuery(q.settings()),
+    queryClient.fetchQuery(q.status()),
+  ]);
+  return workspaceLoad;
+}
+
+/** @type {Map<string, Promise<unknown>>} */
+const projectLoads = new Map();
+
 /**
- * Loads a project's screens' data in the background so the first visit to each is instant.
+ * Everything a project's screens show, loaded up front so moving between them never waits:
+ * sources, saved views, every dashboard's chart list, the first dashboard's chart data (default range)
+ * and the live tail's latest rows (default view). Failures don't block: that part loads on its screen.
  * @param {string} projectId
+ * @param {boolean} hasSources  a project without sources can't have logs, so its charts and tail aren't queried
  */
-export async function preloadProject(projectId) {
-  queryClient.prefetchQuery(q.team());
-  queryClient.prefetchQuery(q.settings());
-  queryClient.prefetchQuery(q.status());
-  queryClient.prefetchQuery(q.sources(projectId));
-  queryClient.prefetchQuery(q.views(projectId));
-  const dashboards = await queryClient.fetchQuery(q.dashboards(projectId)).catch(() => []);
-  for (const d of dashboards) queryClient.prefetchQuery(q.charts(d.id));
+export function loadProject(projectId, hasSources) {
+  let load = projectLoads.get(projectId);
+  if (!load) {
+    load = Promise.allSettled([
+      loadWorkspace(),
+      queryClient.fetchQuery(q.sources(projectId)),
+      queryClient.fetchQuery(q.views(projectId)),
+      (async () => {
+        const dashboards = await queryClient.fetchQuery(q.dashboards(projectId));
+        const lists = await Promise.all(
+          dashboards.map((/** @type {any} */ d) => queryClient.fetchQuery(q.charts(d.id))),
+        );
+        if (hasSources && lists[0]) {
+          await Promise.allSettled(
+            lists[0].map((/** @type {any} */ c) =>
+              queryClient.fetchQuery(chartQuery(projectId, c, DEFAULT_DASHBOARD_RANGE)),
+            ),
+          );
+        }
+      })(),
+      (async () => {
+        const key = tailKey(projectId);
+        if (queryClient.getQueryData(key)) return;
+        const to = Date.now() + 1000;
+        queryClient.setQueryData(
+          key,
+          await fetchTail(projectId, [], { from: to - RANGES['15m'], to }, false),
+        );
+      })(),
+    ]);
+    projectLoads.set(projectId, load);
+  }
+  return load;
+}
+
+/** @param {string} projectId */
+export function isProjectLoaded(projectId) {
+  return (
+    projectLoads.has(projectId) && queryClient.getQueryData(['project', projectId, 'sources']) !== undefined
+  );
 }

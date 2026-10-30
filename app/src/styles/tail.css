@@ -605,3 +605,12 @@
     max-height: none;
   }
 }
+.list-refreshing {
+  display: flex;
+  justify-content: center;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+.list.refreshing .ev {
+  opacity: 0.55;
+}

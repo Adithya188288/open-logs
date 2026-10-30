@@ -10,18 +10,17 @@ import { MenuButton } from '../components/Menu.jsx';
 import { ApiError, api } from '../lib/api.js';
 import { downloadCsv, toCsv } from '../lib/csv.js';
 import { ago, hm, hms, hmsms, lagLabel, num, span } from '../lib/format.js';
+import { fetchTail, RANGES, TAIL_PAGE, tailKey } from '../lib/live.js';
 import { q, queryClient, refresh } from '../lib/queries.js';
 import { clauseLabel, clauseToSearch, parseSearch } from '../lib/search.js';
 import { copyText } from '../lib/store.js';
 
-const RANGES = { '15m': 15 * 60_000, '1h': 3_600_000, '24h': 86_400_000, '7d': 7 * 86_400_000 };
 const LEGEND = /** @type {const} */ ([
   ['info', ['debug', 'info']],
   ['warn', ['warn']],
   ['error', ['error', 'fatal']],
 ]);
 const LEVEL_ORDER = ['fatal', 'error', 'warn', 'info', 'debug'];
-const PAGE = 100;
 const SEARCH_HELP = [
   ['payment failed', 'words anywhere in the message or fields'],
   ['level:error', 'a field equals a value'],
@@ -112,6 +111,7 @@ export function Tail() {
   const listRef = useRef(/** @type {HTMLDivElement | null} */ (null));
   const searchRef = useRef(/** @type {HTMLInputElement | null} */ (null));
   const loadSeq = useRef(0);
+  const pollNow = useRef(/** @type {() => void} */ (() => {}));
   const polls = useRef(0);
 
   const live = !paused && !zoom && range !== 'custom';
@@ -135,7 +135,8 @@ export function Tail() {
   }, [chips, source, text, hidden]);
 
   const filtered = Boolean(chips.length || text || hidden.length || source);
-  const queryKey = JSON.stringify([project.id, where, zoom, range, custom, reloadKey]);
+  const cacheKey = tailKey(project.id, { where, zoom, range, custom, reloadKey });
+  const queryKey = cacheKey[1];
   const [loadedKey, setLoadedKey] = useState('');
   // Until data for the current query arrives, show the loader rather than the previous query's rows.
   const phase = loadedKey === queryKey ? loadPhase : 'loading';
@@ -150,59 +151,42 @@ export function Tail() {
     setProblem(null);
     setSelected(null);
     setCursor(0);
-    // Coming back to this view: show the rows we kept straight away and refresh them quietly.
-    const kept = queryClient.getQueryData(['tail', queryKey]);
-    if (kept) {
-      setEvents(kept.events);
-      setNextCursor(kept.nextCursor);
-      setHist(kept.hist);
-      setStatus(kept.status);
-      setDataThrough(kept.status.now - kept.status.lag_ms);
-      setUnfilteredTotal(kept.unfiltered);
+    // Rows we already have for this view (preloaded at start-up, or from an earlier visit) show
+    // straight away; they're refreshed quietly unless they're less than 30 seconds old.
+    const kept = queryClient.getQueryData(cacheKey);
+    const show = (/** @type {any} */ d) => {
+      setStatus(d.status);
+      setEvents(d.events);
+      setNextCursor(d.nextCursor);
+      setHist(d.hist);
+      setUnfilteredTotal(d.unfiltered);
+      setDataThrough(d.status.now - d.status.lag_ms);
       setPhase('ready');
       setLoadedKey(queryKey);
-    } else setPhase('loading');
-    (async () => {
-      try {
-        const body = { project_id: project.id, ...w, where };
-        const [page, h, st] = await Promise.all([
-          api('/api/query', { body: { ...body, limit: PAGE } }),
-          api('/api/histogram', { body }),
-          api(`/api/status?project_id=${project.id}`),
-        ]);
-        if (seq !== loadSeq.current) return;
-        let unfiltered = 0;
-        if (!page.events.length && filtered)
-          unfiltered = (await api('/api/histogram', { body: { project_id: project.id, ...w } })).total;
-        if (seq !== loadSeq.current) return;
-        setStatus(st);
-        setEvents(page.events);
-        setNextCursor(page.next_cursor);
-        setHist(h);
-        setUnfilteredTotal(unfiltered);
-        setDataThrough(st.now - st.lag_ms);
-        setPhase('ready');
-        setLoadedKey(queryKey);
-        queryClient.setQueryData(['tail', queryKey], {
-          events: page.events,
-          nextCursor: page.next_cursor,
-          hist: h,
-          status: st,
-          unfiltered,
-        });
-        if (focusId.current) {
-          const i = page.events.findIndex((/** @type {LogEvent} */ e) => e.id === focusId.current);
-          if (i >= 0) {
-            setCursor(i);
-            setSelected(focusId.current);
-          }
-          focusId.current = null;
+      if (focusId.current) {
+        const i = d.events.findIndex((/** @type {LogEvent} */ e) => e.id === focusId.current);
+        if (i >= 0) {
+          setCursor(i);
+          setSelected(focusId.current);
         }
-      } catch (err) {
-        if (seq !== loadSeq.current) return;
-        setPhase(err instanceof ApiError && err.code === 'query_too_large' ? 'too_large' : 'error');
-        setProblem(err instanceof ApiError ? err : null);
-        setLoadedKey(queryKey);
+        focusId.current = null;
+      }
+    };
+    if (kept) show(kept);
+    else setPhase('loading');
+    (async () => {
+      if (!kept || Date.now() - kept.at > 30_000) {
+        try {
+          const d = await fetchTail(project.id, where, w, filtered);
+          if (seq !== loadSeq.current) return;
+          queryClient.setQueryData(cacheKey, d);
+          show(d);
+        } catch (err) {
+          if (seq !== loadSeq.current) return;
+          setPhase(err instanceof ApiError && err.code === 'query_too_large' ? 'too_large' : 'error');
+          setProblem(err instanceof ApiError ? err : null);
+          setLoadedKey(queryKey);
+        }
       }
       setNextCheckAt(Date.now() + pollRef.current);
     })();
@@ -246,6 +230,7 @@ export function Tail() {
       } catch {}
       setNextCheckAt(Date.now() + L.pollMs);
     };
+    pollNow.current = poll;
     const t = setInterval(poll, pollMs);
     const onVisible = () => document.visibilityState === 'visible' && poll();
     document.addEventListener('visibilitychange', onVisible);
@@ -256,10 +241,11 @@ export function Tail() {
   }, [pollMs, project.id]);
 
   // Keep the kept rows current as new events stream in, so coming back shows them too.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: cacheKey is derived from queryKey
   useEffect(() => {
-    const kept = queryClient.getQueryData(['tail', queryKey]);
+    const kept = queryClient.getQueryData(cacheKey);
     if (kept && loadedKey === queryKey && kept.events !== events)
-      queryClient.setQueryData(['tail', queryKey], { ...kept, events, hist });
+      queryClient.setQueryData(cacheKey, { ...kept, events, hist, at: Date.now() });
   }, [events, hist, queryKey, loadedKey]);
 
   // Countdown in the freshness pill (only redraws while the tab is visible).
@@ -399,7 +385,7 @@ export function Tail() {
   const loadOlder = async () => {
     if (!nextCursor) return;
     const page = await api('/api/query', {
-      body: { project_id: project.id, ...windowRange(), where, limit: PAGE, cursor: nextCursor },
+      body: { project_id: project.id, ...windowRange(), where, limit: TAIL_PAGE, cursor: nextCursor },
     });
     setEvents((prev) => [...prev, ...page.events]);
     setNextCursor(page.next_cursor);
@@ -477,6 +463,15 @@ export function Tail() {
             </button>
           ))}
         </div>
+        <button
+          className="btn"
+          type="button"
+          onClick={() => pollNow.current()}
+          disabled={!live}
+          title="Check for new events now"
+        >
+          Refresh
+        </button>
         <button className="btn" type="button" onClick={() => setPaused((p) => !p)}>
           {paused ? '▶ Resume' : '❚❚ Pause'}
         </button>
@@ -692,16 +687,15 @@ export function Tail() {
           <div
             ref={listRef}
             role="region"
-            className={`list${wrap ? ' wrap' : ''}`}
+            className={`list${wrap ? ' wrap' : ''}${phase === 'loading' ? ' refreshing' : ''}`}
             // biome-ignore lint/a11y/noNoninteractiveTabindex: the list takes focus so j/k/Enter can move through events
             tabIndex={0}
             aria-label="Event list. j and k move between events, Enter opens details, slash jumps to search."
             onKeyDown={onListKey}
           >
-            {phase === 'loading' ? (
+            {phase === 'loading' && !events.length ? (
               <div className="list-loading">
                 <Loader label="Loading events" />
-                <span className="sk-label">{`Querying ${zoom ? 'the selected range' : windowName}…`}</span>
               </div>
             ) : phase === 'too_large' ? (
               <div className="toolarge" data-testid="too-large">
@@ -780,36 +774,43 @@ export function Tail() {
                 </div>
               )
             ) : (
-              events.map((e, i) => {
-                const open = selected === e.id;
-                return (
-                  <div
-                    key={e.id}
-                    className={`ev${open ? ' open' : ''}${cursor === i ? ' cursor' : ''}${freshIds.has(e.id) ? ' fresh' : ''}`}
-                    data-testid="event"
-                    data-id={e.id}
-                  >
-                    <button
-                      className="row"
-                      type="button"
-                      tabIndex={-1}
-                      aria-pressed={open}
-                      onClick={() => {
-                        setCursor(i);
-                        setSelected(open ? null : e.id);
-                      }}
-                    >
-                      <span className="t">{relative ? ago(e.ts) : hmsms(e.ts)}</span>
-                      <span className={`lvl ${e.level}`}>{e.level.toUpperCase()}</span>
-                      <span className="src">{e.source}</span>
-                      <span className="msg">{e.message}</span>
-                      <span className="chev" aria-hidden="true">
-                        ›
-                      </span>
-                    </button>
+              <>
+                {phase === 'loading' && (
+                  <div className="list-refreshing">
+                    <Loader size="sm" inline label="Loading events" />
                   </div>
-                );
-              })
+                )}
+                {events.map((e, i) => {
+                  const open = selected === e.id;
+                  return (
+                    <div
+                      key={e.id}
+                      className={`ev${open ? ' open' : ''}${cursor === i ? ' cursor' : ''}${freshIds.has(e.id) ? ' fresh' : ''}`}
+                      data-testid="event"
+                      data-id={e.id}
+                    >
+                      <button
+                        className="row"
+                        type="button"
+                        tabIndex={-1}
+                        aria-pressed={open}
+                        onClick={() => {
+                          setCursor(i);
+                          setSelected(open ? null : e.id);
+                        }}
+                      >
+                        <span className="t">{relative ? ago(e.ts) : hmsms(e.ts)}</span>
+                        <span className={`lvl ${e.level}`}>{e.level.toUpperCase()}</span>
+                        <span className="src">{e.source}</span>
+                        <span className="msg">{e.message}</span>
+                        <span className="chev" aria-hidden="true">
+                          ›
+                        </span>
+                      </button>
+                    </div>
+                  );
+                })}
+              </>
             )}
           </div>
         </div>

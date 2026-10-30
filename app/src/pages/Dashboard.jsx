@@ -12,9 +12,12 @@ import { ApiError, api } from '../lib/api.js';
 import { downloadCsv, toCsv } from '../lib/csv.js';
 import { ago, hms, num } from '../lib/format.js';
 import { q, queryClient, refresh } from '../lib/queries.js';
+import { aggregate, chartQuery, DEFAULT_DASHBOARD_RANGE, partsFor, RANGES, windowFor } from '../lib/live.js';
 import { clauseToSearch, fieldFor, parseSearch } from '../lib/search.js';
 
-const RANGES = { '15m': 15 * 60_000, '1h': 3_600_000, '24h': 86_400_000, '7d': 7 * 86_400_000 };
+/** @typedef {import('../lib/live.js').ChartRow} ChartRow */
+/** @typedef {import('../lib/live.js').Range} Range */
+
 const MEASURES = [
   ['count', 'Count'],
   ['count_over_time', 'Count over time'],
@@ -23,54 +26,12 @@ const MEASURES = [
 ];
 const VIZ = ['bar', 'pie', 'line', 'number'];
 
-/** @typedef {import('../components/Charts.jsx').ChartDef & { id: string, size: string }} ChartRow */
-/** @typedef {keyof typeof RANGES} Range */
-
-/** @param {Range} range */
-function windowFor(range) {
-  const to = Date.now() + 1000;
-  return { from: to - RANGES[range], to };
-}
-
-/**
- * Which parts of an aggregate a chart draws. Each part is a Basin query (min 10 MB billed),
- * so asking only for these keeps a dashboard load cheap.
- * @param {Pick<ChartRow, 'field' | 'measure' | 'viz'>} c
- */
-function partsFor(c) {
-  const grouped = Boolean(c.field) || c.measure === 'avg' || c.measure === 'p95';
-  if (c.viz === 'number') return ['value', 'series'];
-  if (c.viz === 'pie') return ['value', 'groups'];
-  if (c.viz === 'line') return grouped && c.measure !== 'count' ? ['series', 'series_by_group'] : ['series'];
-  if (c.measure === 'count_over_time') return c.field ? ['series', 'series_by_group'] : ['series'];
-  return grouped ? ['groups'] : ['series'];
-}
-
-/**
- * @param {string} projectId
- * @param {Pick<ChartRow, 'filter' | 'field' | 'measure' | 'viz'>} c
- * @param {{ from: number, to: number }} w
- * @param {string[]} [parts]
- */
-function aggregate(projectId, c, w, parts = partsFor(c)) {
-  return api('/api/aggregate', {
-    body: {
-      project_id: projectId,
-      ...w,
-      where: c.filter.where,
-      measure: c.measure,
-      field: c.field ?? undefined,
-      parts,
-    },
-  });
-}
-
 export function Dashboard() {
   const project = useProject();
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const { data: dashboards } = useQuery(q.dashboards(project.id));
-  const [range, setRange] = useState(/** @type {Range} */ ('1h'));
+  const [range, setRange] = useState(/** @type {Range} */ (DEFAULT_DASHBOARD_RANGE));
   const lag = useQuery(q.status()).data?.lag_ms ?? 0;
   const [drawer, setDrawer] = useState(
     /** @type {{ existing?: ChartRow, preset?: string } | null} */ (
@@ -95,12 +56,12 @@ export function Dashboard() {
     }
   }, [dashboards, project.id, reloadDashboards]);
 
-  // Refresh when new data lands: one cheap check of the newest event time (every minute, or every
-  // 5 minutes for long ranges; only while this tab is visible, and once when you come back to it).
+  // Refresh when new data lands: one cheap check of the newest event time every 30 seconds
+  // (only while this tab is visible, and once when you come back to it).
   // Charts re-query only when that time actually changed.
   const hasSources = project.sources.length > 0;
   const { data: newest } = useQuery({
-    ...q.newest(project.id, range === '24h' || range === '7d' ? 300_000 : 60_000),
+    ...q.newest(project.id, 30_000),
     enabled: hasSources,
   });
   const lastNewest = useRef(newest);
@@ -364,20 +325,7 @@ export function Dashboard() {
  * @param {{ c: ChartRow, projectId: string, range: Range, onEdit: () => void, onDuplicate: () => void, onRemove: () => void }} props
  */
 function Tile({ c, projectId, range, onEdit, onDuplicate, onRemove }) {
-  // Keyed by what the chart shows, so an edited chart re-queries and an unchanged one stays cached.
-  const spec = JSON.stringify([c.filter, c.field, c.measure, c.viz]);
-  const { data: result, error } = useQuery({
-    queryKey: ['agg', projectId, c.id, spec, range],
-    queryFn: async () => {
-      const w = windowFor(range);
-      const span = w.to - w.from;
-      const [data, prev] = await Promise.all([
-        aggregate(projectId, c, w),
-        c.viz === 'number' ? aggregate(projectId, c, { from: w.from - span, to: w.from }, ['value']) : null,
-      ]);
-      return { data, prev };
-    },
-  });
+  const { data: result, error } = useQuery(chartQuery(projectId, c, range));
   const state = error
     ? { error: error instanceof ApiError ? error.message : 'Could not load this chart' }
     : { data: result?.data, prev: result?.prev };

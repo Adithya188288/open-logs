@@ -30,7 +30,14 @@ export function Source() {
   const navigate = useNavigate();
   const id = params.get('id') ?? '';
   const list = `/sources?project=${encodeURIComponent(project.id)}`;
-  const { data: source, isError } = useQuery(q.source(id));
+  // Starts from the sources list loaded at start-up, so the page opens instantly.
+  const { data: source, isError } = useQuery({
+    ...q.source(id),
+    initialData: () =>
+      /** @type {any[] | undefined} */ (queryClient.getQueryData(['project', project.id, 'sources']))?.find(
+        (s) => s.id === id,
+      ),
+  });
   useEffect(() => {
     if (isError) navigate(list, { replace: true });
   }, [isError, list, navigate]);

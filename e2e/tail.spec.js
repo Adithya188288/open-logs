@@ -130,7 +130,8 @@ test('states: loading, no results, query too large, waiting', async ({ page, app
     await route.continue().catch(() => {});
   });
   await page.goto(`/tail?project=${project.id}`);
-  await expect(page.getByRole('status', { name: 'Loading events' })).toBeVisible();
+  // Live tail's first rows come with the single start-up load, so that's the loader you see.
+  await expect(page.getByRole('status', { name: 'Loading' })).toBeVisible();
   await page.unroute('**/api/query');
   await expect(page.getByTestId('event')).toHaveCount(40);
 

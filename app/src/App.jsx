@@ -1,18 +1,16 @@
 // Routes. Signed-in screens share <Layout/> so the sidebar never reloads.
-import { lazy, Suspense, useEffect } from 'react';
+import { useEffect } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
 import { Layout, PageLoader, projectHome, useApp } from './components/Layout.jsx';
+import { Dashboard } from './pages/Dashboard.jsx';
 import { Invite } from './pages/Invite.jsx';
 import { Login } from './pages/Login.jsx';
 import { Projects } from './pages/Projects.jsx';
 import { Settings } from './pages/Settings.jsx';
 import { Source } from './pages/Source.jsx';
 import { Sources } from './pages/Sources.jsx';
+import { Tail } from './pages/Tail.jsx';
 import { Team } from './pages/Team.jsx';
-
-// The two heaviest screens load on demand, so sign-in and the shell stay small.
-const Tail = lazy(() => import('./pages/Tail.jsx').then((m) => ({ default: m.Tail })));
-const Dashboard = lazy(() => import('./pages/Dashboard.jsx').then((m) => ({ default: m.Dashboard })));
 
 /** "/" opens the current project's dashboard. */
 function Home() {
@@ -24,7 +22,7 @@ function Home() {
 function NeedsProject({ children }) {
   const { project } = useApp();
   if (!project) return <PageLoader />;
-  return <Suspense fallback={<PageLoader />}>{children}</Suspense>;
+  return children;
 }
 
 /** @param {{ title: string, children: import('react').ReactNode }} props */

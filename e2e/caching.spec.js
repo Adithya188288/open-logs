@@ -75,3 +75,25 @@ test('coming back to the dashboard within 30s does not re-check for new data', a
   }
   expect(checks).toBe(0);
 });
+
+test('after the start-up load, live tail and dashboard open without loading anything', async ({
+  page,
+  app,
+}) => {
+  const { project, token } = await app.projectWithSource(uniq('startup'), 'api');
+  await app.send(token, sampleEvents(Date.now(), 8));
+  await page.goto(`/sources?project=${project.id}`);
+  await expect(page.getByTestId('source-row')).toHaveCount(1);
+
+  let requests = 0;
+  page.on(
+    'request',
+    (r) => /\/api\/(query|histogram|aggregate|dashboards|projects)/.test(r.url()) && requests++,
+  );
+  await page.getByRole('link', { name: 'Live tail', exact: true }).click();
+  await expect(page.getByTestId('event')).toHaveCount(8);
+  await page.getByRole('link', { name: 'Dashboard', exact: true }).click();
+  await expect(page.getByTestId('chart').first().getByTestId('chart-value')).toHaveText('8');
+  expect(requests).toBe(0);
+  await expect(page.getByRole('status')).toHaveCount(0);
+});

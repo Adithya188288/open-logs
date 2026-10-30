@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { Link, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { ApiError, api } from '../lib/api.js';
 import { initials } from '../lib/format.js';
-import { preloadProject, q, queryClient, refresh } from '../lib/queries.js';
+import { isProjectLoaded, loadProject, q, queryClient, refresh } from '../lib/queries.js';
 import { currentTheme, toggleTheme } from '../lib/theme.js';
 import { FormDialog, openDialog, Overlays } from './Dialogs.jsx';
 import { Icon, ThemeIcon } from './Icon.jsx';
@@ -122,11 +122,19 @@ export function Layout() {
     if (projects && asked && !project) navigate('/projects', { replace: true });
   }, [project, projects, asked, navigate]);
 
-  // Once the shell is up, load the other screens' data quietly so their first visit is instant.
+  // One load per project (and at start-up): everything its screens show, so moving between them never waits.
   const projectId = project?.id;
+  const hasSources = Boolean(project?.sources.length);
+  const [loadedFor, setLoadedFor] = useState(/** @type {string | null} */ (null));
   useEffect(() => {
-    if (projectId) preloadProject(projectId);
-  }, [projectId]);
+    if (!projectId) return;
+    let current = true;
+    loadProject(projectId, hasSources).then(() => current && setLoadedFor(projectId));
+    return () => {
+      current = false;
+    };
+  }, [projectId, hasSources]);
+  const projectReady = !projectId || loadedFor === projectId || isProjectLoaded(projectId);
 
   const me = meQuery.data;
   const state = useMemo(
@@ -135,7 +143,7 @@ export function Layout() {
     [me, projects, project, setTeam, reloadProjects],
   );
 
-  if (!state) {
+  if (!state || !projectReady) {
     return (
       <div className="boot">
         <Loader size="lg" label="Loading" />
