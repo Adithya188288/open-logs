@@ -102,3 +102,36 @@ describe('invites', () => {
     expect(inv.json.email).toEqual({ sent: false, reason: 'not_configured' });
   });
 });
+
+describe('security review fixes', () => {
+  it('rate limits current-password guesses', async () => {
+    const cookie = await signInOwner();
+    let last = 0;
+    for (let i = 0; i < 15 && last !== 429; i++) {
+      last = (
+        await api('/api/me/password', {
+          cookie,
+          body: { current_password: `guess-${i}-wrong`, new_password: 'brand-new-pass' },
+        })
+      ).status;
+    }
+    expect(last).toBe(429);
+  });
+
+  it('answers unknown /api paths with 401 when signed out and 404 when signed in', async () => {
+    expect((await api('/api/no-such-endpoint')).status).toBe(401);
+    const cookie = await signInOwner();
+    expect((await api('/api/no-such-endpoint', { cookie })).status).toBe(404);
+  });
+
+  it('shows the team name from settings on the invite page', async () => {
+    const owner = await signInOwner();
+    await api('/api/settings', { method: 'PATCH', cookie: owner, body: { team_name: 'Acme Ops' } });
+    const inv = await api('/api/invites', {
+      cookie: owner,
+      body: { email: 'x@example.com', role: 'member' },
+    });
+    const token = inv.json.invite_url.split('#')[1];
+    expect((await api(`/api/invites/${token}`)).json.team_name).toBe('Acme Ops');
+  });
+});

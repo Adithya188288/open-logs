@@ -95,15 +95,19 @@ route('PATCH', '/api/charts/:id', boards.updateChart);
 route('POST', '/api/charts/:id/duplicate', boards.duplicateChart);
 route('DELETE', '/api/charts/:id', boards.deleteChart);
 
-// Unknown /api paths: don't reveal which endpoints exist to signed-out callers.
-api.notFound(async (c) => {
+/**
+ * Unknown /api paths: don't reveal which endpoints exist to signed-out callers.
+ * Registered on the top-level app, since Hono doesn't carry a sub-app's notFound through `route()`.
+ * @param {import('hono').Context<{ Bindings: Env }>} c
+ */
+export async function apiNotFound(c) {
   const user = await getSessionUser(c.req.raw, c.env, c.executionCtx);
   return errorResponse(
     user
       ? new HttpError(404, 'not_found', 'No such endpoint')
       : new HttpError(401, 'unauthorized', 'Sign in required'),
   );
-});
+}
 
 api.onError((err) => {
   if (!(err instanceof HttpError)) console.error('api error', err instanceof Error ? err.message : err);

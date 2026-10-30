@@ -175,7 +175,7 @@ export async function getInvite({ env, params }) {
   if (!invite) throw new HttpError(404, 'not_found', 'This invite link is invalid or has expired');
   return json({
     invite: { email: invite.email, role: invite.role },
-    team_name: env.TEAM_NAME ?? 'Open Logs',
+    team_name: await teamName(env),
   });
 }
 
