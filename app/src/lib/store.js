@@ -49,7 +49,8 @@ export async function copyText(text) {
 /** @param {string} text */
 function copyBySelection(text) {
   // Keep the field inside the dialog that has focus, so a dialog's focus handling can't pull focus away from it.
-  const host = document.activeElement?.closest('[role="dialog"]') ?? document.body;
+  const focused = /** @type {HTMLElement | null} */ (document.activeElement);
+  const host = focused?.closest('[role="dialog"]') ?? document.body;
   const field = document.createElement('textarea');
   field.value = text;
   field.setAttribute('readonly', '');
@@ -63,5 +64,6 @@ function copyBySelection(text) {
     return false;
   } finally {
     field.remove();
+    focused?.focus();
   }
 }

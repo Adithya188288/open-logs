@@ -94,5 +94,6 @@ test('Regenerate shows only the new token, and Copy works even when the browser 
 
   await dialog.getByRole('button', { name: 'Copy token' }).click();
   await expect(dialog.getByRole('button', { name: 'Copied' })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Copied' })).toBeFocused();
   expect(await page.evaluate(() => window.__copied)).toBe(token);
 });
