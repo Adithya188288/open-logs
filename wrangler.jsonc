@@ -35,7 +35,7 @@
       "d1_databases": [
         { "binding": "DB", "database_name": "open-logs-staging", "migrations_dir": "migrations" }
       ],
-      "pipelines": [{ "binding": "LOG_STREAM", "stream": "REPLACE_WITH_STREAM_ID" }],
+      "pipelines": [{ "binding": "LOG_STREAM", "stream": "bfd0b9bd394640b9ba222880e4f4ed0c" }],
       "ratelimits": [
         { "name": "LOGIN_LIMITER", "namespace_id": "1001", "simple": { "limit": 10, "period": 60 } },
     { "name": "LOGIN_IP_LIMITER", "namespace_id": "1003", "simple": { "limit": 20, "period": 60 } },
@@ -44,8 +44,8 @@
       "vars": {
         "LOG_STORAGE": "basin",
         "TEAM_NAME": "Open Logs",
-        "BASIN_ACCOUNT_ID": "REPLACE_WITH_ACCOUNT_ID",
-        "BASIN_BUCKET": "open-logs",
+        "BASIN_ACCOUNT_ID": "206baa391f97ef4fd66f608db1900864",
+        "BASIN_BUCKET": "open-logs-staging",
         "BASIN_TABLE": "open_logs.events"
       }
     }
