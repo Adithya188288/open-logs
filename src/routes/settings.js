@@ -1,7 +1,7 @@
 // Settings screen: team name, and changing your own password.
 import { destroyOtherSessions, rateLimit, requireRole } from '../auth.js';
 import { hashPassword, verifyPassword } from '../crypto.js';
-import { asObject, HttpError, json, readJson, requireString } from '../http.js';
+import { asObject, HttpError, json, readJson, requirePassword, requireString } from '../http.js';
 import { teamName } from '../settings.js';
 
 /** @param {import('../types.js').RouteContext} c */
@@ -27,7 +27,7 @@ export async function changePassword({ request, env, user }) {
   const me = requireRole(user, 'member');
   const body = asObject(await readJson(request));
   const current = typeof body.current_password === 'string' ? body.current_password : '';
-  const next = requireString(body.new_password, 'new_password', { min: 8, max: 256 });
+  const next = requirePassword(body.new_password, 'new_password');
   await rateLimit(env.LOGIN_LIMITER, `pw:${me.id}`);
   const row = await env.DB.prepare('SELECT password_hash, password_salt FROM users WHERE id = ?')
     .bind(me.id)

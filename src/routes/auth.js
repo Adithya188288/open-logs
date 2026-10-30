@@ -1,7 +1,7 @@
 // Sign-in, sign-out, current user, invites and team management.
 import { clearedCookie, clientIp, createSession, destroySession, rateLimit, requireRole } from '../auth.js';
 import { hashPassword, newSecret, randomId, sha256Hex, timingSafeEqual, verifyPassword } from '../crypto.js';
-import { asObject, EMAIL_RE, HttpError, json, readJson, requireString } from '../http.js';
+import { asObject, EMAIL_RE, HttpError, json, readJson, requirePassword, requireString } from '../http.js';
 import { teamName } from '../settings.js';
 import { overviewStatements } from './boards.js';
 
@@ -24,7 +24,7 @@ function nameFromEmail(email) {
 
 /** @param {unknown} value */
 function passwordFrom(value) {
-  return requireString(value, 'password', { min: 8, max: 256 });
+  return requirePassword(value, 'password');
 }
 
 /** @param {import('../types.js').RouteContext} c */
@@ -191,23 +191,25 @@ export async function acceptInvite({ request, env, params }) {
   const { hash, salt } = await hashPassword(password);
   const id = randomId('usr');
   const now = Date.now();
-  const claimed = await env.DB.prepare(
-    'UPDATE invites SET accepted_at = ? WHERE id = ? AND accepted_at IS NULL',
-  )
-    .bind(now, invite.id)
-    .run();
-  if (!claimed.meta.changes)
-    throw new HttpError(404, 'not_found', 'This invite link is invalid or has expired');
+  // Claim the invite and create the account in one transaction: if the insert fails, the invite stays open.
+  // The insert only runs for this request's own claim, so a used invite can never create a second account.
+  let created;
   try {
-    await env.DB.prepare(
-      `INSERT INTO users (id, email, name, password_hash, password_salt, role, created_at, last_active_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    )
-      .bind(id, invite.email, name, hash, salt, invite.role, now, now)
-      .run();
+    [, created] = await env.DB.batch([
+      env.DB.prepare('UPDATE invites SET accepted_at = ? WHERE id = ? AND accepted_at IS NULL').bind(
+        now,
+        invite.id,
+      ),
+      env.DB.prepare(
+        `INSERT INTO users (id, email, name, password_hash, password_salt, role, created_at, last_active_at)
+         SELECT ?, ?, ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM invites WHERE id = ? AND accepted_at = ?)`,
+      ).bind(id, invite.email, name, hash, salt, invite.role, now, now, invite.id, now),
+    ]);
   } catch {
     throw new HttpError(409, 'already_member', 'That person is already on the team');
   }
+  if (!created.meta.changes)
+    throw new HttpError(404, 'not_found', 'This invite link is invalid or has expired');
   const setCookie = await createSession(env, id);
   const user = { id, email: invite.email, name, role: invite.role, created_at: now, last_active_at: now };
   return json({ user }, 200, { 'set-cookie': setCookie });

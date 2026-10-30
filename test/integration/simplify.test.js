@@ -1,3 +1,4 @@
+import { env } from 'cloudflare:test';
 import { describe, expect, it } from 'vitest';
 import { ADMIN_EMAIL, ADMIN_PASSWORD, api, sessionCookie, signInOwner } from '../helpers.js';
 
@@ -63,6 +64,80 @@ describe('settings', () => {
     expect(
       (await api('/api/auth/login', { body: { email: ADMIN_EMAIL, password: ADMIN_PASSWORD } })).status,
     ).toBe(401);
+  });
+});
+
+describe('passwords keep every character', () => {
+  it('a password with surrounding spaces signs in exactly as it was set', async () => {
+    const owner = await signInOwner();
+    const spaced = ' spaced pass ';
+    const changed = await api('/api/me/password', {
+      cookie: owner,
+      body: { current_password: ADMIN_PASSWORD, new_password: spaced },
+    });
+    expect(changed.status).toBe(200);
+    expect((await api('/api/auth/login', { body: { email: ADMIN_EMAIL, password: spaced } })).status).toBe(
+      200,
+    );
+    expect(
+      (await api('/api/auth/login', { body: { email: ADMIN_EMAIL, password: spaced.trim() } })).status,
+    ).toBe(401);
+  });
+
+  it('an invited teammate signs in with the exact password they chose', async () => {
+    const owner = await signInOwner();
+    const inv = await api('/api/invites', {
+      cookie: owner,
+      body: { email: 'pad@example.com', role: 'member' },
+    });
+    const token = inv.json.invite_url.split('#')[1];
+    const accepted = await api(`/api/invites/${token}/accept`, {
+      body: { name: 'Pad', password: 'trailing-space ' },
+    });
+    expect(accepted.status).toBe(200);
+    const login = await api('/api/auth/login', {
+      body: { email: 'pad@example.com', password: 'trailing-space ' },
+    });
+    expect(login.status).toBe(200);
+  });
+});
+
+describe('invite acceptance is all or nothing', () => {
+  it('leaves the invite usable when the account cannot be created', async () => {
+    const owner = await signInOwner();
+    const inv = await api('/api/invites', {
+      cookie: owner,
+      body: { email: 'race@example.com', role: 'member' },
+    });
+    const token = inv.json.invite_url.split('#')[1];
+    // Someone with that email joins another way before the invite is accepted.
+    await env.DB.prepare(
+      `INSERT INTO users (id, email, name, password_hash, password_salt, role, created_at, last_active_at)
+       VALUES ('usr_race', 'race@example.com', 'Race', 'x', 'x', 'member', 0, 0)`,
+    ).run();
+    const accepted = await api(`/api/invites/${token}/accept`, {
+      body: { name: 'Race', password: 'race-password' },
+    });
+    expect(accepted.status).toBe(409);
+    expect((await api(`/api/invites/${token}`)).status).toBe(200);
+  });
+
+  it('cannot be reused after the account it created is removed', async () => {
+    const owner = await signInOwner();
+    const inv = await api('/api/invites', {
+      cookie: owner,
+      body: { email: 'once@example.com', role: 'member' },
+    });
+    const token = inv.json.invite_url.split('#')[1];
+    const first = await api(`/api/invites/${token}/accept`, {
+      body: { name: 'Once', password: 'once-password' },
+    });
+    expect(first.status).toBe(200);
+    await api(`/api/users/${first.json.user.id}`, { method: 'DELETE', cookie: owner });
+    const again = await api(`/api/invites/${token}/accept`, {
+      body: { name: 'Again', password: 'again-password' },
+    });
+    expect(again.status).toBe(404);
   });
 });
 
