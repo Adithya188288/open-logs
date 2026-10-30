@@ -220,3 +220,46 @@ Filter plus:
 ### `GET /api/status?project_id=…`
 `200 { "storage": "local" | "basin", "lag_ms": 0, "now": 0, "newest_event_at": 0 | null }`.
 The UI uses this for honest freshness ("Data through 10:42:18 UTC · ~60s ingest lag").
+
+---
+
+## Saved views
+
+`View = { id, project_id, name, filter: { where: Clause[], range?: "15m"|"1h"|"24h"|"7d" }, created_at }`
+
+- `GET /api/projects/:id/views` → `{ "views": View[] }`
+- `POST /api/projects/:id/views` `{ "name": "Errors only", "filter": { "where": [...], "range": "1h" } }` → `201 { "view": View }`
+- `DELETE /api/views/:id`
+
+`where` is validated exactly like a query filter.
+
+## Dashboards and charts
+
+Every new project gets an **Overview** dashboard with starter charts (events, errors, warnings,
+events by level, events by source, top errors).
+
+`Dashboard = { id, project_id, name, created_at }`
+
+`Chart = { id, dashboard_id, title, filter: { where }, field, measure, viz, size, position, created_at }`
+
+| Key | Values |
+|---|---|
+| `measure` | `count`, `count_over_time`, `avg`, `p95` (same rules as `/api/aggregate`) |
+| `viz` | `bar`, `pie`, `line`, `number` |
+| `size` | `sm`, `md` (default), `lg` |
+
+- `GET /api/projects/:id/dashboards` → `{ "dashboards": Dashboard[] }`
+- `POST /api/projects/:id/dashboards` `{ "name": "Payments" }` → `201 { "dashboard": Dashboard }`
+- `GET /api/dashboards/:id` → `{ "dashboard": Dashboard, "charts": Chart[] }` (by position)
+- `PATCH /api/dashboards/:id` `{ "name": "…" }`
+- `DELETE /api/dashboards/:id` (deletes its charts)
+- `POST /api/dashboards/:id/charts` `{ title, filter, field, measure, viz, size? }` → `201 { "chart": Chart }` (pins to the end)
+- `PATCH /api/charts/:id` any subset of the above → `{ "chart": Chart }`
+- `POST /api/charts/:id/duplicate` → `201 { "chart": Chart }` titled "… (copy)"
+- `DELETE /api/charts/:id`
+
+The dashboard renders each chart by calling `POST /api/aggregate` with the chart's filter, the
+dashboard's time range, `field` and `measure`. `/api/aggregate` also returns
+`series_by_group: [{ key, series }]` (top 5 groups) for stacked bars and multi-line charts.
+
+CSV export is done in the browser from the data already on screen.

@@ -164,8 +164,8 @@ export function buildHistogramSql(f, interval, dialect) {
 }
 
 /**
- * Builds the three queries behind a chart: a single value, top groups and a time series.
- * avg / p95 use nearest-rank on numeric values of `field`.
+ * Builds the queries behind a chart: an overall value, top groups, a time series, and
+ * (given the top group keys) one series per group. avg / p95 use nearest-rank on numeric `field`.
  * @param {Filter} f
  * @param {{ measure: 'count' | 'count_over_time' | 'avg' | 'p95', field?: string, group_by?: string, interval: number }} spec
  * @param {string} dialect
@@ -176,43 +176,47 @@ export function buildAggregateSql(f, spec, dialect) {
   const groupField = counting ? spec.field : (spec.group_by ?? 'source');
 
   /**
-   * @param {(b: Builder) => string | null} keyOf  group key expression, or null for none
+   * @param {{ group?: boolean, bucket?: boolean, onlyKeys?: string[] }} shape
    */
-  const one = (keyOf) => {
+  const build = ({ group = false, bucket = false, onlyKeys }) => {
     const b = new Builder(d);
-    const key = keyOf(b);
-    const keySelect = key ? `${key} AS k, ` : '';
-    if (counting) {
-      const where = whereSql(b, f);
-      const group = key ? ` GROUP BY k ORDER BY v DESC, k LIMIT 10` : '';
+    const keys = [];
+    if (group && groupField) keys.push(`${textExpr(b, groupField)} AS k`);
+    if (bucket) keys.push(`${b.d.bucket(b, spec.interval)} AS t`);
+    const names = keys.map((k) => k.slice(-1));
+    const select = keys.map((k) => `${k}, `).join('');
+    // Params bind positionally, so build in SQL text order: SELECT keys, value, then WHERE.
+    const path = counting ? '' : d.path(/** @type {string} */ (spec.field).slice(7));
+    const num = counting ? '' : d.fieldNumber(b.param(path));
+    let where = whereSql(b, f);
+    if (!counting) where += ` AND ${d.fieldIsNumber(b.param(path))}`;
+    if (onlyKeys)
+      where += ` AND ${textExpr(b, /** @type {string} */ (groupField))} IN (${onlyKeys.map((k) => b.param(k)).join(', ')})`;
+    const groupBy = names.length ? ` GROUP BY ${names.join(', ')}` : '';
+    const order = bucket ? ' ORDER BY t' : names.length ? ' ORDER BY v DESC, k LIMIT 10' : '';
+
+    if (spec.measure !== 'p95') {
+      const agg = counting ? 'COUNT(*)' : `AVG(${num})`;
       return {
-        sql: `SELECT ${keySelect}COUNT(*) AS v FROM ${d.table} WHERE ${where}${group}`,
+        sql: `SELECT ${select}${agg} AS v FROM ${d.table} WHERE ${where}${groupBy}${order}`,
         params: b.params,
       };
     }
-    const path = d.path(/** @type {string} */ (spec.field).slice(7));
-    const num = d.fieldNumber(b.param(path));
-    const where = `${whereSql(b, f)} AND ${d.fieldIsNumber(b.param(path))}`;
-    if (spec.measure === 'avg') {
-      const group = key ? ` GROUP BY k ORDER BY v DESC LIMIT 10` : '';
-      return {
-        sql: `SELECT ${keySelect}AVG(${num}) AS v FROM ${d.table} WHERE ${where}${group}`,
-        params: b.params,
-      };
-    }
-    const over = key ? 'PARTITION BY k' : '';
+    const over = names.length ? `PARTITION BY ${names.join(', ')}` : '';
     const sql =
-      `WITH s AS (SELECT ${keySelect}${num} AS x FROM ${d.table} WHERE ${where}), ` +
+      `WITH s AS (SELECT ${select}${num} AS x FROM ${d.table} WHERE ${where}), ` +
       `r AS (SELECT *, ROW_NUMBER() OVER (${over} ORDER BY x) AS rn, COUNT(*) OVER (${over}) AS c FROM s) ` +
-      `SELECT ${key ? 'k, ' : ''}MIN(x) AS v FROM r WHERE rn >= 0.95 * c` +
-      (key ? ' GROUP BY k ORDER BY v DESC LIMIT 10' : '');
+      `SELECT ${names.map((n) => `${n}, `).join('')}MIN(x) AS v FROM r WHERE rn >= 0.95 * c${groupBy}${order}`;
     return { sql, params: b.params };
   };
 
   return {
-    value: one(() => null),
-    groups: groupField ? one((b) => textExpr(b, groupField)) : null,
-    series: one((b) => b.d.bucket(b, spec.interval)),
+    value: build({}),
+    groups: groupField ? build({ group: true }) : null,
+    series: build({ bucket: true }),
+    /** @param {string[]} keys */
+    groupSeries: (keys) =>
+      groupField && keys.length ? build({ group: true, bucket: true, onlyKeys: keys }) : null,
   };
 }
 

@@ -3,6 +3,7 @@ import { requireRole } from '../auth.js';
 import { newSourceToken, randomId, sha256Hex } from '../crypto.js';
 import { asObject, HttpError, json, readJson, requireString } from '../http.js';
 import { getStorage } from '../storage/index.js';
+import { overviewStatements } from './boards.js';
 
 const PROJECT_NAME = /^[A-Za-z0-9][A-Za-z0-9 _.-]{0,63}$/;
 const SOURCE_NAME = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/;
@@ -71,14 +72,20 @@ export async function createProject({ request, env }) {
   const body = asObject(await readJson(request));
   const name = requireString(body.name, 'name', { max: 64, pattern: PROJECT_NAME });
   const project = { id: randomId('prj'), name, created_at: Date.now() };
-  await runUnique(
-    env.DB.prepare('INSERT INTO projects (id, name, created_at) VALUES (?, ?, ?)').bind(
-      project.id,
-      project.name,
-      project.created_at,
-    ),
-    'A project with that name already exists',
-  );
+  try {
+    await env.DB.batch([
+      env.DB.prepare('INSERT INTO projects (id, name, created_at) VALUES (?, ?, ?)').bind(
+        project.id,
+        project.name,
+        project.created_at,
+      ),
+      ...overviewStatements(env, project.id),
+    ]);
+  } catch (err) {
+    if (String(err).includes('UNIQUE'))
+      throw new HttpError(409, 'conflict', 'A project with that name already exists');
+    throw err;
+  }
   return json({ project }, 201);
 }
 

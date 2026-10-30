@@ -1,6 +1,7 @@
 // Route table for the app API (`/api/*`). Ingest lives in `ingest.js`.
 import { Router } from '../router.js';
 import * as auth from './auth.js';
+import * as boards from './boards.js';
 import * as projects from './projects.js';
 import * as query from './query.js';
 
@@ -34,4 +35,16 @@ export const api = new Router()
   .on('POST', '/api/query', query.query)
   .on('POST', '/api/histogram', query.histogram)
   .on('POST', '/api/aggregate', query.aggregate)
-  .on('GET', '/api/status', query.status);
+  .on('GET', '/api/status', query.status)
+  .on('GET', '/api/projects/:id/views', boards.listViews)
+  .on('POST', '/api/projects/:id/views', boards.createView)
+  .on('DELETE', '/api/views/:id', boards.deleteView)
+  .on('GET', '/api/projects/:id/dashboards', boards.listDashboards)
+  .on('POST', '/api/projects/:id/dashboards', boards.createDashboard)
+  .on('GET', '/api/dashboards/:id', boards.getDashboard)
+  .on('PATCH', '/api/dashboards/:id', boards.renameDashboard)
+  .on('DELETE', '/api/dashboards/:id', boards.deleteDashboard)
+  .on('POST', '/api/dashboards/:id/charts', boards.createChart)
+  .on('PATCH', '/api/charts/:id', boards.updateChart)
+  .on('POST', '/api/charts/:id/duplicate', boards.duplicateChart)
+  .on('DELETE', '/api/charts/:id', boards.deleteChart);

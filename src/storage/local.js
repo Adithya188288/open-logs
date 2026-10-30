@@ -1,6 +1,6 @@
 // LocalStorage: logs in the D1 `logs` table. Used for local dev and small installs.
 import { buildAggregateSql, buildEventsSql, buildHistogramSql, buildOverviewSql } from '../query/sql.js';
-import { eventsPage, histogramBuckets, overviewShape, seriesPoints } from './shape.js';
+import { aggregateShape, eventsPage, histogramBuckets, overviewShape } from './shape.js';
 
 const COLUMNS_PER_ROW = 7;
 const ROWS_PER_INSERT = Math.floor(100 / COLUMNS_PER_ROW); // D1 allows 100 bound params per statement.
@@ -67,14 +67,10 @@ export class LocalStorage {
       q.groups ? this.all(q.groups) : Promise.resolve([]),
       this.all(q.series),
     ]);
-    const counting = spec.measure === 'count' || spec.measure === 'count_over_time';
-    const v = value[0]?.v;
-    return {
-      value: v === null || v === undefined ? (counting ? 0 : null) : Number(v),
-      groups: groups.filter((g) => g.k !== null).map((g) => ({ key: String(g.k), value: Number(g.v) })),
-      series: seriesPoints(series, filter.from, filter.to, spec.interval, counting),
-      interval_ms: spec.interval,
-    };
+    const top = groups.filter((g) => g.k !== null).map((g) => ({ key: String(g.k), value: Number(g.v) }));
+    const gq = q.groupSeries(top.slice(0, 5).map((g) => g.key));
+    const groupRows = gq ? await this.all(gq) : [];
+    return aggregateShape(spec, filter, value, top, series, groupRows);
   }
 
   /** @param {string} projectId */

@@ -8,7 +8,8 @@ import { LocalStorage } from './local.js';
  * @typedef {{ id: string, ts: number, source: string, level: string, message: string, fields: Record<string, unknown> }} EventOut
  * @typedef {{ t: number, debug: number, info: number, warn: number, error: number, fatal: number }} Bucket
  * @typedef {{ measure: 'count' | 'count_over_time' | 'avg' | 'p95', field?: string, group_by?: string, interval: number }} AggregateSpec
- * @typedef {{ value: number | null, groups: { key: string, value: number }[], series: { t: number, value: number }[], interval_ms: number }} AggregateResult
+ * @typedef {{ t: number, value: number }} Point
+ * @typedef {{ value: number | null, groups: { key: string, value: number }[], series: Point[], series_by_group: { key: string, series: Point[] }[], interval_ms: number }} AggregateResult
  *
  * @typedef {object} LogStorage
  * @property {'local' | 'basin'} mode
