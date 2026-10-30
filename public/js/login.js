@@ -6,7 +6,12 @@ import { themeButton } from './shell.js';
 /** Only same-origin paths are allowed as a post-login destination. */
 function nextPath() {
   const next = new URLSearchParams(location.search).get('next') ?? '/';
-  return next.startsWith('/') && !next.startsWith('//') && !next.startsWith('/\\') ? next : '/';
+  try {
+    const u = new URL(next, location.origin);
+    return u.origin === location.origin ? u.pathname + u.search + u.hash : '/';
+  } catch {
+    return '/';
+  }
 }
 
 async function main() {

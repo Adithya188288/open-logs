@@ -16,7 +16,8 @@ const INGEST_LAG_MS = 60_000;
 const NEWEST_LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
 
 /**
- * Renders a value as a SQL literal. Strings are single-quoted with quotes doubled; NUL is removed.
+ * Renders a value as a SQL literal. Strings are single-quoted with quotes doubled; NUL is removed;
+ * backslashes become chr(92).
  * @param {unknown} value
  */
 export function sqlLiteral(value) {
@@ -25,7 +26,10 @@ export function sqlLiteral(value) {
     return String(value);
   }
   if (typeof value === 'boolean') return value ? 'TRUE' : 'FALSE';
-  return `'${String(value).replaceAll('\u0000', '').replaceAll("'", "''")}'`;
+  // Backslashes go out as chr(92) so the literal means the same whether or not the parser treats `\` as an
+  // escape character (Basin SQL's quoting rules are undocumented).
+  const quoted = String(value).replaceAll('\u0000', '').replaceAll("'", "''");
+  return `'${quoted.split('\\').join("' || chr(92) || '")}'`;
 }
 
 /**
@@ -44,7 +48,8 @@ export function basinDialect(table) {
     fieldNumber: (p) => `json_get_float(fields, ${p})`,
     fieldExists: (p) => `json_contains(fields, ${p})`,
     fieldIsNumber: (p) => `json_get_float(fields, ${p}) IS NOT NULL`,
-    like: (expr, p) => `lower(${expr}) LIKE lower(${p}) ESCAPE '\\'`,
+    likeEscape: '!',
+    like: (expr, p) => `lower(${expr}) LIKE lower(${p}) ESCAPE '!'`,
     bucket: (b, interval) => `(ts / ${b.param(Math.trunc(interval))}) * ${b.param(Math.trunc(interval))}`,
     percentile: (x) => `approx_percentile_cont(${x}, 0.95)`,
   };

@@ -96,9 +96,11 @@ Match `docs/design/` (layout, tokens, type scale 11/12/13/15/24, radii 6/10, lig
 ## Phase 6: Security review (runs after every feature branch, plus one full pass here)
 **Agent:** security-reviewer.
 
-- [ ] Full-repo review against the checklist in `.claude/agents/security-reviewer.md`
-- [ ] All critical and high findings fixed and re-reviewed
-- [ ] `SECURITY.md` with how to report a vulnerability
+- [x] Full-repo review against the checklist in `.claude/agents/security-reviewer.md`
+      (that file was missing from the kit; reviewed against the ARCHITECTURE.md security baseline. Verdict PASS)
+- [x] All critical and high findings fixed and re-reviewed (none critical/high; mediums fixed: Basin literals
+      immune to backslash escaping, per-IP sign-in limit, open redirect, invites cancelled with their sender)
+- [x] `SECURITY.md` with how to report a vulnerability
 
 **Done means:** no open critical/high findings.
 
@@ -106,10 +108,12 @@ Match `docs/design/` (layout, tokens, type scale 11/12/13/15/24, radii 6/10, lig
 **Agent:** landing-page (+ backend for the installer). Branches: `feature/landing`, `feature/installer`.
 
 - [ ] Landing page (static, served at `/` when signed out or as a separate Pages site; decide with owner)
+      (built in `site/` as a standalone Pages site; serving it at `/` is still the owner's call)
 - [ ] `npx create-open-logs`: clone → `wrangler login` → create D1 + Basin resources → set `ADMIN_PASSWORD` → deploy
+      (written: `create-open-logs/` + `scripts/install.js`; not run against a real account or published to npm)
 - [ ] "Deploy to Cloudflare" button in README; document clearly if it can't provision Basin
-- [ ] README: what it is, screenshots, install in one command, sending logs (curl, JS, Python, Go), limits, costs
-- [ ] SDK snippets work as shown (tested)
+- [x] README: what it is, screenshots, install in one command, sending logs (curl, JS, Python, Go), limits, costs
+- [x] SDK snippets work as shown (tested: e2e runs JS, Python, curl; Go on CI)
 
 **Done means:** a fresh Cloudflare account can go from zero to seeing logs using only the README.
 
@@ -133,6 +137,9 @@ Match `docs/design/` (layout, tokens, type scale 11/12/13/15/24, radii 6/10, lig
   it there is no way to revoke access.
 
 ## Known constraints (keep updated)
+- Remaining low findings from the security pass (accepted for v1): a known token prefix lets someone inflate a
+  source's rejection counter (rate limited per IP); members can regenerate source tokens; the per-event size
+  check counts characters, not bytes (requests are still byte-capped at 5 MB).
 - Basin Pipelines needs the Workers Paid plan ($5/month minimum).
 - Iceberg sink roll interval minimum is 60s, so prod data is ~60s+ behind. The live tail is "near real time".
 - Basin SQL is read-only and can time out on heavy queries: always time-bound, select columns, use LIMIT.

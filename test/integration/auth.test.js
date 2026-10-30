@@ -66,6 +66,19 @@ describe('auth', () => {
     expect(status).toBe(403);
   });
 
+  it('rate limits sign-in attempts per IP even when the email changes', async () => {
+    let last = 0;
+    for (let i = 0; i < 25; i++) {
+      last = (
+        await api('/api/auth/login', {
+          body: { email: `guess${i}@example.com`, password: 'wrong-password' },
+          headers: { 'cf-connecting-ip': '192.0.2.77' },
+        })
+      ).status;
+    }
+    expect(last).toBe(429);
+  });
+
   it('rate limits repeated sign-in attempts', async () => {
     let last = 0;
     for (let i = 0; i < 12; i++) {
@@ -161,5 +174,23 @@ describe('invites and roles', () => {
     expect((await api(`/api/users/${id}`, { method: 'DELETE', cookie: gone })).status).toBe(403);
     expect((await api(`/api/users/${id}`, { method: 'DELETE', cookie: owner })).status).toBe(200);
     expect((await api('/api/me', { cookie: gone })).status).toBe(401);
+  });
+
+  it('removing an admin cancels the invites they sent', async () => {
+    const owner = await signInOwner();
+    const inv = await api('/api/invites', {
+      cookie: owner,
+      body: { email: 'adm@example.com', role: 'admin' },
+    });
+    const acc = await api(`/api/invites/${inv.json.invite_url.split('#')[1]}/accept`, {
+      body: { name: 'Adm', password: 'admin-password' },
+    });
+    const adm = sessionCookie(acc.res);
+    const sent = await api('/api/invites', {
+      cookie: adm,
+      body: { email: 'pal@example.com', role: 'admin' },
+    });
+    await api(`/api/users/${acc.json.user.id}`, { method: 'DELETE', cookie: owner });
+    expect((await api(`/api/invites/${sent.json.invite_url.split('#')[1]}`)).status).toBe(404);
   });
 });

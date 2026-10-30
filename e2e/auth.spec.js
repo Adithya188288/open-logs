@@ -21,6 +21,18 @@ test.describe('sign in, sign out, invite', () => {
     await context.close();
   });
 
+  test('sign-in never redirects off-site', async ({ browser, theme }) => {
+    const context = await browser.newContext({ storageState: undefined, colorScheme: theme });
+    const page = await context.newPage();
+    await page.goto('/login?next=/%09/evil.example');
+    await page.getByLabel('Email').fill(ADMIN_EMAIL);
+    await page.getByLabel('Password').fill(ADMIN_PASSWORD);
+    await page.getByRole('button', { name: 'Sign in' }).click();
+    await page.waitForLoadState();
+    expect(new URL(page.url()).host).toBe(new URL(test.info().project.use.baseURL).host);
+    await context.close();
+  });
+
   test('owner invites a teammate who sets a password and gets in', async ({ page, browser }) => {
     const email = `${uniq('mate')}@e2e.test`;
     await page.goto('/');

@@ -7,7 +7,7 @@
 
 export class Router {
   constructor() {
-    /** @type {{ method: string, parts: string[], handler: Handler }[]} */
+    /** @type {{ method: string, pattern: string, parts: string[], handler: Handler }[]} */
     this.routes = [];
   }
 
@@ -17,14 +17,14 @@ export class Router {
    * @param {Handler} handler
    */
   on(method, pattern, handler) {
-    this.routes.push({ method, parts: pattern.split('/').filter(Boolean), handler });
+    this.routes.push({ method, pattern, parts: pattern.split('/').filter(Boolean), handler });
     return this;
   }
 
   /**
    * @param {string} method
    * @param {string} pathname
-   * @returns {{ handler: Handler, params: Record<string, string> } | { allowed: string[] } | null}
+   * @returns {{ handler: Handler, params: Record<string, string>, key: string } | { allowed: string[] } | null}
    */
   match(method, pathname) {
     const segs = pathname.split('/').filter(Boolean);
@@ -32,7 +32,8 @@ export class Router {
     for (const route of this.routes) {
       const params = matchParts(route.parts, segs);
       if (!params) continue;
-      if (route.method === method) return { handler: route.handler, params };
+      if (route.method === method)
+        return { handler: route.handler, params, key: `${method} ${route.pattern}` };
       allowed.push(route.method);
     }
     return allowed.length ? { allowed } : null;
