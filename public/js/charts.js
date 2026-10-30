@@ -85,7 +85,7 @@ function numberChart(c, data, prev) {
   const bad = upIsBad(c);
   let delta = h('span.delta', null, 'No data for the previous period');
   let worse = false;
-  if (prev && prev.value && data.value !== null) {
+  if (prev?.value && data.value !== null) {
     const pct = Math.round(((data.value - prev.value) / prev.value) * 100);
     const arrow = pct > 0 ? '▲' : pct < 0 ? '▼' : '■';
     const judged = bad && pct !== 0;

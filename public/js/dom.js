@@ -191,7 +191,7 @@ export function formDialog(title, fields, submitLabel, onSubmit) {
  * @param {HTMLElement[]} items
  */
 export function popMenu(anchor, items) {
-  document.querySelectorAll('.menu').forEach((m) => m.remove());
+  for (const m of document.querySelectorAll('.menu')) m.remove();
   const rect = anchor.getBoundingClientRect();
   const menu = h('div.menu', { role: 'menu' }, ...items);
   menu.style.top = `${rect.bottom + window.scrollY + 4}px`;

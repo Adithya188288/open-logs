@@ -11,11 +11,20 @@
       "create-open-logs/**",
       "*.js",
       "*.json",
-      "!docs"
+      "!docs",
+      "!e2e/.auth"
     ]
   },
   "formatter": { "indentStyle": "space", "indentWidth": 2, "lineWidth": 110 },
   "javascript": { "formatter": { "quoteStyle": "single" } },
-  "linter": { "enabled": true, "rules": { "preset": "none" } },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "style": { "noDescendingSpecificity": "off" },
+      "complexity": { "noImportantStyles": "off" },
+      "a11y": { "noSvgWithoutTitle": "off" }
+    }
+  },
   "assist": { "enabled": false }
 }

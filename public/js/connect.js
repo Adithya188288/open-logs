@@ -147,7 +147,10 @@ async function main() {
           {
             type: 'button',
             'aria-pressed': String(platform === p),
-            onclick: () => ((platform = p), renderSteps()),
+            onclick: () => {
+              platform = p;
+              renderSteps();
+            },
           },
           h('span', null, p),
           h('span', null, snippets('', '', '')[/** @type {'Go'} */ (p)].tag),
