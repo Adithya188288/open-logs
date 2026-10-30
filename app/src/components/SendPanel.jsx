@@ -21,6 +21,22 @@ export function CopyButton({ text, className = 'btn', children }) {
   );
 }
 
+/** A freshly issued token with its copy button and the shown-once warning. @param {{ token: string }} props */
+export function TokenPanel({ token }) {
+  return (
+    <>
+      <div className="tokenrow">
+        <span className="k">Token</span>
+        <code data-testid="token">{token}</code>
+        <CopyButton text={token}>Copy token</CopyButton>
+      </div>
+      <p className="tiny warn-text">
+        <Icon name="warn" size={12} /> Copy the token now. It isn’t shown again; you can regenerate it later.
+      </p>
+    </>
+  );
+}
+
 /** @param {{ sourceName: string, tokenPrefix?: string, token?: string }} props */
 export function SendPanel({ sourceName, tokenPrefix, token }) {
   const [platform, setPlatform] = useState(/** @type {(typeof PLATFORMS)[number]} */ ('JavaScript'));
@@ -29,19 +45,7 @@ export function SendPanel({ sourceName, tokenPrefix, token }) {
   const snip = snippets(endpoint, sourceName, hint)[platform];
   return (
     <div className="sendpanel">
-      {token && (
-        <>
-          <div className="tokenrow">
-            <span className="k">Token</span>
-            <code data-testid="token">{token}</code>
-            <CopyButton text={token}>Copy token</CopyButton>
-          </div>
-          <p className="tiny warn-text">
-            <Icon name="warn" size={12} /> Copy the token now. It isn’t shown again; you can regenerate it
-            later.
-          </p>
-        </>
-      )}
+      {token && <TokenPanel token={token} />}
       <div className="platforms" role="group" aria-label="Platform">
         {PLATFORMS.map((p) => (
           <button key={p} type="button" aria-pressed={platform === p} onClick={() => setPlatform(p)}>

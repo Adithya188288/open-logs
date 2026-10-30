@@ -69,3 +69,31 @@ test('Source detail: stats, rename, regenerate, delete with DELETE', async ({ pa
   await expect(page).toHaveURL(/\/sources\?project=/);
   await expect(page.getByTestId('no-sources')).toBeVisible();
 });
+
+test('Regenerate shows only the new token, and Copy works even when the browser refuses clipboard access', async ({
+  page,
+  app,
+}) => {
+  // Some browsers and embedded panes reject navigator.clipboard.writeText ("Write permission denied").
+  await page.addInitScript(() => {
+    navigator.clipboard.writeText = () =>
+      Promise.reject(new DOMException('Write permission denied.', 'NotAllowedError'));
+    document.addEventListener('copy', () => {
+      window.__copied = document.getSelection()?.toString() ?? '';
+    });
+  });
+  const { project, source } = await app.projectWithSource(uniq('regen'), 'api');
+  await page.goto(`/source?project=${project.id}&id=${source.id}`);
+  await page.getByRole('button', { name: 'Regenerate token' }).click();
+  await page.getByRole('button', { name: 'Regenerate token' }).last().click();
+
+  const dialog = page.getByRole('dialog', { name: 'New token' });
+  const token = await dialog.getByTestId('token').textContent();
+  await expect(dialog.getByRole('group', { name: 'Platform' })).toHaveCount(0);
+  await expect(dialog.getByTestId('snippet')).toHaveCount(0);
+
+  await dialog.getByRole('button', { name: 'Copy token' }).click();
+  await expect(dialog.getByRole('button', { name: 'Copied' })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Copied' })).toBeFocused();
+  expect(await page.evaluate(() => window.__copied)).toBe(token);
+});

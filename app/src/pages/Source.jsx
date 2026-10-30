@@ -6,7 +6,7 @@ import { confirmDelete, FormDialog, Modal, openDialog } from '../components/Dial
 import { Icon } from '../components/Icon.jsx';
 import { PageLoader, Topbar, useApp, useProject } from '../components/Layout.jsx';
 import { Loader } from '../components/Loader.jsx';
-import { SendPanel } from '../components/SendPanel.jsx';
+import { SendPanel, TokenPanel } from '../components/SendPanel.jsx';
 import { ApiError, api } from '../lib/api.js';
 import { ago, hms, num } from '../lib/format.js';
 import { q, queryClient, refresh } from '../lib/queries.js';
@@ -117,7 +117,9 @@ export function Source() {
             openDialog((done) => (
               <Modal title="New token" wide onClose={done}>
                 <p className="small">Update your apps with this token:</p>
-                <SendPanel sourceName={res.source.name} token={res.token} />
+                <div className="sendpanel">
+                  <TokenPanel token={res.token} />
+                </div>
               </Modal>
             )),
           );
