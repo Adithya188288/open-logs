@@ -11,7 +11,13 @@ describe('Basin SQL literals', () => {
   it('quotes strings and doubles single quotes', () => {
     expect(sqlLiteral("it's")).toBe("'it''s'");
     expect(sqlLiteral("x' OR '1'='1")).toBe("'x'' OR ''1''=''1'");
-    expect(sqlLiteral('back\\slash')).toBe("'back\\slash'");
+    expect(sqlLiteral('back\\slash')).toBe("'back' || chr(92) || 'slash'");
+  });
+
+  it('cannot be broken out of with a backslash, whichever way the parser reads it', () => {
+    const lit = sqlLiteral("\\' OR 1=1 --");
+    expect(lit).toBe("'' || chr(92) || ''' OR 1=1 --'");
+    expect(lit).not.toContain('\\');
   });
 
   it('only accepts finite numbers and strips NUL', () => {
@@ -37,7 +43,8 @@ describe('Basin dialect SQL', () => {
     expect(sql).not.toContain('?');
     expect(sql).toContain("source = 'api'' OR 1=1 --'");
     expect(sql).toContain("FROM open_logs.events WHERE project_id = 'prj_a'");
-    expect(sql).toContain("lower(message) LIKE lower('%50\\%\\_'' x%')");
+    expect(sql).toContain("lower(message) LIKE lower('%50!%!_'' x%') ESCAPE '!'");
+    expect(sql).not.toContain('\\');
   });
 
   it('walks nested JSON keys as separate literals', () => {

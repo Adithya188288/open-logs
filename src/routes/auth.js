@@ -31,6 +31,8 @@ export async function login({ request, env }) {
   const email = requireString(body.email, 'email', { max: 254, pattern: EMAIL_RE }).toLowerCase();
   const password = typeof body.password === 'string' ? body.password : '';
   await rateLimit(env.LOGIN_LIMITER, `${clientIp(request)}:${email}`);
+  // A per-IP budget too, so rotating emails can't buy unlimited guesses.
+  await rateLimit(env.LOGIN_IP_LIMITER, `ip:${clientIp(request)}`);
 
   let user = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(email).first();
   if (!user) {
@@ -100,7 +102,11 @@ export async function listUsers({ user, env }) {
 export async function deleteUser({ user, env, params }) {
   const me = requireRole(user, 'owner');
   if (params.id === me.id) throw new HttpError(400, 'cannot_remove_self', 'You cannot remove yourself');
-  const res = await env.DB.prepare('DELETE FROM users WHERE id = ?').bind(params.id).run();
+  const [, res] = await env.DB.batch([
+    // Pending invites they sent die with them (incl. admin invites).
+    env.DB.prepare('DELETE FROM invites WHERE created_by = ? AND accepted_at IS NULL').bind(params.id),
+    env.DB.prepare('DELETE FROM users WHERE id = ?').bind(params.id),
+  ]);
   if (!res.meta.changes) throw new HttpError(404, 'not_found', 'User not found');
   return json({ ok: true });
 }
@@ -131,7 +137,8 @@ export async function createInvite({ request, user, env, url }) {
       'INSERT INTO invites (id, email, role, token_hash, created_by, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
     ).bind(invite.id, email, invite.role, await sha256Hex(token), me.id, now, invite.expires_at),
   ]);
-  // The token sits in the URL fragment so it never reaches server logs or Referer headers.
+  // The token sits in the URL fragment so it isn't sent on page load or in Referer headers. The invite page
+  // does send it in /api/invites/:token requests; it is single-use and expires in 7 days.
   return json({ invite, invite_url: `${url.origin}/invite#${token}` }, 201);
 }
 

@@ -35,7 +35,7 @@ async function handleApi(request, env, ctx, url) {
   try {
     checkOrigin(request, url);
     const found = api.match(request.method, url.pathname);
-    const pattern = found && 'handler' in found ? routeKey(request.method, url.pathname, found.params) : '';
+    const pattern = found && 'handler' in found ? found.key : '';
     const user = PUBLIC_ROUTES.has(pattern) ? undefined : await getSessionUser(request, env, ctx);
     if (!PUBLIC_ROUTES.has(pattern) && !user) throw new HttpError(401, 'unauthorized', 'Sign in required');
     if (!found) throw new HttpError(404, 'not_found', 'No such endpoint');
@@ -46,19 +46,6 @@ async function handleApi(request, env, ctx, url) {
     console.error('api error', err instanceof Error ? err.message : err);
     return errorResponse(new HttpError(500, 'internal', 'Something went wrong'));
   }
-}
-
-/**
- * Rebuilds the route pattern (e.g. `GET /api/invites/:token`) from matched params.
- * @param {string} method
- * @param {string} pathname
- * @param {Record<string, string>} params
- */
-function routeKey(method, pathname, params) {
-  let path = pathname;
-  for (const [name, value] of Object.entries(params))
-    path = path.replace(encodeURIComponent(value), `:${name}`);
-  return `${method} ${path}`;
 }
 
 /** @param {Response} res */

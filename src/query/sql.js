@@ -16,6 +16,7 @@
  *   like: (expr: string, pattern: string) => string,
  *   bucket: (b: Builder, interval: number) => string,
  *   percentile?: (numberExpr: string) => string,
+ *   likeEscape?: string,  LIKE escape character (default backslash)
  * }} Dialect
  * @typedef {string | Dialect} DialectRef  a registered name (`d1`) or a dialect object
  */
@@ -58,9 +59,13 @@ const D1 = {
 /** @type {Record<string, Dialect>} */
 const DIALECTS = { d1: D1 };
 
-/** @param {string} s */
-function escapeLike(s) {
-  return s.replace(/[\\%_]/g, (m) => `\\${m}`);
+/**
+ * Escapes LIKE wildcards (and the escape character itself) with `esc`.
+ * @param {string} s
+ * @param {string} esc  the dialect's LIKE escape character
+ */
+function escapeLike(s, esc) {
+  return [...s].map((ch) => (ch === '%' || ch === '_' || ch === esc ? esc + ch : ch)).join('');
 }
 
 /** Booleans compare as SQLite/JSON text would render them. @param {unknown} v */
@@ -86,7 +91,7 @@ function textExpr(b, field) {
  */
 function clauseSql(b, c) {
   if ('text' in c) {
-    const pattern = `%${escapeLike(c.text)}%`;
+    const pattern = `%${escapeLike(c.text, b.d.likeEscape ?? '\\')}%`;
     return `(${b.d.like('message', b.param(pattern))} OR ${b.d.like(b.d.fieldsColumn, b.param(pattern))})`;
   }
   const isField = c.field.startsWith('fields.');
@@ -94,7 +99,10 @@ function clauseSql(b, c) {
     case 'exists':
       return isField ? b.d.fieldExists(b.param(b.d.path(c.field.slice(7)))) : 'TRUE';
     case 'contains':
-      return b.d.like(textExpr(b, c.field), b.param(`%${escapeLike(asText(c.value))}%`));
+      return b.d.like(
+        textExpr(b, c.field),
+        b.param(`%${escapeLike(asText(c.value), b.d.likeEscape ?? '\\')}%`),
+      );
     case 'in':
     case 'not_in': {
       const expr = textExpr(b, c.field);
