@@ -42,6 +42,20 @@ describe('dashboards and charts', () => {
     expect(one.json.charts.length).toBeGreaterThanOrEqual(4);
   });
 
+  it('brings back one Overview with its starter charts when the last dashboard is deleted', async () => {
+    const { cookie, project } = await setup();
+    const list = await api(`/api/projects/${project.id}/dashboards`, { cookie });
+    await api(`/api/dashboards/${list.json.dashboards[0].id}`, { method: 'DELETE', cookie });
+    const [a, b] = await Promise.all([
+      api(`/api/projects/${project.id}/dashboards`, { cookie }),
+      api(`/api/projects/${project.id}/dashboards`, { cookie }),
+    ]);
+    expect(a.json.dashboards.map((d) => d.name)).toEqual(['Overview']);
+    expect(b.json.dashboards.map((d) => d.id)).toEqual(a.json.dashboards.map((d) => d.id));
+    const one = await api(`/api/dashboards/${a.json.dashboards[0].id}`, { cookie });
+    expect(one.json.charts.length).toBeGreaterThanOrEqual(4);
+  });
+
   it('creates, renames and deletes dashboards', async () => {
     const { cookie, project } = await setup();
     const d = await api(`/api/projects/${project.id}/dashboards`, { cookie, body: { name: 'Payments' } });

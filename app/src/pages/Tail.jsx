@@ -21,6 +21,15 @@ const LEGEND = /** @type {const} */ ([
   ['error', ['error', 'fatal']],
 ]);
 const LEVEL_ORDER = ['fatal', 'error', 'warn', 'info', 'debug'];
+/** Most events one live check fetches; more than this means the list restarts from the newest page. */
+const POLL_LIMIT = 200;
+/** Each check re-reads this far back, so late arrivals (retries, buffered senders, Basin's ingest lag) still show. */
+const LATE_ARRIVAL_MS = 5 * 60_000;
+
+/** Newest first; events with the same time keep a stable order by id. @param {LogEvent[]} events */
+function newestFirst(events) {
+  return events.sort((a, b) => b.ts - a.ts || (a.id < b.id ? 1 : a.id > b.id ? -1 : 0));
+}
 const SEARCH_HELP = [
   ['payment failed', 'words anywhere in the message or fields'],
   ['level:error', 'a field equals a value'],
@@ -193,49 +202,70 @@ export function Tail() {
   }, [project.id, where, windowRange, filtered, reloadKey]);
 
   // Latest values for the poller, without restarting its timer on every change.
-  const latest = useRef({ events, where, hist, status, phase, live, windowRange, pollMs });
-  latest.current = { events, where, hist, status, phase, live, windowRange, pollMs };
+  const latest = useRef({ events, cursor, where, hist, status, phase, live, windowRange, pollMs });
+  latest.current = { events, cursor, where, hist, status, phase, live, windowRange, pollMs };
 
   /**
-   * Fetches events newer than the newest shown and adds them at the top, always (it's a live tail).
+   * Fetches what arrived since the last check and merges it in, always (it's a live tail).
+   * Each check re-reads the last few minutes too, so an event that lands late with an earlier time still
+   * appears in its place. If more arrived than one check fetches, so that the page never reaches the rows
+   * already shown, the list restarts from the newest page (older rows stay reachable through Load older),
+   * so it never shows a hole. On a busy project the overlap alone can fill a page; that is not a gap.
    * The histogram refreshes only when new events arrived or every 4th poll; freshness is computed locally.
    */
   useEffect(() => {
     const poll = async () => {
-      const L = latest.current;
+      const current = latest.current;
       // Nothing runs while this tab is in the background; we catch up when it's visible again.
-      if (!L.live || L.phase !== 'ready' || document.visibilityState !== 'visible') return;
+      if (!current.live || current.phase !== 'ready' || document.visibilityState !== 'visible') return;
       const seq = loadSeq.current;
       polls.current += 1;
       try {
-        const newest = L.events[0]?.ts ?? L.windowRange().from;
+        const windowFrom = current.windowRange().from;
+        const newest = current.events[0]?.ts ?? windowFrom;
         const page = await api('/api/query', {
-          body: { project_id: project.id, from: newest, to: Date.now() + 1000, where: L.where, limit: 200 },
+          body: {
+            project_id: project.id,
+            from: Math.max(windowFrom, newest - LATE_ARRIVAL_MS),
+            to: Date.now() + 1000,
+            where: current.where,
+            limit: POLL_LIMIT,
+          },
         });
         if (seq !== loadSeq.current) return;
-        const known = new Set(L.events.map((e) => e.id));
+        const known = new Set(current.events.map((e) => e.id));
         const fresh = page.events.filter((/** @type {LogEvent} */ e) => !known.has(e.id));
         if (fresh.length || polls.current % 4 === 0) {
-          const h = await api('/api/histogram', {
-            body: { project_id: project.id, ...L.windowRange(), where: L.where },
+          const histogram = await api('/api/histogram', {
+            body: { project_id: project.id, ...current.windowRange(), where: current.where },
           });
-          if (seq === loadSeq.current) setHist(h);
+          if (seq === loadSeq.current) setHist(histogram);
         }
-        if (fresh.length) {
+        const oldestFetched = page.events.at(-1)?.ts ?? newest;
+        if (page.next_cursor && oldestFetched > newest) {
+          // More arrived than one check fetches (the page never reached the rows already shown):
+          // show the newest page and page back from there, instead of leaving a hole.
           setFreshIds(new Set(fresh.map((/** @type {LogEvent} */ e) => e.id)));
-          setEvents((prev) => [...fresh, ...prev]);
-          setCursor((c) => (c > 0 ? c + fresh.length : c));
+          setEvents(page.events);
+          setNextCursor(page.next_cursor);
+          setCursor(0);
+        } else if (fresh.length) {
+          const merged = newestFirst([...fresh, ...current.events]);
+          const cursorEvent = current.events[current.cursor];
+          setFreshIds(new Set(fresh.map((/** @type {LogEvent} */ e) => e.id)));
+          setEvents(merged);
+          if (cursorEvent) setCursor(merged.indexOf(cursorEvent));
         }
-        if (L.status) setDataThrough(Date.now() - L.status.lag_ms);
+        if (current.status) setDataThrough(Date.now() - current.status.lag_ms);
       } catch {}
-      setNextCheckAt(Date.now() + L.pollMs);
+      setNextCheckAt(Date.now() + current.pollMs);
     };
     pollNow.current = poll;
-    const t = setInterval(poll, pollMs);
+    const pollTimer = setInterval(poll, pollMs);
     const onVisible = () => document.visibilityState === 'visible' && poll();
     document.addEventListener('visibilitychange', onVisible);
     return () => {
-      clearInterval(t);
+      clearInterval(pollTimer);
       document.removeEventListener('visibilitychange', onVisible);
     };
   }, [pollMs, project.id]);
@@ -384,9 +414,12 @@ export function Tail() {
 
   const loadOlder = async () => {
     if (!nextCursor) return;
+    const seq = loadSeq.current;
     const page = await api('/api/query', {
       body: { project_id: project.id, ...windowRange(), where, limit: TAIL_PAGE, cursor: nextCursor },
     });
+    // The view changed while this was loading: these rows belong to the previous query.
+    if (seq !== loadSeq.current) return;
     setEvents((prev) => [...prev, ...page.events]);
     setNextCursor(page.next_cursor);
   };

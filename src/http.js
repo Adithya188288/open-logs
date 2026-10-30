@@ -110,4 +110,16 @@ export function requireString(value, name, rules = {}) {
   return v;
 }
 
+/**
+ * A password, kept exactly as typed: spaces count, so it must never be trimmed.
+ * @param {unknown} value
+ * @param {string} name
+ */
+export function requirePassword(value, name) {
+  if (typeof value !== 'string' || value.length < 8 || value.length > 256) {
+    throw new HttpError(400, 'invalid_field', `${name} must be 8 to 256 characters`, { field: name });
+  }
+  return value;
+}
+
 export const EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,63}$/;

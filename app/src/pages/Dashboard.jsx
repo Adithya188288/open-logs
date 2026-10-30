@@ -49,13 +49,6 @@ export function Dashboard() {
     queryClient.setQueryData(['dashboard', dashboardId, 'charts'], (cs = []) => fn(cs));
   const reloadDashboards = useCallback(() => refresh.dashboards(project.id), [project.id]);
 
-  // A project always has at least one dashboard; recreate Overview if the last one was deleted elsewhere.
-  useEffect(() => {
-    if (dashboards && !dashboards.length) {
-      api(`/api/projects/${project.id}/dashboards`, { body: { name: 'Overview' } }).then(reloadDashboards);
-    }
-  }, [dashboards, project.id, reloadDashboards]);
-
   // Refresh when new data lands: one cheap check of the newest event time every 30 seconds
   // (only while this tab is visible, and once when you come back to it).
   // Charts re-query only when that time actually changed.
