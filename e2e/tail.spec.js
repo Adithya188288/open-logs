@@ -311,3 +311,25 @@ test('Load older ignores a reply that arrives after the view changed', async ({ 
   await page.waitForTimeout(800);
   await expect(page.getByTestId('event')).toHaveCount(100);
 });
+
+test('a busy project keeps its loaded pages: a check only adds the new events', async ({ page, app }) => {
+  const { project, token } = await app.projectWithSource(uniq('busy'), 'api');
+  const now = Date.now();
+  // 300 events in the last 4 minutes: more than one check reads back over its 5-minute overlap.
+  await app.send(
+    token,
+    Array.from({ length: 300 }, (_, i) => ({ ts: now - 240_000 + i * 700, message: `busy ${i}` })),
+  );
+  await page.goto(`/tail?project=${project.id}`);
+  await expect(page.getByTestId('event')).toHaveCount(100);
+  await page.getByRole('button', { name: 'Load older' }).click();
+  await expect(page.getByTestId('event')).toHaveCount(200);
+
+  await app.send(
+    token,
+    Array.from({ length: 5 }, (_, i) => ({ ts: Date.now() + i, message: `new ${i}` })),
+  );
+  await page.getByRole('button', { name: 'Refresh' }).click();
+  await expect(page.getByTestId('event').first()).toContainText('new 4');
+  await expect(page.getByTestId('event')).toHaveCount(205);
+});

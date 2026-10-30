@@ -191,8 +191,13 @@ export async function listDashboards({ env, params }) {
   let { results } = await list();
   // A project always has a dashboard: if the last one was deleted, bring back Overview with its starter charts.
   if (!results.length) {
-    await env.DB.batch(overviewStatements(env, String(project.id))).catch(() => {});
+    // A concurrent request may win the race and make this batch roll back; that's fine if Overview now exists.
+    const failure = await env.DB.batch(overviewStatements(env, String(project.id))).then(
+      () => null,
+      (/** @type {unknown} */ err) => err,
+    );
     ({ results } = await list());
+    if (!results.length && failure) throw failure;
   }
   return json({ dashboards: results });
 }

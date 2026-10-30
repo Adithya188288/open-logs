@@ -208,8 +208,9 @@ export function Tail() {
   /**
    * Fetches what arrived since the last check and merges it in, always (it's a live tail).
    * Each check re-reads the last few minutes too, so an event that lands late with an earlier time still
-   * appears in its place. If more arrived than one check fetches, the list restarts from the newest page
-   * (older rows stay reachable through Load older), so it never shows a hole.
+   * appears in its place. If more arrived than one check fetches, so that the page never reaches the rows
+   * already shown, the list restarts from the newest page (older rows stay reachable through Load older),
+   * so it never shows a hole. On a busy project the overlap alone can fill a page; that is not a gap.
    * The histogram refreshes only when new events arrived or every 4th poll; freshness is computed locally.
    */
   useEffect(() => {
@@ -240,8 +241,10 @@ export function Tail() {
           });
           if (seq === loadSeq.current) setHist(histogram);
         }
-        if (page.next_cursor) {
-          // More arrived than one check fetches: show the newest page and page back from there.
+        const oldestFetched = page.events.at(-1)?.ts ?? newest;
+        if (page.next_cursor && oldestFetched > newest) {
+          // More arrived than one check fetches (the page never reached the rows already shown):
+          // show the newest page and page back from there, instead of leaving a hole.
           setFreshIds(new Set(fresh.map((/** @type {LogEvent} */ e) => e.id)));
           setEvents(page.events);
           setNextCursor(page.next_cursor);
