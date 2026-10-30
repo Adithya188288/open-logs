@@ -175,7 +175,7 @@ test('saved views appear in the sidebar and re-apply their filter', async ({ pag
   await page.getByLabel('Search events').fill('level:warn');
   await page.getByLabel('Search events').press('Enter');
   await page.getByRole('button', { name: 'Save view' }).click();
-  await page.getByLabel('Name').fill('Warnings');
+  await page.getByLabel('Name', { exact: true }).fill('Warnings');
   await page.getByRole('button', { name: 'Save view' }).last().click();
   await expect(page.getByTestId('saved-view')).toHaveText(['Warnings×']);
 
