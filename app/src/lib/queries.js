@@ -75,7 +75,8 @@ export const q = {
       queryFn: async () => (await api(`/api/status?project_id=${enc(projectId)}`)).newest_event_at ?? 0,
       refetchInterval: everyMs,
       refetchOnWindowFocus: true,
-      staleTime: 0,
+      // Coming back to the dashboard (or the tab) re-checks only if the last check is 30s+ old.
+      staleTime: 30_000,
     }),
 };
 

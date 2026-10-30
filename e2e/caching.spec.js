@@ -60,3 +60,18 @@ test('dashboard shows when it last updated and refreshes on demand', async ({ pa
   await freshness.getByRole('button', { name: 'Refresh' }).click();
   await expect.poll(() => queried).toBeGreaterThan(0);
 });
+
+test('coming back to the dashboard within 30s does not re-check for new data', async ({ page, app }) => {
+  const { project, token } = await app.projectWithSource(uniq('recheck'), 'api');
+  await app.send(token, sampleEvents(Date.now(), 3));
+  await page.goto(`/dashboard?project=${project.id}`);
+  await expect(page.getByTestId('dashboard-freshness')).toContainText('Updated');
+  let checks = 0;
+  page.on('request', (r) => r.url().includes('/api/status?project_id=') && checks++);
+  for (let i = 0; i < 3; i++) {
+    await page.locator('.nav a[href^="/sources"]').click();
+    await page.getByRole('link', { name: 'Dashboard', exact: true }).click();
+    await expect(page.getByTestId('dashboard-freshness')).toBeVisible();
+  }
+  expect(checks).toBe(0);
+});
