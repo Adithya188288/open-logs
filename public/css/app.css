@@ -806,3 +806,100 @@ kbd {
   top: 12px;
   right: 12px;
 }
+
+/* Shared pieces added for the simplified layout */
+.iconbtn {
+  font: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--tx3);
+  cursor: pointer;
+}
+.iconbtn:hover {
+  background: var(--bg3);
+  color: var(--tx);
+}
+.btn.danger-fill {
+  background: var(--err);
+  border-color: var(--err);
+  color: #fff;
+  font-weight: 500;
+}
+.btn.danger-fill:disabled {
+  opacity: 0.45;
+}
+.menu hr {
+  border: none;
+  border-top: 1px solid var(--line);
+  margin: 4px 2px;
+}
+.menu .menu-label {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--tx3);
+  padding: 6px 10px 4px;
+}
+.menu a,
+.menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.menu .danger {
+  color: var(--errtx);
+}
+.dialog.wide {
+  max-width: 640px;
+}
+.dialog-backdrop {
+  overflow-y: auto;
+}
+.nav .switcher {
+  margin: 0 0 12px;
+}
+.nav .switcher svg {
+  color: var(--tx3);
+  flex: 0 0 auto;
+}
+.page.narrow {
+  max-width: 640px;
+}
+.empty {
+  padding: 48px 24px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  color: var(--tx3);
+  border: 1px dashed var(--line2);
+  border-radius: 10px;
+}
+.empty h2 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--tx);
+}
+.empty p {
+  max-width: 420px;
+}
+.warn-text {
+  color: var(--warntx);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.bad {
+  color: var(--errtx);
+}
+.right {
+  text-align: right;
+}

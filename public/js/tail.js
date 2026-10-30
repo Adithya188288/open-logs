@@ -1,10 +1,10 @@
 // Live tail: search, histogram, event list with keyboard navigation, honest freshness.
 import { api, ApiError } from './api.js';
 import { downloadCsv, toCsv } from './csv.js';
-import { copyText, formDialog, h, icon, mount, toast } from './dom.js';
+import { confirmDelete, copyText, formDialog, h, icon, mount, popMenu, toast } from './dom.js';
 import { ago, hm, hms, hmsms, num, span } from './format.js';
 import { clauseLabel, clauseToSearch, parseSearch } from './search.js';
-import { boot, loadProjectContext, shell, topbar } from './shell.js';
+import { page, topbar } from './shell.js';
 
 const RANGES = { '15m': 15 * 60_000, '1h': 3_600_000, '24h': 86_400_000, '7d': 7 * 86_400_000 };
 const LEGEND = /** @type {const} */ ([
@@ -33,13 +33,15 @@ const state = {
   relative: false,
   /** @type {LogEvent[]} */
   events: [],
-  /** @type {LogEvent[]} newer events held back while reading */
-  pending: [],
   /** @type {Set<string>} */
   freshIds: new Set(),
   nextCursor: /** @type {string | null} */ (null),
   cursor: 0,
-  open: -1,
+  /** @type {string | null} id of the event shown in the side panel */
+  selected: null,
+  /** @type {string} '' = all sources */
+  source: '',
+  polls: 0,
   total: 0,
   errors: 0,
   /** @type {any} */
@@ -84,11 +86,23 @@ const els = {
   problem: h('div.problem', { hidden: true }),
   hist: h('div.hist'),
   thead: h('div.thead'),
-  banner: h('button.banner', { type: 'button', hidden: true }),
+  panel: h('aside.evpanel', { 'aria-label': 'Event details', hidden: true }),
+  sourceSel: /** @type {HTMLSelectElement} */ (h('select.select#srcsel', { 'aria-label': 'Source' })),
+  views: h(
+    'button.btn',
+    { type: 'button', 'aria-haspopup': 'menu', 'data-testid': 'views-menu' },
+    'Views',
+    icon('chevron', 14),
+  ),
+  help: h(
+    'button.iconbtn',
+    { type: 'button', 'aria-label': 'Search help', title: 'Search help' },
+    icon('help', 15),
+  ),
   announce: h('div.sr', { 'aria-live': 'polite' }),
   list: h('div.list', {
     tabindex: '0',
-    'aria-label': 'Event list. j and k move between events, Enter expands, slash jumps to search.',
+    'aria-label': 'Event list. j and k move between events, Enter opens details, slash jumps to search.',
   }),
   foot: h('div.tfoot'),
 };
@@ -109,6 +123,7 @@ function isLive() {
 function where() {
   /** @type {object[]} */
   const w = [...state.chips];
+  if (state.source) w.push({ field: 'source', op: '=', value: state.source });
   if (state.text) w.push({ text: state.text });
   const hiddenLevels = LEGEND.filter(([k]) => state.hidden.has(k)).flatMap(([, lv]) => lv);
   if (hiddenLevels.length) w.push({ field: 'level', op: 'not_in', value: hiddenLevels });
@@ -128,9 +143,8 @@ async function load() {
   const seq = ++loadSeq;
   state.phase = 'loading';
   state.problem = null;
-  state.open = -1;
+  state.selected = null;
   state.cursor = 0;
-  state.pending = [];
   render();
   try {
     const [page, hist, st] = await Promise.all([
@@ -147,13 +161,16 @@ async function load() {
     state.errors = hist.errors;
     state.dataThrough = st.now - st.lag_ms;
     state.phase = 'ready';
-    if (!page.events.length && (state.chips.length || state.text || state.hidden.size)) {
+    if (!page.events.length && (state.chips.length || state.text || state.hidden.size || state.source)) {
       const all = await api('/api/histogram', { body: { project_id: project.id, ...windowRange() } });
       state.unfilteredTotal = all.total;
     }
     if (state.focusId) {
       const i = state.events.findIndex((e) => e.id === state.focusId);
-      if (i >= 0) state.open = state.cursor = i;
+      if (i >= 0) {
+        state.cursor = i;
+        state.selected = state.focusId;
+      }
       state.focusId = null;
     }
   } catch (err) {
@@ -165,54 +182,51 @@ async function load() {
   render();
 }
 
-/** Fetches events newer than the newest one shown and refreshes the histogram. */
+/**
+ * Fetches events newer than the newest one shown and adds them at the top, always (it's a live tail).
+ * To keep Basin queries down, the histogram refreshes only when new events arrived or every 4th poll,
+ * and freshness is computed locally from the known ingest lag.
+ */
 async function poll() {
   if (!isLive() || state.phase !== 'ready') return;
   const seq = loadSeq;
   const newest = state.events[0]?.ts ?? windowRange().from;
+  state.polls += 1;
   let histChanged = false;
   try {
-    const [page, hist, st] = await Promise.all([
-      api('/api/query', {
-        body: { project_id: project.id, from: newest, to: Date.now() + 1000, where: where(), limit: 200 },
-      }),
-      post('/api/histogram', {}),
-      api(`/api/status?project_id=${project.id}`),
-    ]);
+    const page = await api('/api/query', {
+      body: { project_id: project.id, from: newest, to: Date.now() + 1000, where: where(), limit: 200 },
+    });
     if (seq !== loadSeq) return;
-    status = st;
-    state.dataThrough = st.now - st.lag_ms;
-    histChanged = JSON.stringify(hist) !== JSON.stringify(state.hist);
-    state.hist = hist;
-    state.total = hist.total;
-    state.errors = hist.errors;
-    const known = new Set([...state.events, ...state.pending].map((e) => e.id));
+    const known = new Set(state.events.map((e) => e.id));
     const fresh = page.events.filter((/** @type {LogEvent} */ e) => !known.has(e.id));
-    if (fresh.length && isReading()) state.pending = [...fresh, ...state.pending];
-    else if (fresh.length) {
+    if (fresh.length || state.polls % 4 === 0) {
+      const hist = await post('/api/histogram', {});
+      if (seq !== loadSeq) return;
+      histChanged = JSON.stringify(hist) !== JSON.stringify(state.hist);
+      state.hist = hist;
+      state.total = hist.total;
+      state.errors = hist.errors;
+    }
+    state.dataThrough = Date.now() - status.lag_ms;
+    if (fresh.length) {
       showNew(fresh);
       renderList();
     }
   } catch {}
   state.nextCheckAt = Date.now() + pollMs;
-  // Only the parts that change; re-rendering the list would swallow clicks mid-press.
+  // Only the parts that change; re-rendering everything would swallow clicks mid-press.
   renderStatus();
   if (histChanged) renderHistogram();
-  renderBanner();
   renderFoot();
-}
-
-/** The user is looking at something: don't move rows under them. */
-function isReading() {
-  return state.open >= 0 || state.cursor > 0 || els.list.getBoundingClientRect().top < 0;
 }
 
 /** @param {LogEvent[]} fresh */
 function showNew(fresh) {
   state.freshIds = new Set(fresh.map((e) => e.id));
   state.events = [...fresh, ...state.events];
-  if (state.open >= 0) state.open += fresh.length;
-  state.cursor = 0;
+  // Keep the keyboard cursor on the same event when rows are added above it.
+  if (state.cursor > 0 || state.selected) state.cursor += fresh.length;
 }
 
 async function loadOlder() {
@@ -235,8 +249,8 @@ function render() {
   renderProblem();
   renderHistogram();
   renderHead();
-  renderBanner();
   renderList();
+  renderPanel();
   renderFoot();
 }
 
@@ -244,7 +258,8 @@ function renderStatus() {
   const lag = status.lag_ms > 0 ? ` · ~${Math.round(status.lag_ms / 1000)}s ingest lag` : '';
   let text;
   let live = false;
-  if (state.paused) text = `Paused · frozen at data through ${hms(state.dataThrough)} UTC`;
+  if (!state.dataThrough) text = 'Loading…';
+  else if (state.paused) text = `Paused · frozen at data through ${hms(state.dataThrough)} UTC`;
   else if (state.zoom || state.range === 'custom') {
     const w = windowRange();
     text = `Viewing ${hms(w.from)}–${hms(w.to)} UTC${lag}`;
@@ -369,7 +384,7 @@ function renderProblem() {
     h(
       'div.acts',
       null,
-      h('a.btn', { href: `/connect?project=${encodeURIComponent(project.id)}` }, 'Check source token'),
+      h('a.btn', { href: `/sources?project=${encodeURIComponent(project.id)}` }, 'Check source token'),
       h('button.btn', { type: 'button', onclick: () => dismiss(bad) }, 'Dismiss'),
     ),
   );
@@ -521,12 +536,6 @@ function renderHead() {
   );
 }
 
-function renderBanner() {
-  const n = state.pending.length;
-  els.banner.hidden = !n || state.paused;
-  els.banner.textContent = `↑ ${n} new event${n === 1 ? '' : 's'} since you started reading · show`;
-}
-
 /**
  * Flattens nested fields to dot keys for the detail view.
  * @param {Record<string, unknown>} obj
@@ -567,6 +576,18 @@ function detail(e) {
   return h(
     'div.detail',
     null,
+    h(
+      'div.panelhead',
+      null,
+      h(
+        'div',
+        null,
+        h(`span.lvl.${e.level}`, null, e.level.toUpperCase()),
+        h('span.mono.small.muted', null, ` ${hmsms(e.ts)} UTC · ${e.source}`),
+      ),
+      h('button.iconbtn', { type: 'button', 'aria-label': 'Close details', onclick: closePanel }, icon('x')),
+    ),
+    h('p.panelmsg', null, e.message),
     h(
       'div.fields',
       null,
@@ -617,7 +638,7 @@ function detail(e) {
             load();
           },
         },
-        'Show surrounding events',
+        'View events around this',
       ),
       h(
         'button.btn',
@@ -632,6 +653,21 @@ function detail(e) {
       ),
     ),
   );
+}
+
+function renderPanel() {
+  const e = state.events.find((x) => x.id === state.selected);
+  els.panel.hidden = !e;
+  els.panel.parentElement?.classList.toggle('with-panel', Boolean(e));
+  if (e) mount(els.panel, detail(e));
+  else mount(els.panel);
+}
+
+function closePanel() {
+  state.selected = null;
+  renderList();
+  renderPanel();
+  els.list.focus();
 }
 
 function renderList() {
@@ -715,7 +751,7 @@ function renderList() {
   mount(
     els.list,
     ...state.events.map((e, i) => {
-      const open = state.open === i;
+      const open = state.selected === e.id;
       const wrap = h(
         `div.ev${open ? '.open' : ''}${state.cursor === i ? '.cursor' : ''}${state.freshIds.has(e.id) ? '.fresh' : ''}`,
         { 'data-testid': 'event', dataset: { id: e.id } },
@@ -726,21 +762,21 @@ function renderList() {
           {
             type: 'button',
             tabindex: '-1',
-            'aria-expanded': String(open),
+            'aria-pressed': String(open),
             onclick: () => {
               state.cursor = i;
-              state.open = open ? -1 : i;
+              state.selected = open ? null : e.id;
               renderList();
+              renderPanel();
             },
           },
           h('span.t', null, state.relative ? ago(e.ts, now) : hmsms(e.ts)),
           h(`span.lvl.${e.level}`, null, e.level.toUpperCase()),
           h('span.src', null, e.source),
           h('span.msg', null, e.message),
-          h('span.chev', { 'aria-hidden': 'true' }, open ? '▾' : '▸'),
+          h('span.chev', { 'aria-hidden': 'true' }, '›'),
         ),
       );
-      if (open) wrap.append(detail(e));
       return wrap;
     }),
   );
@@ -752,7 +788,7 @@ function renderList() {
 }
 
 function emptyState() {
-  const filtered = state.chips.length || state.text || state.hidden.size;
+  const filtered = state.chips.length || state.text || state.hidden.size || state.source;
   const w = windowRange();
   const window = state.zoom
     ? 'this range'
@@ -761,7 +797,9 @@ function emptyState() {
       : `the last ${span(w.to - w.from)}`;
   if (filtered) {
     const label =
-      [...state.chips.map(clauseToSearch), state.text].filter(Boolean).join(' ') || 'these levels';
+      [state.source ? `source:${state.source}` : '', ...state.chips.map(clauseToSearch), state.text]
+        .filter(Boolean)
+        .join(' ') || 'these levels';
     return h(
       'div.state',
       { 'data-testid': 'no-results' },
@@ -799,7 +837,7 @@ function emptyState() {
         null,
         h(
           'a.btn.primary',
-          { href: `/connect?project=${encodeURIComponent(project.id)}` },
+          { href: `/sources?project=${encodeURIComponent(project.id)}&new=1` },
           'Connect a source',
         ),
       ),
@@ -894,10 +932,24 @@ function onListKey(e) {
   } else if (e.key === 'Enter') {
     if (e.target !== els.list) return;
     e.preventDefault();
-    state.open = state.open === state.cursor ? -1 : state.cursor;
+    const id = state.events[state.cursor]?.id ?? null;
+    state.selected = state.selected === id ? null : id;
+  } else if (e.key === 'Escape' && state.selected) {
+    state.selected = null;
   } else return;
+  // With the panel open, j/k walk through events in the panel too.
+  if (state.selected && (e.key === 'j' || e.key === 'k'))
+    state.selected = state.events[state.cursor]?.id ?? null;
   renderList();
+  renderPanel();
   els.list.querySelectorAll('.ev')[state.cursor]?.scrollIntoView({ block: 'nearest' });
+}
+
+/** @type {any[]} */
+let views = [];
+
+async function loadViews() {
+  views = (await api(`/api/projects/${project.id}/views`)).views;
 }
 
 async function saveView() {
@@ -911,18 +963,20 @@ async function saveView() {
     'Save view',
     [
       h('div.field', null, h('label.label', { for: 'vname' }, 'Name'), input),
-      h('p.small.muted', null, 'Saves the search, filters and time range.'),
+      h('p.small.muted', null, 'Saves the source, search, filters and time range.'),
     ],
     'Save view',
     async (v) => {
       /** @type {object[]} */
       const w = [...state.chips];
+      if (state.source) w.push({ field: 'source', op: '=', value: state.source });
       if (state.text) w.push({ text: state.text });
       try {
         await api(`/api/projects/${project.id}/views`, {
           body: { name: v.name, filter: { where: w, range: state.range === 'custom' ? '1h' : state.range } },
         });
-        await renderViews();
+        await loadViews();
+        toast('View saved');
         return null;
       } catch (err) {
         return err instanceof ApiError ? err.message : 'Could not save';
@@ -931,42 +985,91 @@ async function saveView() {
   );
 }
 
-const viewsNav = h('div');
-async function renderViews() {
-  const { views } = await api(`/api/projects/${project.id}/views`);
-  mount(
-    viewsNav,
-    h('div.section', null, 'Saved views'),
+/** @param {any} v */
+function deleteView(v) {
+  confirmDelete({
+    title: `Delete view ${v.name}?`,
+    body: 'Only the saved view goes away. No logs are deleted.',
+    confirmLabel: 'Delete view',
+    onConfirm: async () => {
+      try {
+        await api(`/api/views/${v.id}`, { method: 'DELETE' });
+        await loadViews();
+        return null;
+      } catch (err) {
+        return err instanceof ApiError ? err.message : 'Delete failed';
+      }
+    },
+  });
+}
+
+function viewsMenu() {
+  popMenu(els.views, [
+    h('div.menu-label', null, 'Saved views'),
     ...(views.length
-      ? views.map((/** @type {any} */ v) =>
+      ? views.map((v) =>
           h(
-            'div.item',
-            {
-              role: 'button',
-              tabindex: '0',
-              'data-testid': 'saved-view',
-              onclick: () => applyView(v),
-              onkeydown: (/** @type {KeyboardEvent} */ e) => e.key === 'Enter' && applyView(v),
-            },
-            h('span.swatch'),
-            h('span', null, v.name),
+            'div.menu-row',
+            null,
             h(
-              'button.x',
-              {
-                type: 'button',
-                'aria-label': `Delete view ${v.name}`,
-                onclick: async (/** @type {Event} */ e) => {
-                  e.stopPropagation();
-                  await api(`/api/views/${v.id}`, { method: 'DELETE' });
-                  renderViews();
-                },
-              },
-              '×',
+              'button',
+              { type: 'button', role: 'menuitem', 'data-testid': 'saved-view', onclick: () => applyView(v) },
+              v.name,
+            ),
+            h(
+              'button.iconbtn',
+              { type: 'button', 'aria-label': `Delete view ${v.name}`, onclick: () => deleteView(v) },
+              icon('x', 14),
             ),
           ),
         )
-      : [h('p.tiny.muted', { class: 'item' }, 'Save a search to find it here.')]),
+      : [h('p.tiny.muted.menu-note', null, 'No saved views yet.')]),
+    h('hr'),
+    h(
+      'button',
+      { type: 'button', role: 'menuitem', onclick: saveView },
+      icon('plus', 14),
+      'Save current view…',
+    ),
+  ]);
+}
+
+function searchHelp() {
+  const rows = [
+    ['payment failed', 'words anywhere in the message or fields'],
+    ['level:error', 'a field equals a value'],
+    ['source:api,worker', 'any of several values'],
+    ['status:>=500', 'numbers: > >= < <='],
+    ['code:!card_declined', 'not equal'],
+    ['order_id:*', 'the field exists'],
+    ['route:"/a b"', 'quote values with spaces'],
+    ['http.status:502', 'nested fields with dots'],
+  ];
+  popMenu(els.help, [
+    h('div.menu-label', null, 'Search syntax'),
+    h(
+      'div.help',
+      { 'data-testid': 'search-help' },
+      ...rows.flatMap(([q, what]) => [h('code', null, q), h('span', null, what)]),
+    ),
+    h(
+      'p.tiny.muted.menu-note',
+      null,
+      'Press Enter: field:value parts become filter chips. Backspace in an empty box removes the last chip.',
+    ),
+  ]);
+}
+
+function renderSourcePicker() {
+  mount(
+    els.sourceSel,
+    h('option', { value: '' }, 'All sources'),
+    ...sources.map((s) => h('option', { value: s.name }, s.name)),
+    ...(state.source && !sources.some((s) => s.name === state.source)
+      ? [h('option', { value: state.source }, state.source)]
+      : []),
   );
+  els.sourceSel.value = state.source;
 }
 
 /** @param {any} v */
@@ -977,6 +1080,10 @@ function applyView(v) {
   state.hidden.clear();
   state.zoom = null;
   if (v.filter.range) state.range = v.filter.range;
+  const src = state.chips.find((c) => c.field === 'source' && c.op === '=');
+  state.source = src ? String(src.value) : '';
+  state.chips = state.chips.filter((c) => c !== src);
+  renderSourcePicker();
   load();
 }
 
@@ -999,6 +1106,7 @@ function readUrl() {
     state.text = text;
     els.search.value = text;
   }
+  state.source = p.get('source') ?? '';
   const at = Number(p.get('at'));
   if (at) {
     state.zoom = { from: at - 30_000, to: at + 30_000 };
@@ -1007,22 +1115,13 @@ function readUrl() {
 }
 
 async function main() {
-  const [{ user: me, team_name }, ctx] = await Promise.all([boot(), loadProjectContext()]);
+  const ctx = await page('tail');
   project = ctx.project;
   sources = project.sources;
   status = await api(`/api/status?project_id=${project.id}`);
-  pollMs = status.lag_ms > 0 ? 15_000 : 3000;
-
-  const { main } = shell({
-    me,
-    team: team_name,
-    active: 'tail',
-    project,
-    projects: ctx.projects,
-    sourceCount: sources.length,
-    extra: [viewsNav],
-  });
-  renderViews();
+  // Basin data is ~60s behind anyway, so polling more often than every 30s only adds query cost.
+  pollMs = status.lag_ms > 0 ? 30_000 : 3000;
+  loadViews();
 
   els.pause.addEventListener('click', () => {
     state.paused = !state.paused;
@@ -1033,10 +1132,15 @@ async function main() {
     state.wrap = !state.wrap;
     render();
   });
-  els.banner.addEventListener('click', () => {
-    showNew(state.pending);
-    state.pending = [];
-    render();
+  els.views.addEventListener('click', viewsMenu);
+  els.help.addEventListener('click', searchHelp);
+  els.sourceSel.addEventListener('change', () => {
+    state.source = els.sourceSel.value;
+    const url = new URL(location.href);
+    if (state.source) url.searchParams.set('source', state.source);
+    else url.searchParams.delete('source');
+    history.replaceState(null, '', url);
+    load();
   });
   els.search.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') applySearch();
@@ -1055,7 +1159,9 @@ async function main() {
     }
   });
 
-  main.append(
+  readUrl();
+  renderSourcePicker();
+  ctx.main.append(
     topbar(
       'Live tail',
       [els.status],
@@ -1069,6 +1175,8 @@ async function main() {
       h(
         'div.row',
         null,
+        h('label.sr', { for: 'srcsel' }, 'Source'),
+        els.sourceSel,
         h(
           'div.query',
           null,
@@ -1076,18 +1184,18 @@ async function main() {
           els.chips,
           h('label.sr', { for: 'q' }, 'Search events'),
           els.search,
+          els.help,
           h('kbd', null, '/'),
         ),
+        els.views,
         els.wrap,
-        h('button.btn', { type: 'button', onclick: saveView }, 'Save view'),
       ),
       els.hist,
     ),
-    h('div.table', null, els.thead, els.banner, els.announce, els.list),
+    h('div.tail-body', null, h('div.table', null, els.thead, els.announce, els.list), els.panel),
     els.foot,
   );
 
-  readUrl();
   await load();
   setInterval(poll, pollMs);
   setInterval(() => isLive() && renderStatus(), 1000);
@@ -1097,7 +1205,7 @@ async function main() {
       sources = res.sources;
       renderProblem();
     }
-  }, 30_000);
+  }, 60_000);
 }
 
 main();

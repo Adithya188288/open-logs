@@ -1,8 +1,8 @@
-// Projects + team page (/).
+// All projects (/projects): one card per project, with rename and delete.
 import { api, ApiError } from './api.js';
-import { copyText, formDialog, h, icon, mount, s, toast } from './dom.js';
-import { ago, cap, compact, initials, num } from './format.js';
-import { boot, shell, topbar } from './shell.js';
+import { confirmDelete, formDialog, h, icon, mount, popMenu, s, toast } from './dom.js';
+import { ago, compact, num } from './format.js';
+import { newProjectDialog, page, projectHome, topbar } from './shell.js';
 
 const LIVE_MS = 15 * 60 * 1000;
 
@@ -28,21 +28,46 @@ function sparkline(values) {
   return svg;
 }
 
-/** @param {any} p */
-function projectCard(p) {
+/**
+ * @param {any} p
+ * @param {import('./shell.js').Me} me
+ */
+function projectCard(p, me) {
   const st = status(p);
-  const hasSources = p.sources.length > 0;
-  const href = hasSources
-    ? `/tail?project=${encodeURIComponent(p.id)}`
-    : `/connect?project=${encodeURIComponent(p.id)}`;
+  const more = h(
+    'button.iconbtn',
+    { type: 'button', 'aria-label': `Options for ${p.name}`, 'aria-haspopup': 'menu' },
+    icon('more'),
+  );
+  more.addEventListener('click', () =>
+    popMenu(
+      more,
+      [
+        h('a', { href: projectHome(p.id), role: 'menuitem' }, 'Open'),
+        h('button', { type: 'button', role: 'menuitem', onclick: () => rename(p) }, 'Rename'),
+        me.role !== 'member'
+          ? h(
+              'button.danger',
+              { type: 'button', role: 'menuitem', onclick: () => remove(p) },
+              'Delete project',
+            )
+          : null,
+      ].filter(Boolean),
+    ),
+  );
   return h(
     'article.card.project',
     { 'data-testid': 'project-card' },
     h(
       'div.head',
       null,
-      h('a.name', { href }, p.name),
-      h(`span.pill${st.cls ? `.${st.cls}` : ''}`, null, h(`span.${st.dot}`), st.label),
+      h('a.name', { href: projectHome(p.id) }, p.name),
+      h(
+        'div.headr',
+        null,
+        h(`span.pill${st.cls ? `.${st.cls}` : ''}`, null, h(`span.${st.dot}`), st.label),
+        more,
+      ),
     ),
     sparkline(p.stats.spark),
     h(
@@ -59,13 +84,13 @@ function projectCard(p) {
     h(
       'div.foot',
       null,
-      hasSources
+      p.sources.length
         ? h('div.tags', null, ...p.sources.map((/** @type {any} */ src) => h('span.tag', null, src.name)))
         : h(
             'a.btn',
-            { href: `/connect?project=${encodeURIComponent(p.id)}` },
+            { href: `/sources?project=${encodeURIComponent(p.id)}` },
             icon('plug', 14),
-            'Connect a source',
+            'Add a source',
           ),
       h(
         'span.seen',
@@ -76,224 +101,61 @@ function projectCard(p) {
   );
 }
 
-async function newProject() {
-  const input = h('input.input.mono#pname', {
-    name: 'name',
-    required: true,
-    maxlength: 64,
-    placeholder: 'checkout-app',
-    autocomplete: 'off',
-  });
+/** @param {any} p */
+async function rename(p) {
+  const input = h('input.input.mono#rname', { name: 'name', required: true, maxlength: 64, value: p.name });
   await formDialog(
-    'New project',
-    [h('div.field', null, h('label.label', { for: 'pname' }, 'Project name'), input)],
-    'Create project',
+    'Rename project',
+    [h('div.field', null, h('label.label', { for: 'rname' }, 'Project name'), input)],
+    'Rename',
     async (v) => {
       try {
-        const { project } = await api('/api/projects', { body: { name: v.name } });
-        location.href = `/connect?project=${encodeURIComponent(project.id)}`;
+        await api(`/api/projects/${p.id}`, { method: 'PATCH', body: { name: v.name } });
+        location.reload();
         return null;
       } catch (err) {
-        return err instanceof ApiError ? err.message : 'Could not create the project';
+        return err instanceof ApiError ? err.message : 'Rename failed';
       }
     },
   );
 }
 
-/**
- * @param {import('./shell.js').Me} me
- */
-async function teamSection(me) {
-  const section = h('section.card.team#team', { 'aria-labelledby': 'team-h' });
-  const canInvite = me.role !== 'member';
-
-  async function render(/** @type {string | null} */ inviteUrl = null) {
-    const { users, invites } = await api('/api/users');
-    const email = h('input.input#inv', {
-      type: 'email',
-      placeholder: 'teammate@company.com',
-      required: true,
-      name: 'email',
-    });
-    const role = h(
-      'select.select#role',
-      { name: 'role' },
-      h('option', { value: 'member' }, 'Member'),
-      h('option', { value: 'admin' }, 'Admin'),
-    );
-    const form = h(
-      'form.invite',
-      { 'aria-label': 'Invite a teammate' },
-      h('label.sr', { for: 'inv' }, 'Teammate email'),
-      email,
-      h('label.sr', { for: 'role' }, 'Role'),
-      role,
-      h('button.btn', { type: 'submit' }, 'Invite'),
-    );
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
+/** @param {any} p */
+async function remove(p) {
+  await confirmDelete({
+    title: `Delete project ${p.name}?`,
+    body: 'This deletes its sources (their tokens stop working), dashboards and saved views. Logs already in Basin stay in R2.',
+    confirmLabel: 'Delete project',
+    onConfirm: async () => {
       try {
-        const res = await api('/api/invites', {
-          body: {
-            email: /** @type {HTMLInputElement} */ (email).value,
-            role: /** @type {HTMLSelectElement} */ (role).value,
-          },
-        });
-        render(res.invite_url);
+        await api(`/api/projects/${p.id}`, { method: 'DELETE' });
+        toast('Project deleted');
+        location.reload();
+        return null;
       } catch (err) {
-        toast(err instanceof ApiError ? err.message : 'Invite failed');
+        return err instanceof ApiError ? err.message : 'Delete failed';
       }
-    });
-
-    const rows = [
-      ...users.map((/** @type {any} */ u) =>
-        h(
-          'tr',
-          null,
-          h(
-            'td',
-            null,
-            h('span.who', null, h('span.avatar.sm', { 'aria-hidden': 'true' }, initials(u.name)), u.name),
-          ),
-          h('td', null, h('span.email', null, u.email)),
-          h('td', null, h('span.pill', null, cap(u.role))),
-          h(
-            'td',
-            null,
-            h(
-              'span.small.muted',
-              null,
-              u.last_active_at
-                ? Date.now() - u.last_active_at < 120_000
-                  ? 'now'
-                  : ago(u.last_active_at)
-                : '—',
-            ),
-          ),
-          h(
-            'td',
-            null,
-            me.role === 'owner' && u.id !== me.id
-              ? h('button.btn.link.danger.tiny', { type: 'button', onclick: () => removeUser(u) }, 'Remove')
-              : null,
-          ),
-        ),
-      ),
-      ...invites.map((/** @type {any} */ i) =>
-        h(
-          'tr',
-          null,
-          h(
-            'td',
-            null,
-            h('span.who.muted', null, h('span.avatar.sm', { 'aria-hidden': 'true' }, '?'), 'Invited'),
-          ),
-          h('td', null, h('span.email', null, i.email)),
-          h('td', null, h('span.pill.warn', null, cap(i.role))),
-          h(
-            'td',
-            null,
-            h('span.small.muted', null, `expires ${new Date(i.expires_at).toISOString().slice(0, 10)}`),
-          ),
-          h('td'),
-        ),
-      ),
-    ];
-
-    mount(
-      section,
-      h(
-        'div.bar',
-        null,
-        h(
-          'div',
-          null,
-          h('h2#team-h', null, 'Team'),
-          h('p', null, 'Everyone here can see every project in this deploy.'),
-        ),
-        canInvite ? form : null,
-      ),
-      inviteUrl
-        ? h(
-            'div.invite-link',
-            { role: 'status' },
-            h('span', null, 'Invite link (shown once, valid 7 days):'),
-            h('code', { 'data-testid': 'invite-url' }, inviteUrl),
-            h(
-              'button.btn',
-              {
-                type: 'button',
-                onclick: async () => toast((await copyText(inviteUrl)) ? 'Copied' : 'Copy failed'),
-              },
-              icon('copy', 13),
-              'Copy link',
-            ),
-          )
-        : null,
-      h(
-        'table.grid',
-        null,
-        h(
-          'thead',
-          null,
-          h(
-            'tr',
-            null,
-            h('th', { scope: 'col' }, 'Name'),
-            h('th', { scope: 'col' }, 'Email'),
-            h('th', { scope: 'col' }, 'Role'),
-            h('th', { scope: 'col' }, 'Last active'),
-            h('th', { scope: 'col' }, h('span.sr', null, 'Actions')),
-          ),
-        ),
-        h('tbody', null, ...rows),
-      ),
-    );
-  }
-
-  /** @param {any} u */
-  async function removeUser(u) {
-    const ok = await formDialog(
-      `Remove ${u.name}?`,
-      [h('p.small.muted', null, `${u.email} will be signed out and lose access.`)],
-      'Remove',
-    );
-    if (!ok) return;
-    await api(`/api/users/${encodeURIComponent(u.id)}`, { method: 'DELETE' });
-    render();
-  }
-
-  await render();
-  return section;
+    },
+  });
 }
 
 async function main() {
-  const { user: me, team_name } = await boot();
+  const { me, main } = await page('projects', { required: false });
   const { projects } = await api('/api/projects');
-  const { main } = shell({ me, team: team_name, active: 'projects', projectCount: projects.length });
   const live = projects.filter((/** @type {any} */ p) => status(p).cls === 'ok').length;
-
   const find = h('input#find', { type: 'search', placeholder: 'Find a project' });
   const grid = h('div.projects', { 'data-testid': 'projects' });
-  const renderGrid = () => {
+  const render = () => {
     const q = /** @type {HTMLInputElement} */ (find).value.trim().toLowerCase();
-    const shown = projects.filter((/** @type {any} */ p) => p.name.toLowerCase().includes(q));
-    if (!projects.length) {
-      mount(
-        grid,
-        h(
-          'div.empty-projects',
-          null,
-          h('h2', null, 'No projects yet'),
-          h('p.small', null, 'A project groups the sources (apps and services) that send it logs.'),
-          h('button.btn.primary', { type: 'button', onclick: newProject }, icon('plus', 14), 'New project'),
-        ),
-      );
-    } else mount(grid, ...shown.map(projectCard));
+    mount(
+      grid,
+      ...projects
+        .filter((/** @type {any} */ p) => p.name.toLowerCase().includes(q))
+        .map((/** @type {any} */ p) => projectCard(p, me)),
+    );
   };
-  find.addEventListener('input', renderGrid);
-  renderGrid();
-
+  find.addEventListener('input', render);
+  render();
   main.append(
     topbar(
       'Projects',
@@ -306,12 +168,16 @@ async function main() {
       ],
       [
         h('div.searchbox', null, icon('search', 15), h('label.sr', { for: 'find' }, 'Find a project'), find),
-        h('button.btn.primary', { type: 'button', onclick: newProject }, icon('plus', 14), 'New project'),
+        h(
+          'button.btn.primary',
+          { type: 'button', onclick: newProjectDialog },
+          icon('plus', 14),
+          'New project',
+        ),
       ],
     ),
-    h('div.page', null, grid, await teamSection(me)),
+    h('div.page', null, grid),
   );
-  if (location.hash === '#team') document.getElementById('team')?.scrollIntoView();
 }
 
 main();

@@ -449,3 +449,26 @@ circle[class^="k-"] {
   flex-grow: 1;
   min-width: 0;
 }
+.titlebtn {
+  font: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: transparent;
+  color: var(--tx);
+  cursor: pointer;
+  padding: 4px 6px;
+  margin-left: -6px;
+  border-radius: 6px;
+}
+.titlebtn:hover {
+  background: var(--bg3);
+}
+.titlebtn h1 {
+  font-size: 15px;
+  font-weight: 600;
+}
+.titlebtn svg {
+  color: var(--tx3);
+}

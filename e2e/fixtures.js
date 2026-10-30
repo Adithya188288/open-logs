@@ -33,6 +33,7 @@ export const test = base.extend({
     };
     await use({
       get: (path) => call('GET', path),
+      patch: (path, data) => call('PATCH', path, data ?? {}),
       post: (path, data) => call('POST', path, data ?? {}),
       /** Creates a project with one source; returns { project, source, token }. */
       async projectWithSource(projectName = uniq('shop'), sourceName = 'api') {

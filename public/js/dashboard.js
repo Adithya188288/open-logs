@@ -1,11 +1,11 @@
-// Dashboards: chart tiles, chart builder drawer, pin / edit / duplicate / remove, CSV export.
+// Dashboards: chart tiles, chart builder drawer, pin / edit / duplicate / remove, CSV export per chart.
 import { api, ApiError } from './api.js';
 import { csvRows, formatValue, legendFor, renderChart } from './charts.js';
 import { downloadCsv, toCsv } from './csv.js';
-import { formDialog, h, icon, mount, popMenu, toast } from './dom.js';
+import { confirmDelete, formDialog, h, icon, mount, popMenu, toast } from './dom.js';
 import { hms, num } from './format.js';
 import { clauseToSearch, fieldFor, parseSearch } from './search.js';
-import { boot, loadProjectContext, shell, topbar } from './shell.js';
+import { page, topbar } from './shell.js';
 
 const RANGES = { '15m': 15 * 60_000, '1h': 3_600_000, '24h': 86_400_000, '7d': 7 * 86_400_000 };
 const MEASURES = [
@@ -33,7 +33,11 @@ let lag = 0;
 const tilesEl = h('div.tiles', { 'data-testid': 'tiles' });
 const metaEl = h('span.small.muted');
 const rangesEl = h('div.seg', { role: 'group', 'aria-label': 'Time range' });
-const navEl = h('div');
+const titleBtn = h('button.titlebtn', {
+  type: 'button',
+  'aria-haspopup': 'menu',
+  'data-testid': 'dashboard-switcher',
+});
 
 function windowRange() {
   const to = Date.now() + 1000;
@@ -41,10 +45,25 @@ function windowRange() {
 }
 
 /**
- * @param {Pick<Chart, 'filter' | 'field' | 'measure'>} c
- * @param {{ from: number, to: number }} w
+ * Which parts of an aggregate a chart actually draws. Each part is a Basin query (min 10 MB billed),
+ * so asking only for these keeps a dashboard load cheap.
+ * @param {Pick<Chart, 'field' | 'measure' | 'viz'>} c
  */
-function aggregate(c, w) {
+function partsFor(c) {
+  const grouped = Boolean(c.field) || c.measure === 'avg' || c.measure === 'p95';
+  if (c.viz === 'number') return ['value', 'series'];
+  if (c.viz === 'pie') return ['value', 'groups'];
+  if (c.viz === 'line') return grouped && c.measure !== 'count' ? ['series', 'series_by_group'] : ['series'];
+  if (c.measure === 'count_over_time') return c.field ? ['series', 'series_by_group'] : ['series'];
+  return grouped ? ['groups'] : ['series'];
+}
+
+/**
+ * @param {Pick<Chart, 'filter' | 'field' | 'measure' | 'viz'>} c
+ * @param {{ from: number, to: number }} w
+ * @param {string[]} [parts]
+ */
+function aggregate(c, w, parts = partsFor(c)) {
   return api('/api/aggregate', {
     body: {
       project_id: project.id,
@@ -52,6 +71,7 @@ function aggregate(c, w) {
       where: c.filter.where,
       measure: c.measure,
       field: c.field ?? undefined,
+      parts,
     },
   });
 }
@@ -74,7 +94,7 @@ async function loadChart(c) {
   const span = w.to - w.from;
   const [data, prev] = await Promise.all([
     aggregate(c, w),
-    c.viz === 'number' ? aggregate(c, { from: w.from - span, to: w.from }) : null,
+    c.viz === 'number' ? aggregate(c, { from: w.from - span, to: w.from }, ['value']) : null,
   ]);
   results.set(c.id, { data, prev });
   return { data, prev };
@@ -153,22 +173,51 @@ function renderRanges() {
   );
 }
 
-function renderNav() {
-  mount(
-    navEl,
-    h('div.section', null, 'Dashboards'),
-    ...dashboards.map((d) =>
-      h(
-        'a.item',
-        {
-          href: `/dashboard?project=${encodeURIComponent(project.id)}&id=${encodeURIComponent(d.id)}`,
-          'aria-current': d.id === dashboard.id ? 'page' : null,
-          'data-testid': 'dashboard-link',
-        },
-        d.name,
+function renderSwitcher() {
+  mount(titleBtn, h('h1', null, dashboard.name), icon('chevron', 16));
+}
+
+function dashboardMenu() {
+  const here = (/** @type {any} */ d) =>
+    `/dashboard?project=${encodeURIComponent(project.id)}&id=${encodeURIComponent(d.id)}`;
+  popMenu(
+    titleBtn,
+    [
+      h('div.menu-label', null, 'Dashboards'),
+      ...dashboards.map((d) =>
+        h(
+          'a',
+          {
+            href: here(d),
+            role: 'menuitem',
+            'aria-current': d.id === dashboard.id ? 'true' : null,
+            'data-testid': 'dashboard-link',
+          },
+          d.name,
+        ),
       ),
-    ),
-    h('button.item', { type: 'button', onclick: newDashboard }, '+ New dashboard'),
+      h('hr'),
+      h(
+        'button',
+        { type: 'button', role: 'menuitem', onclick: newDashboard },
+        icon('plus', 14),
+        'New dashboard',
+      ),
+      h(
+        'button',
+        { type: 'button', role: 'menuitem', onclick: renameDashboard },
+        icon('edit', 14),
+        'Rename this dashboard',
+      ),
+      dashboards.length > 1
+        ? h(
+            'button.danger',
+            { type: 'button', role: 'menuitem', onclick: deleteDashboard },
+            icon('x', 14),
+            'Delete this dashboard',
+          )
+        : null,
+    ].filter(Boolean),
   );
 }
 
@@ -197,14 +246,6 @@ async function newDashboard() {
   );
 }
 
-/** @param {HTMLElement} anchor */
-function dashboardMenu(anchor) {
-  popMenu(anchor, [
-    h('button', { type: 'button', onclick: renameDashboard }, 'Rename dashboard'),
-    h('button', { type: 'button', onclick: deleteDashboard }, 'Delete dashboard'),
-  ]);
-}
-
 async function renameDashboard() {
   const input = h('input.input#rname', {
     name: 'name',
@@ -223,14 +264,20 @@ async function renameDashboard() {
 }
 
 async function deleteDashboard() {
-  const ok = await formDialog(
-    `Delete ${dashboard.name}?`,
-    [h('p.small.muted', null, 'Its charts are deleted too. Logs are not affected.')],
-    'Delete',
-  );
-  if (!ok) return;
-  await api(`/api/dashboards/${dashboard.id}`, { method: 'DELETE' });
-  location.href = `/dashboard?project=${encodeURIComponent(project.id)}`;
+  await confirmDelete({
+    title: `Delete dashboard ${dashboard.name}?`,
+    body: 'Its charts are deleted too. Logs are not affected.',
+    confirmLabel: 'Delete dashboard',
+    onConfirm: async () => {
+      try {
+        await api(`/api/dashboards/${dashboard.id}`, { method: 'DELETE' });
+        location.href = `/dashboard?project=${encodeURIComponent(project.id)}`;
+        return null;
+      } catch (err) {
+        return err instanceof ApiError ? err.message : 'Delete failed';
+      }
+    },
+  });
 }
 
 /** @param {Chart} c */
@@ -243,15 +290,21 @@ async function duplicate(c) {
 
 /** @param {Chart} c */
 async function remove(c) {
-  const ok = await formDialog(
-    `Remove “${c.title}”?`,
-    [h('p.small.muted', null, 'This removes the chart from the dashboard.')],
-    'Remove',
-  );
-  if (!ok) return;
-  await api(`/api/charts/${c.id}`, { method: 'DELETE' });
-  charts = charts.filter((x) => x.id !== c.id);
-  renderTiles();
+  await confirmDelete({
+    title: `Remove chart “${c.title}”?`,
+    body: 'This removes the chart from the dashboard. Logs are not affected.',
+    confirmLabel: 'Remove chart',
+    onConfirm: async () => {
+      try {
+        await api(`/api/charts/${c.id}`, { method: 'DELETE' });
+        charts = charts.filter((x) => x.id !== c.id);
+        renderTiles();
+        return null;
+      } catch (err) {
+        return err instanceof ApiError ? err.message : 'Remove failed';
+      }
+    },
+  });
 }
 
 /** @param {Chart} c */
@@ -262,11 +315,6 @@ function exportChart(c) {
     `${c.title.replace(/[^\w-]+/g, '-')}.csv`,
     toCsv(['chart', 'key', 'value'], csvRows(c, r.data)),
   );
-}
-
-function exportAll() {
-  const rows = charts.flatMap((c) => (results.has(c.id) ? csvRows(c, results.get(c.id).data) : []));
-  downloadCsv(`${dashboard.name.replace(/[^\w-]+/g, '-')}.csv`, toCsv(['chart', 'key', 'value'], rows));
 }
 
 /**
@@ -399,7 +447,7 @@ async function openDrawer(existing, presetField) {
       return;
     }
     try {
-      const data = await aggregate(c, windowRange());
+      const data = await aggregate(c, windowRange(), [...new Set([...partsFor(c), 'value'])]);
       if (mine !== seq) return;
       const counted =
         c.measure === 'count' || c.measure === 'count_over_time'
@@ -491,11 +539,7 @@ async function openDrawer(existing, presetField) {
 }
 
 async function main() {
-  const [{ user: me, team_name }, ctx, status] = await Promise.all([
-    boot(),
-    loadProjectContext(),
-    api('/api/status'),
-  ]);
+  const [ctx, status] = await Promise.all([page('dashboard'), api('/api/status')]);
   project = ctx.project;
   lag = status.lag_ms;
   const params = new URLSearchParams(location.search);
@@ -508,30 +552,13 @@ async function main() {
   }
   dashboard = dashboards.find((d) => d.id === params.get('id')) ?? dashboards[0];
   charts = (await api(`/api/dashboards/${dashboard.id}`)).charts;
-
-  const { main } = shell({
-    me,
-    team: team_name,
-    active: 'dashboards',
-    project,
-    projects: ctx.projects,
-    sourceCount: project.sources.length,
-    extra: [navEl],
-  });
-  const menu = h(
-    'button.btn',
-    { type: 'button', 'aria-label': 'Dashboard options', 'aria-haspopup': 'menu' },
-    '⋯',
-  );
-  menu.addEventListener('click', () => dashboardMenu(menu));
-  main.append(
+  titleBtn.addEventListener('click', dashboardMenu);
+  ctx.main.append(
     topbar(
-      dashboard.name,
+      titleBtn,
       [metaEl],
       [
         rangesEl,
-        menu,
-        h('button.btn', { type: 'button', onclick: exportAll }, 'Export CSV'),
         h(
           'button.btn.primary',
           { type: 'button', onclick: () => openDrawer() },
@@ -542,7 +569,7 @@ async function main() {
     ),
     tilesEl,
   );
-  renderNav();
+  renderSwitcher();
   renderRanges();
   renderTiles();
   const preset = params.get('chart');

@@ -9,7 +9,7 @@ async function seeded(app) {
 test('Overview starter charts show numbers that match the query API', async ({ page, app }) => {
   const { project } = await seeded(app);
   await page.goto(`/dashboard?project=${project.id}`);
-  await expect(page.getByRole('heading', { name: 'Overview', exact: true })).toBeVisible();
+  await expect(page.getByTestId('dashboard-switcher')).toHaveText(/Overview/);
   const events = page
     .getByTestId('chart')
     .filter({ has: page.getByRole('heading', { name: 'Events', exact: true }) });
@@ -90,44 +90,44 @@ test('chart tile menu: edit, duplicate, remove; Export CSV', async ({ page, app 
 
   await page.getByRole('button', { name: 'Chart options for Slow requests p95' }).click();
   await page.getByRole('menuitem', { name: 'Remove' }).click();
-  await page.getByRole('button', { name: 'Remove', exact: true }).click();
+  await page.getByLabel('Type DELETE to confirm').fill('DELETE');
+  await page.getByRole('button', { name: 'Remove chart' }).click();
   await expect(tiles).toHaveCount(6);
-
-  const [all] = await Promise.all([
-    page.waitForEvent('download'),
-    page.getByRole('button', { name: 'Export CSV' }).click(),
-  ]);
-  expect(all.suggestedFilename()).toBe('Overview.csv');
+  await expect(page.locator('header.topbar').getByRole('button', { name: 'Export CSV' })).toHaveCount(0);
 });
 
-test('dashboards: create, rename, delete', async ({ page, app }) => {
+test('dashboards: switch, create, rename, delete with DELETE from the title menu', async ({ page, app }) => {
   const { project } = await seeded(app);
   await page.goto(`/dashboard?project=${project.id}`);
-  await page.getByRole('button', { name: '+ New dashboard' }).click();
+  await page.getByTestId('dashboard-switcher').click();
+  await page.getByRole('menuitem', { name: 'New dashboard' }).click();
   await page.getByLabel('Name', { exact: true }).fill('Payments');
   await page.getByRole('button', { name: 'Create dashboard' }).click();
-  await expect(page.getByRole('heading', { name: 'Payments', exact: true })).toBeVisible();
+  await expect(page.getByTestId('dashboard-switcher')).toHaveText(/Payments/);
   await expect(page.getByText('No charts yet')).toBeVisible();
+  await page.getByTestId('dashboard-switcher').click();
   await expect(page.getByTestId('dashboard-link')).toHaveText(['Overview', 'Payments']);
 
-  await page.getByRole('button', { name: 'Dashboard options' }).click();
-  await page.getByRole('button', { name: 'Rename dashboard' }).click();
+  await page.getByRole('menuitem', { name: 'Rename this dashboard' }).click();
   await page.getByLabel('Name', { exact: true }).fill('Billing');
   await page.getByRole('button', { name: 'Rename', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Billing', exact: true })).toBeVisible();
+  await expect(page.getByTestId('dashboard-switcher')).toHaveText(/Billing/);
 
-  await page.getByRole('button', { name: 'Dashboard options' }).click();
+  await page.getByTestId('dashboard-switcher').click();
+  await page.getByRole('menuitem', { name: 'Delete this dashboard' }).click();
+  await page.getByLabel('Type DELETE to confirm').fill('DELETE');
   await page.getByRole('button', { name: 'Delete dashboard' }).click();
-  await page.getByRole('button', { name: 'Delete', exact: true }).click();
+  await expect(page.getByTestId('dashboard-switcher')).toHaveText(/Overview/);
+  await page.getByTestId('dashboard-switcher').click();
   await expect(page.getByTestId('dashboard-link')).toHaveText(['Overview']);
 });
 
 test('"Chart" on a live tail field opens the chart builder for that field', async ({ page, app }) => {
   const { project } = await seeded(app);
   await page.goto(`/tail?project=${project.id}`);
-  const row = page.getByTestId('event').filter({ hasText: 'POST /checkout 200' }).first();
-  await row.locator('.row').click();
-  await row
+  await page.getByTestId('event').filter({ hasText: 'POST /checkout 200' }).first().locator('.row').click();
+  const panel = page.getByRole('complementary', { name: 'Event details' });
+  await panel
     .locator('.f')
     .filter({ hasText: /^duration_ms/ })
     .getByRole('link', { name: 'Chart' })

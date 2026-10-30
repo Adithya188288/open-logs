@@ -95,6 +95,14 @@ const ICONS = {
   warn: 'M12 9v4M12 17h.01M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z',
   info: 'M12 8v5M12 16h.01M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z',
   nothing: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4M8.5 11h5',
+  home: 'M4 20V10l8-6 8 6v10h-5v-6H9v6z',
+  folders: 'M3 7h6l2 2h10v10H3zM3 7V5h6l2 2',
+  chevron: 'M8 10l4 4 4-4',
+  more: 'M5 12h.01M12 12h.01M19 12h.01',
+  help: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01',
+  x: 'M6 6l12 12M18 6L6 18',
+  edit: 'M4 20h4l10-10-4-4L4 16zM14 6l4 4',
+  external: 'M14 4h6v6M20 4l-9 9M18 14v6H4V6h6',
 };
 
 /**
@@ -211,4 +219,97 @@ export function popMenu(anchor, items) {
   menu.addEventListener('click', () => menu.remove());
   /** @type {HTMLElement | null} */ (menu.querySelector('button, a'))?.focus();
   return menu;
+}
+
+/**
+ * Two-step delete: the button only works once the user types DELETE.
+ * @param {{ title: string, body: string, confirmLabel?: string, onConfirm: () => Promise<string | null | void> }} o
+ *   onConfirm may return an error message to keep the dialog open
+ * @returns {Promise<boolean>} true when deleted
+ */
+export function confirmDelete(o) {
+  return new Promise((resolve) => {
+    const input = /** @type {HTMLInputElement} */ (
+      h('input.input.mono#confirm-delete', {
+        autocomplete: 'off',
+        spellcheck: 'false',
+        placeholder: 'DELETE',
+      })
+    );
+    const button = /** @type {HTMLButtonElement} */ (
+      h('button.btn.danger-fill', { type: 'submit', disabled: true }, o.confirmLabel ?? 'Delete')
+    );
+    const error = h('p.error-text', { role: 'alert' });
+    const form = h(
+      'form.dialog',
+      { role: 'alertdialog', 'aria-modal': 'true', 'aria-label': o.title },
+      h('h2', null, o.title),
+      h('p.small.muted', null, o.body),
+      h('div.field', null, h('label.label', { for: 'confirm-delete' }, 'Type DELETE to confirm'), input),
+      error,
+      h('div.row', null, h('button.btn', { type: 'button', onclick: () => close(false) }, 'Cancel'), button),
+    );
+    const backdrop = h(
+      'div.dialog-backdrop',
+      { onmousedown: (/** @type {Event} */ e) => e.target === backdrop && close(false) },
+      form,
+    );
+    /** @param {boolean} v */
+    const close = (v) => {
+      backdrop.remove();
+      resolve(v);
+    };
+    input.addEventListener('input', () => {
+      button.disabled = input.value !== 'DELETE';
+    });
+    form.addEventListener('keydown', (e) => e.key === 'Escape' && close(false));
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (input.value !== 'DELETE') return;
+      button.disabled = true;
+      const problem = await o.onConfirm();
+      if (problem) {
+        error.textContent = problem;
+        button.disabled = false;
+      } else close(true);
+    });
+    document.body.appendChild(backdrop);
+    input.focus();
+  });
+}
+
+/**
+ * A plain modal with arbitrary content (used for multi-step flows like creating a source).
+ * @param {string} title
+ * @param {(close: () => void) => HTMLElement[]} build
+ * @param {{ wide?: boolean, onClose?: () => void }} [opts]
+ */
+export function modal(title, build, opts = {}) {
+  const box = h(`div.dialog${opts.wide ? '.wide' : ''}`, {
+    role: 'dialog',
+    'aria-modal': 'true',
+    'aria-label': title,
+  });
+  const backdrop = h(
+    'div.dialog-backdrop',
+    { onmousedown: (/** @type {Event} */ e) => e.target === backdrop && close() },
+    box,
+  );
+  const close = () => {
+    backdrop.remove();
+    opts.onClose?.();
+  };
+  box.append(
+    h(
+      'div.spread',
+      null,
+      h('h2', null, title),
+      h('button.iconbtn', { type: 'button', 'aria-label': 'Close', onclick: close }, icon('x')),
+    ),
+    ...build(close),
+  );
+  box.addEventListener('keydown', (e) => e.key === 'Escape' && close());
+  document.body.appendChild(backdrop);
+  /** @type {HTMLElement | null} */ (box.querySelector('input, select, button:not(.iconbtn)'))?.focus();
+  return { box, close };
 }
