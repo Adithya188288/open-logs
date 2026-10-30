@@ -564,13 +564,15 @@
   flex: none;
 }
 .evpanel .fields .f {
-  grid-template-columns: 110px minmax(0, 1fr);
-  grid-template-rows: auto auto;
-  padding: 7px 12px;
+  grid-template-columns: 104px minmax(0, 1fr) auto;
+  padding: 6px 12px;
 }
 .evpanel .fields .f .acts {
-  grid-column: 1 / -1;
-  justify-content: flex-end;
+  opacity: 0;
+}
+.evpanel .fields .f:hover .acts,
+.evpanel .fields .f:focus-within .acts {
+  opacity: 1;
 }
 .evpanel .side {
   flex: none;

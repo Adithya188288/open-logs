@@ -902,7 +902,7 @@ function renderFoot() {
       h('kbd', null, 'k'),
       ' move · ',
       h('kbd', null, 'Enter'),
-      ' expand · ',
+      ' details · ',
       h('kbd', null, '/'),
       ' search',
     ),
