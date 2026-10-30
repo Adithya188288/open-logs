@@ -36,7 +36,7 @@ export async function runQuery(fn) {
   }
 }
 
-/** @param {import('../router.js').RouteContext} c */
+/** @param {import('../types.js').RouteContext} c */
 export async function query({ request, env }) {
   const { filter } = await readFilter(request, env);
   return json(await runQuery(() => getStorage(env).query(filter)));
@@ -44,7 +44,7 @@ export async function query({ request, env }) {
 
 const MEASURES = new Set(['count', 'count_over_time', 'avg', 'p95']);
 
-/** @param {import('../router.js').RouteContext} c */
+/** @param {import('../types.js').RouteContext} c */
 export async function histogram({ request, env }) {
   const { filter } = await readFilter(request, env);
   const interval = pickInterval(filter.from, filter.to);
@@ -58,7 +58,7 @@ export async function histogram({ request, env }) {
   return json({ ...h, total, errors });
 }
 
-/** @param {import('../router.js').RouteContext} c */
+/** @param {import('../types.js').RouteContext} c */
 export async function aggregate({ request, env }) {
   const { filter, body } = await readFilter(request, env);
   const measure = String(body.measure);
@@ -83,7 +83,7 @@ export async function aggregate({ request, env }) {
   return json(await runQuery(() => getStorage(env).aggregate(filter, spec)));
 }
 
-/** @param {import('../router.js').RouteContext} c */
+/** @param {import('../types.js').RouteContext} c */
 export async function status({ env, url }) {
   const storage = getStorage(env);
   const projectId = url.searchParams.get('project_id');

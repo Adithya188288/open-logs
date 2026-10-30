@@ -146,7 +146,7 @@ export function overviewStatements(env, projectId) {
   ];
 }
 
-/** @param {import('../router.js').RouteContext} c */
+/** @param {import('../types.js').RouteContext} c */
 export async function listViews({ env, params }) {
   const project = await findProject(env, params.id);
   const { results } = await env.DB.prepare(
@@ -157,7 +157,7 @@ export async function listViews({ env, params }) {
   return json({ views: results.map(chartOut) });
 }
 
-/** @param {import('../router.js').RouteContext} c */
+/** @param {import('../types.js').RouteContext} c */
 export async function createView({ request, env, params, user }) {
   const project = await findProject(env, params.id);
   const body = asObject(await readJson(request));
@@ -172,14 +172,14 @@ export async function createView({ request, env, params, user }) {
   return json({ view }, 201);
 }
 
-/** @param {import('../router.js').RouteContext} c */
+/** @param {import('../types.js').RouteContext} c */
 export async function deleteView({ env, params }) {
   const res = await env.DB.prepare('DELETE FROM saved_views WHERE id = ?').bind(params.id).run();
   if (!res.meta.changes) throw new HttpError(404, 'not_found', 'View not found');
   return json({ ok: true });
 }
 
-/** @param {import('../router.js').RouteContext} c */
+/** @param {import('../types.js').RouteContext} c */
 export async function listDashboards({ env, params }) {
   const project = await findProject(env, params.id);
   const { results } = await env.DB.prepare(
@@ -190,7 +190,7 @@ export async function listDashboards({ env, params }) {
   return json({ dashboards: results });
 }
 
-/** @param {import('../router.js').RouteContext} c */
+/** @param {import('../types.js').RouteContext} c */
 export async function createDashboard({ request, env, params }) {
   const project = await findProject(env, params.id);
   const body = asObject(await readJson(request));
@@ -202,7 +202,7 @@ export async function createDashboard({ request, env, params }) {
   return json({ dashboard }, 201);
 }
 
-/** @param {import('../router.js').RouteContext} c */
+/** @param {import('../types.js').RouteContext} c */
 export async function getDashboard({ env, params }) {
   const dashboard = await findDashboard(env, params.id);
   const { results } = await env.DB.prepare(
@@ -213,7 +213,7 @@ export async function getDashboard({ env, params }) {
   return json({ dashboard, charts: results.map(chartOut) });
 }
 
-/** @param {import('../router.js').RouteContext} c */
+/** @param {import('../types.js').RouteContext} c */
 export async function renameDashboard({ request, env, params }) {
   const dashboard = await findDashboard(env, params.id);
   const name = requireString(asObject(await readJson(request)).name, 'name', { max: 60 });
@@ -221,14 +221,14 @@ export async function renameDashboard({ request, env, params }) {
   return json({ dashboard: { ...dashboard, name } });
 }
 
-/** @param {import('../router.js').RouteContext} c */
+/** @param {import('../types.js').RouteContext} c */
 export async function deleteDashboard({ env, params }) {
   const dashboard = await findDashboard(env, params.id);
   await env.DB.prepare('DELETE FROM dashboards WHERE id = ?').bind(dashboard.id).run();
   return json({ ok: true });
 }
 
-/** @param {import('../router.js').RouteContext} c */
+/** @param {import('../types.js').RouteContext} c */
 export async function createChart({ request, env, params }) {
   const dashboard = await findDashboard(env, params.id);
   const chart = parseChart(asObject(await readJson(request)));
@@ -237,7 +237,7 @@ export async function createChart({ request, env, params }) {
   return json({ chart: await findChart(env, id) }, 201);
 }
 
-/** @param {import('../router.js').RouteContext} c */
+/** @param {import('../types.js').RouteContext} c */
 export async function updateChart({ request, env, params }) {
   const prev = await findChart(env, params.id);
   const c = parseChart(asObject(await readJson(request)), prev);
@@ -249,7 +249,7 @@ export async function updateChart({ request, env, params }) {
   return json({ chart: await findChart(env, String(prev.id)) });
 }
 
-/** @param {import('../router.js').RouteContext} c */
+/** @param {import('../types.js').RouteContext} c */
 export async function duplicateChart({ env, params }) {
   const prev = await findChart(env, params.id);
   const copy = parseChart({ ...prev, title: `${String(prev.title).slice(0, 93)} (copy)` });
@@ -258,7 +258,7 @@ export async function duplicateChart({ env, params }) {
   return json({ chart: await findChart(env, id) }, 201);
 }
 
-/** @param {import('../router.js').RouteContext} c */
+/** @param {import('../types.js').RouteContext} c */
 export async function deleteChart({ env, params }) {
   const res = await env.DB.prepare('DELETE FROM charts WHERE id = ?').bind(params.id).run();
   if (!res.meta.changes) throw new HttpError(404, 'not_found', 'Chart not found');

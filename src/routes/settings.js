@@ -4,12 +4,12 @@ import { hashPassword, verifyPassword } from '../crypto.js';
 import { asObject, HttpError, json, readJson, requireString } from '../http.js';
 import { teamName } from '../settings.js';
 
-/** @param {import('../router.js').RouteContext} c */
+/** @param {import('../types.js').RouteContext} c */
 export async function getSettings({ env }) {
   return json({ settings: { team_name: await teamName(env) } });
 }
 
-/** @param {import('../router.js').RouteContext} c */
+/** @param {import('../types.js').RouteContext} c */
 export async function updateSettings({ request, env, user }) {
   requireRole(user, 'admin');
   const body = asObject(await readJson(request));
@@ -22,7 +22,7 @@ export async function updateSettings({ request, env, user }) {
   return json({ settings: { team_name: name } });
 }
 
-/** @param {import('../router.js').RouteContext} c */
+/** @param {import('../types.js').RouteContext} c */
 export async function changePassword({ request, env, user }) {
   const me = requireRole(user, 'member');
   const body = asObject(await readJson(request));

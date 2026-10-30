@@ -27,7 +27,7 @@ function passwordFrom(value) {
   return requireString(value, 'password', { min: 8, max: 256 });
 }
 
-/** @param {import('../router.js').RouteContext} c */
+/** @param {import('../types.js').RouteContext} c */
 export async function login({ request, env }) {
   const body = asObject(await readJson(request));
   const email = requireString(body.email, 'email', { max: 254, pattern: EMAIL_RE }).toLowerCase();
@@ -85,18 +85,18 @@ async function createOwner(env, email, password) {
   return env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(id).first();
 }
 
-/** @param {import('../router.js').RouteContext} c */
+/** @param {import('../types.js').RouteContext} c */
 export async function logout({ request, env }) {
   await destroySession(request, env);
   return json({ ok: true }, 200, { 'set-cookie': clearedCookie() });
 }
 
-/** @param {import('../router.js').RouteContext} c */
+/** @param {import('../types.js').RouteContext} c */
 export async function me({ user, env }) {
   return json({ user: requireRole(user, 'member'), team_name: await teamName(env) });
 }
 
-/** @param {import('../router.js').RouteContext} c */
+/** @param {import('../types.js').RouteContext} c */
 export async function listUsers({ user, env }) {
   requireRole(user, 'member');
   const users = await env.DB.prepare(
@@ -110,7 +110,7 @@ export async function listUsers({ user, env }) {
   return json({ users: users.results, invites: invites.results });
 }
 
-/** @param {import('../router.js').RouteContext} c */
+/** @param {import('../types.js').RouteContext} c */
 export async function deleteUser({ user, env, params }) {
   const me = requireRole(user, 'owner');
   if (params.id === me.id) throw new HttpError(400, 'cannot_remove_self', 'You cannot remove yourself');
@@ -123,7 +123,7 @@ export async function deleteUser({ user, env, params }) {
   return json({ ok: true });
 }
 
-/** @param {import('../router.js').RouteContext} c */
+/** @param {import('../types.js').RouteContext} c */
 export async function createInvite({ request, user, env, url }) {
   const me = requireRole(user, 'admin');
   const body = asObject(await readJson(request));
@@ -169,7 +169,7 @@ async function findOpenInvite(env, token) {
     .first();
 }
 
-/** @param {import('../router.js').RouteContext} c */
+/** @param {import('../types.js').RouteContext} c */
 export async function getInvite({ env, params }) {
   const invite = await findOpenInvite(env, params.token);
   if (!invite) throw new HttpError(404, 'not_found', 'This invite link is invalid or has expired');
@@ -179,7 +179,7 @@ export async function getInvite({ env, params }) {
   });
 }
 
-/** @param {import('../router.js').RouteContext} c */
+/** @param {import('../types.js').RouteContext} c */
 export async function acceptInvite({ request, env, params }) {
   await rateLimit(env.LOGIN_LIMITER, `invite:${clientIp(request)}`);
   const body = asObject(await readJson(request));
