@@ -1,6 +1,7 @@
 // Open Logs Worker: ingest at /v1/logs, app API at /api/*, static UI for everything else.
 import { checkOrigin, getSessionUser } from './auth.js';
 import { errorResponse, HttpError, json } from './http.js';
+import { handleIngest } from './ingest/handler.js';
 import { api, PUBLIC_ROUTES } from './routes/index.js';
 
 const API_HEADERS = {
@@ -18,6 +19,7 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     if (url.pathname === '/api/health') return json({ ok: true });
+    if (url.pathname === '/v1/logs') return handleIngest(request, env, ctx);
     if (url.pathname.startsWith('/api/')) return withHeaders(await handleApi(request, env, ctx, url));
     return env.ASSETS.fetch(request);
   },

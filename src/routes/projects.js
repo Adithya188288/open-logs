@@ -2,6 +2,7 @@
 import { requireRole } from '../auth.js';
 import { newSourceToken, randomId, sha256Hex } from '../crypto.js';
 import { asObject, HttpError, json, readJson, requireString } from '../http.js';
+import { getStorage } from '../storage/index.js';
 
 const PROJECT_NAME = /^[A-Za-z0-9][A-Za-z0-9 _.-]{0,63}$/;
 const SOURCE_NAME = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/;
@@ -94,6 +95,7 @@ export async function deleteProject({ env, params, user }) {
   requireRole(user, 'admin');
   const project = await findProject(env, params.id);
   await env.DB.prepare('DELETE FROM projects WHERE id = ?').bind(project.id).run();
+  await getStorage(env).deleteProject(project.id);
   return json({ ok: true });
 }
 

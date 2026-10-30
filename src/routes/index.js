@@ -2,6 +2,7 @@
 import { Router } from '../router.js';
 import * as auth from './auth.js';
 import * as projects from './projects.js';
+import * as query from './query.js';
 
 /** Routes that don't need a session. Everything else under /api requires one. */
 export const PUBLIC_ROUTES = new Set([
@@ -29,4 +30,5 @@ export const api = new Router()
   .on('GET', '/api/projects/:id/sources', projects.listSources)
   .on('POST', '/api/projects/:id/sources', projects.createSource)
   .on('POST', '/api/sources/:id/regenerate', projects.regenerateSource)
-  .on('DELETE', '/api/sources/:id', projects.deleteSource);
+  .on('DELETE', '/api/sources/:id', projects.deleteSource)
+  .on('POST', '/api/query', query.query);
