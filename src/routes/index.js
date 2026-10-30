@@ -31,4 +31,7 @@ export const api = new Router()
   .on('POST', '/api/projects/:id/sources', projects.createSource)
   .on('POST', '/api/sources/:id/regenerate', projects.regenerateSource)
   .on('DELETE', '/api/sources/:id', projects.deleteSource)
-  .on('POST', '/api/query', query.query);
+  .on('POST', '/api/query', query.query)
+  .on('POST', '/api/histogram', query.histogram)
+  .on('POST', '/api/aggregate', query.aggregate)
+  .on('GET', '/api/status', query.status);

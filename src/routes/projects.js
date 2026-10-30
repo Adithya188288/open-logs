@@ -42,11 +42,26 @@ export async function listProjects({ env }) {
     env.DB.prepare(`SELECT ${SOURCE_COLUMNS} FROM sources ORDER BY created_at`).all(),
   ]);
   const byProject = Map.groupBy(sources.results, (s) => s.project_id);
+  const now = Date.now();
+  const hour = 60 * 60 * 1000;
+  const to = Math.ceil(now / hour) * hour;
+  const ids = projects.results.map((p) => String(p.id));
+  const stats = await getStorage(env).overview(ids, to - 24 * hour, to, hour);
   return json({
     projects: projects.results.map((p) => {
       const own = byProject.get(p.id) ?? [];
       const lastEvent = Math.max(0, ...own.map((s) => Number(s.last_event_at ?? 0)));
-      return { ...p, sources: own, last_event_at: lastEvent || null };
+      const s = stats[String(p.id)];
+      return {
+        ...p,
+        sources: own,
+        last_event_at: lastEvent || null,
+        stats: {
+          events_24h: s?.total ?? 0,
+          errors_24h: s?.errors ?? 0,
+          spark: s?.series ?? new Array(24).fill(0),
+        },
+      };
     }),
   });
 }
