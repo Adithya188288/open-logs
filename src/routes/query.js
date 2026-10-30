@@ -26,7 +26,7 @@ export async function runQuery(fn) {
     return await fn();
   } catch (err) {
     if (err instanceof HttpError) throw err;
-    if (/timeout|too (large|complex)|exceeded/i.test(String(err))) {
+    if (/timeout|too (large|complex|much)|exceeded|scan/i.test(String(err))) {
       throw new HttpError(422, 'query_too_large', 'This search would scan too much data', {
         hint: 'Narrow the time range or add a field filter like level:error.',
       });

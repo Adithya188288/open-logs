@@ -1,0 +1,11 @@
+{
+  "fields": [
+    { "name": "id", "type": "string", "required": true },
+    { "name": "ts", "type": "int64", "required": true },
+    { "name": "project_id", "type": "string", "required": true },
+    { "name": "source", "type": "string", "required": true },
+    { "name": "level", "type": "string", "required": true },
+    { "name": "message", "type": "string", "required": true },
+    { "name": "fields", "type": "string", "required": true }
+  ]
+}
