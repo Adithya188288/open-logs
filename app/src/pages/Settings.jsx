@@ -1,8 +1,10 @@
 // Settings (/settings): team name and your password.
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 import { toast } from '../components/Dialogs.jsx';
 import { PageLoader, Topbar, useApp } from '../components/Layout.jsx';
 import { ApiError, api } from '../lib/api.js';
+import { q, queryClient } from '../lib/queries.js';
 
 /**
  * @param {{ title: string, hint: string, submitLabel: string, readOnly?: boolean, onSubmit: (form: HTMLFormElement) => Promise<string | null>, children: import('react').ReactNode }} props
@@ -39,11 +41,10 @@ function Section({ title, hint, submitLabel, readOnly, onSubmit, children }) {
 
 export function Settings() {
   const { me, setTeam } = useApp();
-  const [teamName, setTeamName] = useState(/** @type {string | null} */ (null));
+  const { data: settings } = useQuery(q.settings());
+  const [edited, setTeamName] = useState(/** @type {string | null} */ (null));
+  const teamName = edited ?? settings?.team_name ?? null;
   const isAdmin = me.role !== 'member';
-  useEffect(() => {
-    api('/api/settings').then((d) => setTeamName(d.settings.team_name));
-  }, []);
 
   return (
     <>
@@ -64,6 +65,8 @@ export function Settings() {
                   body: { team_name: teamName },
                 });
                 setTeam(settings.team_name);
+                queryClient.setQueryData(['settings'], settings);
+                setTeamName(null);
                 toast('Team name saved');
                 return null;
               } catch (err) {

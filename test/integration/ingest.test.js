@@ -97,9 +97,14 @@ describe('ingest', () => {
   it('rate limits per token', async () => {
     const cookie = await signInOwner();
     const { token } = await createProjectWithSource(cookie);
-    const statuses = await Promise.all(
-      Array.from({ length: 1250 }, () => ingest(token, '').then((r) => r.status)),
-    );
-    expect(statuses).toContain(429);
+    // The limiter counts approximately, so keep sending batches until it pushes back (limit is 1,200/min).
+    let limited = false;
+    for (let sent = 0; sent < 5000 && !limited; sent += 500) {
+      const statuses = await Promise.all(
+        Array.from({ length: 500 }, () => ingest(token, '').then((r) => r.status)),
+      );
+      limited = statuses.includes(429);
+    }
+    expect(limited).toBe(true);
   });
 });

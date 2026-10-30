@@ -1,5 +1,6 @@
 // Source detail (/source?project=…&id=…): stats, how to send, rename, regenerate token, delete.
-import { useCallback, useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { confirmDelete, FormDialog, Modal, openDialog } from '../components/Dialogs.jsx';
 import { Icon } from '../components/Icon.jsx';
@@ -8,6 +9,7 @@ import { Loader } from '../components/Loader.jsx';
 import { SendPanel } from '../components/SendPanel.jsx';
 import { ApiError, api } from '../lib/api.js';
 import { ago, hms, num } from '../lib/format.js';
+import { q, queryClient, refresh } from '../lib/queries.js';
 
 const DAY = 86_400_000;
 
@@ -23,45 +25,39 @@ function Stat({ label, children }) {
 
 export function Source() {
   const project = useProject();
-  const { me, reloadProjects } = useApp();
+  const { me } = useApp();
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const id = params.get('id') ?? '';
-  const [source, setSource] = useState(/** @type {any} */ (null));
-  const [count, setCount] = useState(/** @type {string | null} */ (null));
   const list = `/sources?project=${encodeURIComponent(project.id)}`;
-
+  const { data: source, isError } = useQuery(q.source(id));
   useEffect(() => {
-    api(`/api/sources/${encodeURIComponent(id)}`)
-      .then((r) => setSource(r.source))
-      .catch(() => navigate(list, { replace: true }));
-  }, [id, list, navigate]);
+    if (isError) navigate(list, { replace: true });
+  }, [isError, list, navigate]);
+  /** @param {any} s */
+  const setSource = (s) => queryClient.setQueryData(['source', id], s);
+  const changed = () => refresh.sources(project.id);
 
-  const loadCount = useCallback(
-    async (/** @type {string} */ name) => {
+  // Events in the last 24h for this source: refreshed when you come back to the page after a minute.
+  const { data: count } = useQuery({
+    queryKey: ['source', id, 'count24h', source?.name],
+    enabled: Boolean(source?.name),
+    staleTime: 60_000,
+    queryFn: async () => {
       const now = Date.now();
-      try {
-        const r = await api('/api/aggregate', {
-          body: {
-            project_id: project.id,
-            from: now - DAY,
-            to: now + 1000,
-            where: [{ field: 'source', op: '=', value: name }],
-            measure: 'count',
-            parts: ['value'],
-          },
-        });
-        setCount(num(r.value ?? 0));
-      } catch {
-        setCount('—');
-      }
+      const r = await api('/api/aggregate', {
+        body: {
+          project_id: project.id,
+          from: now - DAY,
+          to: now + 1000,
+          where: [{ field: 'source', op: '=', value: source.name }],
+          measure: 'count',
+          parts: ['value'],
+        },
+      });
+      return num(r.value ?? 0);
     },
-    [project.id],
-  );
-
-  useEffect(() => {
-    if (source?.name) loadCount(source.name);
-  }, [source?.name, loadCount]);
+  });
 
   if (!source) return <PageLoader />;
 
@@ -76,7 +72,7 @@ export function Source() {
             setSource(
               (await api(`/api/sources/${source.id}`, { method: 'PATCH', body: { name: v.name } })).source,
             );
-            reloadProjects();
+            changed();
             return null;
           } catch (err) {
             return err instanceof ApiError ? err.message : 'Rename failed';
@@ -109,6 +105,7 @@ export function Source() {
         onSubmit={async () => {
           const res = await api(`/api/sources/${source.id}/regenerate`, { method: 'POST' });
           setSource(res.source);
+          changed();
           setTimeout(() =>
             openDialog((done) => (
               <Modal title="New token" wide onClose={done}>
@@ -134,7 +131,8 @@ export function Source() {
       onConfirm: async () => {
         try {
           await api(`/api/sources/${source.id}`, { method: 'DELETE' });
-          await reloadProjects();
+          queryClient.removeQueries({ queryKey: ['source', id] });
+          await changed();
           navigate(list);
           return null;
         } catch (err) {
@@ -187,7 +185,11 @@ export function Source() {
               : 'never'}
           </Stat>
           <Stat label="Events · 24h">
-            {count === null ? <Loader size="sm" inline /> : <span data-testid="events-24h">{count}</span>}
+            {count === undefined ? (
+              <Loader size="sm" inline />
+            ) : (
+              <span data-testid="events-24h">{count}</span>
+            )}
             {recent && <span className="tiny muted"> · new events take 1–3 minutes to appear</span>}
           </Stat>
           <Stat label="Rejected requests">

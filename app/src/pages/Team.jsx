@@ -1,19 +1,17 @@
 // Team (/team): members, pending invites, invite a teammate.
-import { useCallback, useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { confirmDelete, FormDialog, Modal, openDialog, toast } from '../components/Dialogs.jsx';
 import { Icon } from '../components/Icon.jsx';
 import { PageLoader, Topbar, useApp } from '../components/Layout.jsx';
 import { ApiError, api } from '../lib/api.js';
 import { ago, cap, initials } from '../lib/format.js';
+import { q, refresh } from '../lib/queries.js';
 import { copyText } from '../lib/store.js';
 
 export function Team() {
   const { me } = useApp();
-  const [data, setData] = useState(/** @type {{ users: any[], invites: any[] } | null} */ (null));
-  const load = useCallback(async () => setData(await api('/api/users')), []);
-  useEffect(() => {
-    load();
-  }, [load]);
+  const { data } = useQuery(q.team());
+  const load = refresh.team;
 
   const invite = () =>
     openDialog((close) => (

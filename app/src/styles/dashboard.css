@@ -472,3 +472,9 @@ circle[class^="k-"] {
 .titlebtn svg {
   color: var(--tx3);
 }
+.freshness {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}

@@ -1,4 +1,5 @@
 // All projects (/projects): one card per project, with rename and delete.
+import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { confirmDelete, FormDialog, openDialog, toast } from '../components/Dialogs.jsx';
@@ -7,6 +8,7 @@ import { newProjectDialog, projectHome, Topbar, useApp } from '../components/Lay
 import { MenuButton } from '../components/Menu.jsx';
 import { ApiError, api } from '../lib/api.js';
 import { ago, compact, num } from '../lib/format.js';
+import { q } from '../lib/queries.js';
 
 const LIVE_MS = 15 * 60 * 1000;
 
@@ -34,6 +36,8 @@ function Sparkline({ values }) {
 
 export function Projects() {
   const { me, projects, reloadProjects } = useApp();
+  // Visiting this page refreshes the 24h stats if they're more than 5 minutes old.
+  useQuery(q.projects());
   const [find, setFind] = useState('');
   const navigate = useNavigate();
   const live = projects.filter((p) => status(p).cls === 'ok').length;

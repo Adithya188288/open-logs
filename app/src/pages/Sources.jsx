@@ -1,12 +1,14 @@
 // Sources (/sources): the project's sources, and a modal to create one.
+import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { Modal, openDialog } from '../components/Dialogs.jsx';
 import { Icon } from '../components/Icon.jsx';
-import { PageLoader, Topbar, useApp, useProject } from '../components/Layout.jsx';
+import { PageLoader, Topbar, useProject } from '../components/Layout.jsx';
 import { SendPanel } from '../components/SendPanel.jsx';
 import { ApiError, api } from '../lib/api.js';
 import { ago, lagLabel } from '../lib/format.js';
+import { q, refresh } from '../lib/queries.js';
 
 const POLL_MS = 3000;
 
@@ -29,20 +31,18 @@ function StatusPill({ s }) {
  */
 function NewSource({ projectId, lagMs, onCreated, onClose }) {
   const [created, setCreated] = useState(/** @type {{ source: any, token: string } | null} */ (null));
-  const [got, setGot] = useState(false);
   const [error, setError] = useState('');
-
+  // Listens for the first event: polls only while it hasn't arrived and the tab is visible.
+  const { data: live } = useQuery({
+    ...q.source(created?.source.id ?? ''),
+    enabled: Boolean(created),
+    staleTime: 0,
+    refetchInterval: (query) => (query.state.data?.last_event_at ? false : POLL_MS),
+  });
+  const got = Boolean(live?.last_event_at);
   useEffect(() => {
-    if (!created || got) return;
-    const t = setInterval(async () => {
-      const res = await api(`/api/sources/${created.source.id}`).catch(() => null);
-      if (res?.source.last_event_at) {
-        setGot(true);
-        onCreated();
-      }
-    }, POLL_MS);
-    return () => clearInterval(t);
-  }, [created, got, onCreated]);
+    if (got) onCreated();
+  }, [got, onCreated]);
 
   if (!created)
     return (
@@ -135,33 +135,20 @@ function NewSource({ projectId, lagMs, onCreated, onClose }) {
 
 export function Sources() {
   const project = useProject();
-  const { reloadProjects } = useApp();
-  const [sources, setSources] = useState(/** @type {any[] | null} */ (null));
-  const [lagMs, setLagMs] = useState(0);
+  const { data: sources } = useQuery(q.sources(project.id));
+  const lagMs = useQuery(q.status()).data?.lag_ms ?? 0;
   const [params] = useSearchParams();
   const navigate = useNavigate();
-
-  const load = useCallback(async () => {
-    setSources((await api(`/api/projects/${project.id}/sources`)).sources);
-  }, [project.id]);
-
-  const refresh = useCallback(() => {
-    load();
-    reloadProjects();
-  }, [load, reloadProjects]);
+  const projectId = project.id;
+  const changed = useCallback(() => refresh.sources(projectId), [projectId]);
 
   const newSource = useCallback(
     () =>
       openDialog((close) => (
-        <NewSource projectId={project.id} lagMs={lagMs} onCreated={refresh} onClose={close} />
+        <NewSource projectId={project.id} lagMs={lagMs} onCreated={changed} onClose={close} />
       )),
-    [project.id, lagMs, refresh],
+    [project.id, lagMs, changed],
   );
-
-  useEffect(() => {
-    load();
-    api('/api/status').then((s) => setLagMs(s.lag_ms));
-  }, [load]);
 
   // ?new=1 (from "Connect a source" links) opens the New source modal once the list has loaded.
   const wantsNew = params.get('new') === '1';

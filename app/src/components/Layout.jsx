@@ -1,8 +1,10 @@
 // The signed-in frame: sidebar (project switcher under the logo) stays mounted while screens change.
+import { useQuery } from '@tanstack/react-query';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { ApiError, api } from '../lib/api.js';
 import { initials } from '../lib/format.js';
+import { preloadProject, q, queryClient, refresh } from '../lib/queries.js';
 import { currentTheme, toggleTheme } from '../lib/theme.js';
 import { FormDialog, openDialog, Overlays } from './Dialogs.jsx';
 import { Icon, ThemeIcon } from './Icon.jsx';
@@ -15,7 +17,7 @@ const PROJECT_PAGES = new Set(['/dashboard', '/tail', '/sources', '/source']);
 /**
  * @typedef {{ id: string, email: string, name: string, role: 'owner' | 'admin' | 'member' }} Me
  * @typedef {{ id: string, name: string, created_at: number, last_event_at: number | null, sources: any[], stats: any }} Project
- * @typedef {{ me: Me, team: string, setTeam: (t: string) => void, projects: Project[], project: Project | undefined, reloadProjects: () => Promise<void> }} AppState
+ * @typedef {{ me: Me, team: string, setTeam: (t: string) => void, projects: Project[], project: Project | undefined, reloadProjects: () => Promise<unknown> }} AppState
  */
 
 const AppContext = createContext(/** @type {AppState | null} */ (null));
@@ -96,25 +98,16 @@ export function newProjectDialog(go, reload) {
 }
 
 export function Layout() {
-  const [me, setMe] = useState(/** @type {Me | null} */ (null));
-  const [team, setTeam] = useState('');
-  const [projects, setProjects] = useState(/** @type {Project[] | null} */ (null));
+  const meQuery = useQuery(q.me());
+  const projectsQuery = useQuery(q.projects());
   const [params] = useSearchParams();
   const location = useLocation();
   const navigate = useNavigate();
+  const projects = projectsQuery.data;
 
-  const reloadProjects = useCallback(async () => {
-    setProjects((await api('/api/projects')).projects);
-  }, []);
-
-  useEffect(() => {
-    Promise.all([api('/api/me'), api('/api/projects')])
-      .then(([m, p]) => {
-        setMe(m.user);
-        setTeam(m.team_name);
-        setProjects(p.projects);
-      })
-      .catch(() => {});
+  const reloadProjects = useCallback(() => refresh.projects(), []);
+  const setTeam = useCallback((/** @type {string} */ team_name) => {
+    queryClient.setQueryData(['me'], (/** @type {any} */ m) => (m ? { ...m, team_name } : m));
   }, []);
 
   const asked = params.get('project');
@@ -129,15 +122,23 @@ export function Layout() {
     if (projects && asked && !project) navigate('/projects', { replace: true });
   }, [project, projects, asked, navigate]);
 
+  // Once the shell is up, load the other screens' data quietly so their first visit is instant.
+  const projectId = project?.id;
+  useEffect(() => {
+    if (projectId) preloadProject(projectId);
+  }, [projectId]);
+
+  const me = meQuery.data;
   const state = useMemo(
-    () => (me && projects ? { me, team, setTeam, projects, project, reloadProjects } : null),
-    [me, team, projects, project, reloadProjects],
+    () =>
+      me && projects ? { me: me.user, team: me.team_name, setTeam, projects, project, reloadProjects } : null,
+    [me, projects, project, setTeam, reloadProjects],
   );
 
   if (!state) {
     return (
       <div className="boot">
-        <Loader size="lg" label="Loading Open Logs" />
+        <Loader size="lg" label="Loading" />
       </div>
     );
   }

@@ -1,4 +1,5 @@
 // Live tail: search, histogram, streaming event list with a details panel, honest freshness.
+import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { confirmDelete, FormDialog, openDialog, toast } from '../components/Dialogs.jsx';
@@ -9,6 +10,7 @@ import { MenuButton } from '../components/Menu.jsx';
 import { ApiError, api } from '../lib/api.js';
 import { downloadCsv, toCsv } from '../lib/csv.js';
 import { ago, hm, hms, hmsms, lagLabel, num, span } from '../lib/format.js';
+import { q, queryClient, refresh } from '../lib/queries.js';
 import { clauseLabel, clauseToSearch, parseSearch } from '../lib/search.js';
 import { copyText } from '../lib/store.js';
 
@@ -101,8 +103,9 @@ export function Tail() {
   const [dataThrough, setDataThrough] = useState(0);
   const [nextCheckAt, setNextCheckAt] = useState(0);
   const [, tick] = useState(0);
-  const [sources, setSources] = useState(project.sources);
-  const [views, setViews] = useState(/** @type {any[]} */ ([]));
+  // Source status (for the rejected-token banner) re-checks each minute, only while this tab is visible.
+  const sources = useQuery({ ...q.sources(project.id), refetchInterval: 60_000 }).data ?? project.sources;
+  const views = useQuery(q.views(project.id)).data ?? [];
   const [dismissed, setDismissed] = useState(0);
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -144,10 +147,21 @@ export function Tail() {
   useEffect(() => {
     const seq = ++loadSeq.current;
     const w = windowRange();
-    setPhase('loading');
     setProblem(null);
     setSelected(null);
     setCursor(0);
+    // Coming back to this view: show the rows we kept straight away and refresh them quietly.
+    const kept = queryClient.getQueryData(['tail', queryKey]);
+    if (kept) {
+      setEvents(kept.events);
+      setNextCursor(kept.nextCursor);
+      setHist(kept.hist);
+      setStatus(kept.status);
+      setDataThrough(kept.status.now - kept.status.lag_ms);
+      setUnfilteredTotal(kept.unfiltered);
+      setPhase('ready');
+      setLoadedKey(queryKey);
+    } else setPhase('loading');
     (async () => {
       try {
         const body = { project_id: project.id, ...w, where };
@@ -169,6 +183,13 @@ export function Tail() {
         setDataThrough(st.now - st.lag_ms);
         setPhase('ready');
         setLoadedKey(queryKey);
+        queryClient.setQueryData(['tail', queryKey], {
+          events: page.events,
+          nextCursor: page.next_cursor,
+          hist: h,
+          status: st,
+          unfiltered,
+        });
         if (focusId.current) {
           const i = page.events.findIndex((/** @type {LogEvent} */ e) => e.id === focusId.current);
           if (i >= 0) {
@@ -196,9 +217,10 @@ export function Tail() {
    * The histogram refreshes only when new events arrived or every 4th poll; freshness is computed locally.
    */
   useEffect(() => {
-    const t = setInterval(async () => {
+    const poll = async () => {
       const L = latest.current;
-      if (!L.live || L.phase !== 'ready') return;
+      // Nothing runs while this tab is in the background; we catch up when it's visible again.
+      if (!L.live || L.phase !== 'ready' || document.visibilityState !== 'visible') return;
       const seq = loadSeq.current;
       polls.current += 1;
       try {
@@ -223,30 +245,30 @@ export function Tail() {
         if (L.status) setDataThrough(Date.now() - L.status.lag_ms);
       } catch {}
       setNextCheckAt(Date.now() + L.pollMs);
-    }, pollMs);
-    return () => clearInterval(t);
-  }, [pollMs, project.id]);
-
-  // Countdown in the freshness pill, and source status for the ingestion-problem banner.
-  useEffect(() => {
-    const t = setInterval(() => tick((n) => n + 1), 1000);
-    const s = setInterval(async () => {
-      const res = await api(`/api/projects/${project.id}/sources`).catch(() => null);
-      if (res) setSources(res.sources);
-    }, 60_000);
+    };
+    const t = setInterval(poll, pollMs);
+    const onVisible = () => document.visibilityState === 'visible' && poll();
+    document.addEventListener('visibilitychange', onVisible);
     return () => {
       clearInterval(t);
-      clearInterval(s);
+      document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [project.id]);
+  }, [pollMs, project.id]);
 
-  const loadViews = useCallback(
-    async () => setViews((await api(`/api/projects/${project.id}/views`)).views),
-    [project.id],
-  );
+  // Keep the kept rows current as new events stream in, so coming back shows them too.
   useEffect(() => {
-    loadViews();
-  }, [loadViews]);
+    const kept = queryClient.getQueryData(['tail', queryKey]);
+    if (kept && loadedKey === queryKey && kept.events !== events)
+      queryClient.setQueryData(['tail', queryKey], { ...kept, events, hist });
+  }, [events, hist, queryKey, loadedKey]);
+
+  // Countdown in the freshness pill (only redraws while the tab is visible).
+  useEffect(() => {
+    const t = setInterval(() => document.visibilityState === 'visible' && tick((n) => n + 1), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  const loadViews = () => refresh.views(project.id);
 
   // "/" jumps to search from anywhere.
   useEffect(() => {

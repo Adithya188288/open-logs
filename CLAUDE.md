@@ -64,7 +64,9 @@ Give each agent a narrow, explicit brief (branch name, files it owns, tests that
 - Plain JavaScript (ES modules, JSX in the UI) with JSDoc types. No TypeScript.
 - Backend: Hono on Cloudflare Workers (`src/`). Handlers are small functions; routing lives in `src/routes/index.js`.
 - UI: React + Vite single-page app (`app/`), React Router, plain CSS with the design tokens. No UI kit.
-  Loading states use the app logo with its green dot pulsing (`<Loader/>`). Small, readable components.
+  Server data goes through React Query (`app/src/lib/queries.js`): load once and keep it; only live
+  data refreshes (live tail, dashboard when new data lands), never while the tab is hidden; changes
+  refresh exactly what they affect. Loading = a small pulsing green dot (`<Loader/>`), first load only.
   (Owner decision 2026-10-30: moved from vanilla multi-page HTML to React + Hono for instant navigation.)
 - Clear names over clever code. No dead code, no commented-out blocks.
 - Never log secrets or full tokens. Never commit `.dev.vars` or real credentials.

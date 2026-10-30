@@ -13,7 +13,9 @@ test('search, field:value chips, time range and honest freshness', async ({ page
   await expect(page.getByTestId('summary')).toContainText('40 events · 15 min · 16 errors');
   // The rows must actually be on screen, not clipped by a collapsed container (seen at small window sizes).
   await page.setViewportSize({ width: 800, height: 622 });
-  await expect.poll(async () => (await page.locator('.tail-body').boundingBox())?.height ?? 0).toBeGreaterThan(300);
+  await expect
+    .poll(async () => (await page.locator('.tail-body').boundingBox())?.height ?? 0)
+    .toBeGreaterThan(300);
   await page.setViewportSize({ width: 1280, height: 720 });
   await expect(page.getByTestId('freshness')).toContainText(
     /Data through \d\d:\d\d:\d\d UTC · next check \ds/,

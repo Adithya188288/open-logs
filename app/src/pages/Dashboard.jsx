@@ -1,4 +1,5 @@
 // Dashboards: chart tiles, chart builder drawer, pin / edit / duplicate / remove, CSV export per chart.
+import { useIsFetching, useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { Chart, csvRows, formatValue, Legend } from '../components/Charts.jsx';
@@ -9,7 +10,8 @@ import { Loader } from '../components/Loader.jsx';
 import { MenuButton } from '../components/Menu.jsx';
 import { ApiError, api } from '../lib/api.js';
 import { downloadCsv, toCsv } from '../lib/csv.js';
-import { hms, num } from '../lib/format.js';
+import { ago, hms, num } from '../lib/format.js';
+import { q, queryClient, refresh } from '../lib/queries.js';
 import { clauseToSearch, fieldFor, parseSearch } from '../lib/search.js';
 
 const RANGES = { '15m': 15 * 60_000, '1h': 3_600_000, '24h': 86_400_000, '7d': 7 * 86_400_000 };
@@ -67,45 +69,61 @@ export function Dashboard() {
   const project = useProject();
   const [params] = useSearchParams();
   const navigate = useNavigate();
-  const [dashboards, setDashboards] = useState(/** @type {any[] | null} */ (null));
-  const [charts, setCharts] = useState(/** @type {ChartRow[]} */ ([]));
+  const { data: dashboards } = useQuery(q.dashboards(project.id));
   const [range, setRange] = useState(/** @type {Range} */ ('1h'));
-  const [lag, setLag] = useState(0);
+  const lag = useQuery(q.status()).data?.lag_ms ?? 0;
   const [drawer, setDrawer] = useState(
     /** @type {{ existing?: ChartRow, preset?: string } | null} */ (
       params.get('chart') ? { preset: params.get('chart') ?? undefined } : null
     ),
   );
-  const [loadKey, setLoadKey] = useState(0);
-  const results = useRef(/** @type {Map<string, any>} */ (new Map()));
 
   const dashboard = dashboards?.find((d) => d.id === params.get('id')) ?? dashboards?.[0];
   const here = (/** @type {any} */ d) =>
     `/dashboard?project=${encodeURIComponent(project.id)}&id=${encodeURIComponent(d.id)}`;
-
-  useEffect(() => {
-    api('/api/status').then((s) => setLag(s.lag_ms));
-    api(`/api/projects/${project.id}/dashboards`).then(async ({ dashboards: list }) => {
-      if (!list.length)
-        list = [
-          (await api(`/api/projects/${project.id}/dashboards`, { body: { name: 'Overview' } })).dashboard,
-        ];
-      setDashboards(list);
-    });
-  }, [project.id]);
-
   const dashboardId = dashboard?.id;
-  useEffect(() => {
-    if (!dashboardId) return;
-    api(`/api/dashboards/${dashboardId}`).then((d) => setCharts(d.charts));
-  }, [dashboardId]);
+  const { data: charts = [] } = useQuery({ ...q.charts(dashboardId ?? ''), enabled: Boolean(dashboardId) });
+  /** @param {(cs: ChartRow[]) => ChartRow[]} fn */
+  const setCharts = (fn) =>
+    queryClient.setQueryData(['dashboard', dashboardId, 'charts'], (cs = []) => fn(cs));
+  const reloadDashboards = useCallback(() => refresh.dashboards(project.id), [project.id]);
 
-  const reloadDashboards = useCallback(
-    async () => setDashboards((await api(`/api/projects/${project.id}/dashboards`)).dashboards),
-    [project.id],
-  );
+  // A project always has at least one dashboard; recreate Overview if the last one was deleted elsewhere.
+  useEffect(() => {
+    if (dashboards && !dashboards.length) {
+      api(`/api/projects/${project.id}/dashboards`, { body: { name: 'Overview' } }).then(reloadDashboards);
+    }
+  }, [dashboards, project.id, reloadDashboards]);
+
+  // Refresh when new data lands: one cheap check of the newest event time (every minute, or every
+  // 5 minutes for long ranges; only while this tab is visible, and once when you come back to it).
+  // Charts re-query only when that time actually changed.
+  const hasSources = project.sources.length > 0;
+  const { data: newest } = useQuery({
+    ...q.newest(project.id, range === '24h' || range === '7d' ? 300_000 : 60_000),
+    enabled: hasSources,
+  });
+  const lastNewest = useRef(newest);
+  useEffect(() => {
+    if (newest === undefined) return;
+    if (lastNewest.current !== undefined && newest !== lastNewest.current) {
+      queryClient.invalidateQueries({ queryKey: ['agg', project.id] });
+    }
+    lastNewest.current = newest;
+  }, [newest, project.id]);
+  const fetchingCharts = useIsFetching({ queryKey: ['agg', project.id] });
+  const [updatedAt, setUpdatedAt] = useState(0);
+  useEffect(() => {
+    if (!fetchingCharts) setUpdatedAt(Date.now());
+  }, [fetchingCharts]);
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => document.visibilityState === 'visible' && tick((n) => n + 1), 10_000);
+    return () => clearInterval(t);
+  }, []);
 
   if (!dashboards || !dashboard) return <PageLoader label="Loading dashboard" />;
+  const freshness = fetchingCharts ? 'Updating…' : updatedAt ? `Updated ${ago(updatedAt)}` : '';
 
   const w = windowFor(range);
   const newDashboard = () =>
@@ -237,6 +255,18 @@ export function Dashboard() {
           </span>
         }
       >
+        {!noSources && (
+          <span className="freshness small muted" data-testid="dashboard-freshness">
+            {freshness}
+            <button
+              className="btn link small"
+              type="button"
+              onClick={() => queryClient.invalidateQueries({ queryKey: ['agg', project.id] })}
+            >
+              Refresh
+            </button>
+          </span>
+        )}
         <div className="seg" role="group" aria-label="Time range">
           {Object.keys(RANGES).map((r) => (
             <button
@@ -278,11 +308,10 @@ export function Dashboard() {
         ) : (
           charts.map((c) => (
             <Tile
-              key={`${c.id}-${range}-${loadKey}`}
+              key={c.id}
               c={c}
               projectId={project.id}
               range={range}
-              results={results.current}
               onEdit={() => setDrawer({ existing: c })}
               onDuplicate={async () => {
                 const { chart } = await api(`/api/charts/${c.id}/duplicate`, { method: 'POST' });
@@ -323,7 +352,6 @@ export function Dashboard() {
                 ? cs.map((x) => (x.id === chart.id ? chart : x))
                 : [...cs, chart],
             );
-            setLoadKey((k) => k + 1);
             setDrawer(null);
           }}
         />
@@ -333,25 +361,26 @@ export function Dashboard() {
 }
 
 /**
- * @param {{ c: ChartRow, projectId: string, range: Range, results: Map<string, any>, onEdit: () => void, onDuplicate: () => void, onRemove: () => void }} props
+ * @param {{ c: ChartRow, projectId: string, range: Range, onEdit: () => void, onDuplicate: () => void, onRemove: () => void }} props
  */
-function Tile({ c, projectId, range, results, onEdit, onDuplicate, onRemove }) {
-  const [state, setState] = useState(/** @type {{ data?: any, prev?: any, error?: string }} */ ({}));
-  useEffect(() => {
-    const w = windowFor(range);
-    const span = w.to - w.from;
-    Promise.all([
-      aggregate(projectId, c, w),
-      c.viz === 'number' ? aggregate(projectId, c, { from: w.from - span, to: w.from }, ['value']) : null,
-    ])
-      .then(([data, prev]) => {
-        results.set(c.id, { data });
-        setState({ data, prev });
-      })
-      .catch((err) =>
-        setState({ error: err instanceof ApiError ? err.message : 'Could not load this chart' }),
-      );
-  }, [c, projectId, range, results]);
+function Tile({ c, projectId, range, onEdit, onDuplicate, onRemove }) {
+  // Keyed by what the chart shows, so an edited chart re-queries and an unchanged one stays cached.
+  const spec = JSON.stringify([c.filter, c.field, c.measure, c.viz]);
+  const { data: result, error } = useQuery({
+    queryKey: ['agg', projectId, c.id, spec, range],
+    queryFn: async () => {
+      const w = windowFor(range);
+      const span = w.to - w.from;
+      const [data, prev] = await Promise.all([
+        aggregate(projectId, c, w),
+        c.viz === 'number' ? aggregate(projectId, c, { from: w.from - span, to: w.from }, ['value']) : null,
+      ]);
+      return { data, prev };
+    },
+  });
+  const state = error
+    ? { error: error instanceof ApiError ? error.message : 'Could not load this chart' }
+    : { data: result?.data, prev: result?.prev };
 
   const linkFor = (/** @type {string} */ key) => {
     if (!c.field) return null;

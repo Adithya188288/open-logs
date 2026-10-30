@@ -24,7 +24,7 @@ everyone who signs in belongs to the same team and sees every project).
 ## Stack and dependencies
 Allowed without asking: `wrangler`, `vitest`, `@cloudflare/vitest-plugin` (the renamed `vitest-pool-workers`),
 `@playwright/test`, `@biomejs/biome`, and (owner-approved 2026-10-30) `hono` for the Worker and `react`,
-`react-dom`, `react-router`, `vite`, `@vitejs/plugin-react` for the UI. Anything else: ask first.
+`react-dom`, `react-router`, `@tanstack/react-query`, `vite`, `@vitejs/plugin-react` for the UI. Anything else: ask first.
 Prefer Web Crypto and platform APIs over libraries.
 
 ## Data model (D1)
