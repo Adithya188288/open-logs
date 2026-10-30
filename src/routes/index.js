@@ -1,9 +1,11 @@
 // Route table for the app API (`/api/*`). Ingest lives in `ingest.js`.
 import { Router } from '../router.js';
+import { teamName } from '../settings.js';
 import * as auth from './auth.js';
 import * as boards from './boards.js';
 import * as projects from './projects.js';
 import * as query from './query.js';
+import * as settings from './settings.js';
 
 /** Routes that don't need a session. Everything else under /api requires one. */
 export const PUBLIC_ROUTES = new Set([
@@ -14,10 +16,13 @@ export const PUBLIC_ROUTES = new Set([
 ]);
 
 export const api = new Router()
-  .on('GET', '/api/config', ({ env }) => Response.json({ team_name: env.TEAM_NAME ?? 'Open Logs' }))
+  .on('GET', '/api/config', async ({ env }) => Response.json({ team_name: await teamName(env) }))
   .on('POST', '/api/auth/login', auth.login)
   .on('POST', '/api/auth/logout', auth.logout)
   .on('GET', '/api/me', auth.me)
+  .on('POST', '/api/me/password', settings.changePassword)
+  .on('GET', '/api/settings', settings.getSettings)
+  .on('PATCH', '/api/settings', settings.updateSettings)
   .on('GET', '/api/users', auth.listUsers)
   .on('DELETE', '/api/users/:id', auth.deleteUser)
   .on('POST', '/api/invites', auth.createInvite)
@@ -30,6 +35,8 @@ export const api = new Router()
   .on('DELETE', '/api/projects/:id', projects.deleteProject)
   .on('GET', '/api/projects/:id/sources', projects.listSources)
   .on('POST', '/api/projects/:id/sources', projects.createSource)
+  .on('GET', '/api/sources/:id', projects.getSource)
+  .on('PATCH', '/api/sources/:id', projects.renameSource)
   .on('POST', '/api/sources/:id/regenerate', projects.regenerateSource)
   .on('DELETE', '/api/sources/:id', projects.deleteSource)
   .on('POST', '/api/query', query.query)

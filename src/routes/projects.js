@@ -180,3 +180,29 @@ export async function deleteSource({ env, params, user }) {
   if (!res.meta.changes) throw new HttpError(404, 'not_found', 'Source not found');
   return json({ ok: true });
 }
+
+/** @param {import('../router.js').RouteContext} c */
+export async function getSource({ env, params }) {
+  const source = await env.DB.prepare(`SELECT ${SOURCE_COLUMNS} FROM sources WHERE id = ?`)
+    .bind(params.id)
+    .first();
+  if (!source) throw new HttpError(404, 'not_found', 'Source not found');
+  return json({ source, project: await findProject(env, String(source.project_id)) });
+}
+
+/** @param {import('../router.js').RouteContext} c */
+export async function renameSource({ request, env, params }) {
+  const name = requireString(asObject(await readJson(request)).name, 'name', {
+    max: 64,
+    pattern: SOURCE_NAME,
+  });
+  const res = await runUnique(
+    env.DB.prepare('UPDATE sources SET name = ? WHERE id = ?').bind(name, params.id),
+    'A source with that name already exists in this project',
+  );
+  if (!res.meta.changes) throw new HttpError(404, 'not_found', 'Source not found');
+  const source = await env.DB.prepare(`SELECT ${SOURCE_COLUMNS} FROM sources WHERE id = ?`)
+    .bind(params.id)
+    .first();
+  return json({ source });
+}

@@ -111,9 +111,10 @@ describe('query api', () => {
   });
 
   it('includes 24h stats on the projects list', async () => {
-    const { cookie } = await seeded();
+    const { cookie, project } = await seeded();
     const list = await api('/api/projects', { cookie });
-    expect(list.json.projects[0].stats).toMatchObject({ events_24h: 5, errors_24h: 2 });
-    expect(list.json.projects[0].stats.spark).toHaveLength(24);
+    const mine = list.json.projects.find((p) => p.id === project.id);
+    expect(mine.stats).toMatchObject({ events_24h: 5, errors_24h: 2 });
+    expect(mine.stats.spark).toHaveLength(24);
   });
 });

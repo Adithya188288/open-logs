@@ -126,3 +126,15 @@ export async function rateLimit(limiter, key) {
 export function clientIp(request) {
   return request.headers.get('cf-connecting-ip') ?? 'unknown';
 }
+
+/**
+ * Signs a user out everywhere except the session making this request.
+ * @param {Request} request
+ * @param {Env} env
+ * @param {string} userId
+ */
+export async function destroyOtherSessions(request, env, userId) {
+  const token = readSessionToken(request);
+  const keep = token ? await sha256Hex(token) : '';
+  await env.DB.prepare('DELETE FROM sessions WHERE user_id = ? AND id != ?').bind(userId, keep).run();
+}

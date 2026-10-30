@@ -44,7 +44,9 @@ describe('Basin dialect SQL', () => {
     expect(sql).toContain("source = 'api'' OR 1=1 --'");
     expect(sql).toContain("FROM open_logs.events WHERE project_id = 'prj_a'");
     // Real Basin SQL only accepts backslash as the LIKE escape (verified on staging 2026-10-30).
-    expect(sql).toContain("lower(message) LIKE lower('%50' || chr(92) || '%' || chr(92) || '_'' x%') ESCAPE '\\'");
+    expect(sql).toContain(
+      "lower(message) LIKE lower('%50' || chr(92) || '%' || chr(92) || '_'' x%') ESCAPE '\\'",
+    );
   });
 
   it('walks nested JSON keys as separate literals', () => {
