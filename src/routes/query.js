@@ -1,6 +1,7 @@
 // Log search, histogram, chart aggregates and freshness status.
 import { HttpError, json, readJson } from '../http.js';
 import { parseField, parseFilter, pickInterval } from '../query/filter.js';
+import { AGGREGATE_PARTS } from '../storage/aggregate.js';
 import { getStorage } from '../storage/index.js';
 import { findProject } from './projects.js';
 
@@ -68,11 +69,16 @@ export async function aggregate({ request, env }) {
     throw new HttpError(400, 'invalid_field', `${measure} needs a numeric fields.* field`);
   }
   const group_by = body.group_by ? parseField(body.group_by) : undefined;
+  const parts = body.parts === undefined ? undefined : body.parts;
+  if (parts !== undefined && (!Array.isArray(parts) || !parts.every((p) => AGGREGATE_PARTS.includes(p)))) {
+    throw new HttpError(400, 'invalid_field', `parts must be a list of: ${AGGREGATE_PARTS.join(', ')}`);
+  }
   const spec = {
     measure: /** @type {'count'} */ (measure),
     field,
     group_by,
     interval: pickInterval(filter.from, filter.to, 30),
+    parts,
   };
   return json(await runQuery(() => getStorage(env).aggregate(filter, spec)));
 }

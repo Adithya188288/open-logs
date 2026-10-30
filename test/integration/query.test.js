@@ -103,6 +103,26 @@ describe('query api', () => {
     expect(badMeasure.status).toBe(400);
   });
 
+  it('computes only the requested parts of an aggregate', async () => {
+    const { cookie, range } = await seeded();
+    const only = await api('/api/aggregate', {
+      cookie,
+      body: { ...range, measure: 'count', field: 'level', parts: ['value'] },
+    });
+    expect(only.json).toMatchObject({ value: 5, groups: [], series: [], series_by_group: [] });
+    const groups = await api('/api/aggregate', {
+      cookie,
+      body: { ...range, measure: 'count', field: 'level', parts: ['groups'] },
+    });
+    expect(groups.json.groups).toHaveLength(3);
+    expect(groups.json.value).toBeNull();
+    const bad = await api('/api/aggregate', {
+      cookie,
+      body: { ...range, measure: 'count', parts: ['everything'] },
+    });
+    expect(bad.status).toBe(400);
+  });
+
   it('reports storage mode and freshness', async () => {
     const { cookie, project, now } = await seeded();
     const s = await api(`/api/status?project_id=${project.id}`, { cookie });
