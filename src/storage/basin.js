@@ -5,7 +5,8 @@
 // - Basin SQL: POST https://api.sql.cloudflarestorage.com/api/v1/accounts/{account}/basin-sql/query/{bucket}
 //   with `{ "query": "…" }` and a bearer token. There is NO parameter binding, so this dialect inlines
 //   values as escaped literals (see sqlLiteral). Values only ever come from a validated Filter.
-// Not documented (handled defensively, unverified until a real deploy): the query response JSON shape.
+// Verified on real Basin (staging, 2026-10-30): responses are `{ result: { schema, rows: [{…}], metrics }, success }`;
+// backslash is an ordinary character inside string literals; LIKE only accepts ESCAPE '\'.
 import { buildAggregateSql, buildEventsSql, buildHistogramSql, buildOverviewSql } from '../query/sql.js';
 import { aggregateShape, eventsPage, histogramBuckets, overviewShape } from './shape.js';
 
@@ -48,8 +49,8 @@ export function basinDialect(table) {
     fieldNumber: (p) => `json_get_float(fields, ${p})`,
     fieldExists: (p) => `json_contains(fields, ${p})`,
     fieldIsNumber: (p) => `json_get_float(fields, ${p}) IS NOT NULL`,
-    likeEscape: '!',
-    like: (expr, p) => `lower(${expr}) LIKE lower(${p}) ESCAPE '!'`,
+    // Basin SQL only accepts backslash as the LIKE escape character (verified on real Basin).
+    like: (expr, p) => `lower(${expr}) LIKE lower(${p}) ESCAPE '\\'`,
     bucket: (b, interval) => `(ts / ${b.param(Math.trunc(interval))}) * ${b.param(Math.trunc(interval))}`,
     percentile: (x) => `approx_percentile_cont(${x}, 0.95)`,
   };

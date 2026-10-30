@@ -1,53 +1,110 @@
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "open-logs",
-  "main": "src/index.js",
-  "compatibility_date": "2026-10-01",
-  "compatibility_flags": ["nodejs_compat"],
-  "assets": {
-    "directory": "./public",
-    "binding": "ASSETS",
-    "not_found_handling": "none",
-    "run_worker_first": ["/v1/*", "/api/*"]
-  },
-  // No database_id: wrangler creates the D1 database on first deploy.
-  "d1_databases": [
-    {
-      "binding": "DB",
-      "database_name": "open-logs",
-      "migrations_dir": "migrations"
-    }
-  ],
-  "ratelimits": [
-    { "name": "LOGIN_LIMITER", "namespace_id": "1001", "simple": { "limit": 10, "period": 60 } },
-    { "name": "LOGIN_IP_LIMITER", "namespace_id": "1003", "simple": { "limit": 20, "period": 60 } },
-    { "name": "INGEST_LIMITER", "namespace_id": "1002", "simple": { "limit": 1200, "period": 60 } }
-  ],
-  "vars": {
-    "LOG_STORAGE": "local",
-    "TEAM_NAME": "Open Logs"
-  },
-  // Production-style deploy on Basin. Fill the ids printed by `node scripts/setup-basin.js`.
-  // Secrets: wrangler secret put ADMIN_PASSWORD --env staging; wrangler secret put BASIN_SQL_TOKEN --env staging
-  "env": {
-    "staging": {
-      "name": "open-logs-staging",
-      "d1_databases": [
-        { "binding": "DB", "database_name": "open-logs-staging", "migrations_dir": "migrations" }
-      ],
-      "pipelines": [{ "binding": "LOG_STREAM", "stream": "bfd0b9bd394640b9ba222880e4f4ed0c" }],
-      "ratelimits": [
-        { "name": "LOGIN_LIMITER", "namespace_id": "1001", "simple": { "limit": 10, "period": 60 } },
-    { "name": "LOGIN_IP_LIMITER", "namespace_id": "1003", "simple": { "limit": 20, "period": 60 } },
-        { "name": "INGEST_LIMITER", "namespace_id": "1002", "simple": { "limit": 1200, "period": 60 } }
-      ],
-      "vars": {
-        "LOG_STORAGE": "basin",
-        "TEAM_NAME": "Open Logs",
-        "BASIN_ACCOUNT_ID": "206baa391f97ef4fd66f608db1900864",
-        "BASIN_BUCKET": "open-logs-staging",
-        "BASIN_TABLE": "open_logs.events"
-      }
-    }
-  }
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "open-logs",
+	"main": "src/index.js",
+	"compatibility_date": "2026-10-01",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"assets": {
+		"directory": "./public",
+		"binding": "ASSETS",
+		"not_found_handling": "none",
+		"run_worker_first": [
+			"/v1/*",
+			"/api/*"
+		]
+	},
+	// No database_id: wrangler creates the D1 database on first deploy.
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "open-logs",
+			"migrations_dir": "migrations"
+		}
+	],
+	"ratelimits": [
+		{
+			"name": "LOGIN_LIMITER",
+			"namespace_id": "1001",
+			"simple": {
+				"limit": 10,
+				"period": 60
+			}
+		},
+		{
+			"name": "LOGIN_IP_LIMITER",
+			"namespace_id": "1003",
+			"simple": {
+				"limit": 20,
+				"period": 60
+			}
+		},
+		{
+			"name": "INGEST_LIMITER",
+			"namespace_id": "1002",
+			"simple": {
+				"limit": 1200,
+				"period": 60
+			}
+		}
+	],
+	"vars": {
+		"LOG_STORAGE": "local",
+		"TEAM_NAME": "Open Logs"
+	},
+	// Production-style deploy on Basin. Fill the ids printed by `node scripts/setup-basin.js`.
+	// Secrets: wrangler secret put ADMIN_PASSWORD --env staging; wrangler secret put BASIN_SQL_TOKEN --env staging
+	"env": {
+		"staging": {
+			"name": "open-logs-staging",
+			"d1_databases": [
+				{
+					"binding": "DB",
+					"database_name": "open-logs-staging",
+					"migrations_dir": "migrations",
+					"database_id": "28f389d2-7cfb-46e3-b5bb-2fb68cfc2e9e"
+				}
+			],
+			"pipelines": [
+				{
+					"binding": "LOG_STREAM",
+					"stream": "bfd0b9bd394640b9ba222880e4f4ed0c"
+				}
+			],
+			"ratelimits": [
+				{
+					"name": "LOGIN_LIMITER",
+					"namespace_id": "1001",
+					"simple": {
+						"limit": 10,
+						"period": 60
+					}
+				},
+				{
+					"name": "LOGIN_IP_LIMITER",
+					"namespace_id": "1003",
+					"simple": {
+						"limit": 20,
+						"period": 60
+					}
+				},
+				{
+					"name": "INGEST_LIMITER",
+					"namespace_id": "1002",
+					"simple": {
+						"limit": 1200,
+						"period": 60
+					}
+				}
+			],
+			"vars": {
+				"LOG_STORAGE": "basin",
+				"TEAM_NAME": "Open Logs",
+				"BASIN_ACCOUNT_ID": "206baa391f97ef4fd66f608db1900864",
+				"BASIN_BUCKET": "open-logs-staging",
+				"BASIN_TABLE": "open_logs.events"
+			}
+		}
+	}
 }
