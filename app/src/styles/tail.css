@@ -280,30 +280,40 @@
   text-align: center;
 }
 .lvl {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-6);
+  font-family: var(--sans);
   font-size: 11px;
   font-weight: 500;
-  border-radius: 999px;
-  padding: 1px 0;
-  text-align: center;
-  border: 1px solid var(--line);
-  color: var(--tx2);
-  background: var(--bg3);
-  font-family: var(--sans);
-}
-.lvl.debug {
+  letter-spacing: 0.02em;
   color: var(--tx3);
-  background: var(--bg2);
+}
+.lvl::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 2px;
+  background: var(--infobar);
+}
+.lvl.debug::before {
+  background: var(--debugbar);
 }
 .lvl.warn {
-  border-color: var(--warnln);
   color: var(--warntx);
-  background: var(--warnbg);
+}
+.lvl.warn::before {
+  background: var(--warn);
 }
 .lvl.error,
 .lvl.fatal {
-  border-color: var(--errln);
   color: var(--errtx);
-  background: var(--errbg);
+  font-weight: 600;
+}
+.lvl.error::before,
+.lvl.fatal::before {
+  background: var(--err);
 }
 .detail {
   padding: var(--s-2) var(--s-16) var(--s-16);
@@ -547,8 +557,7 @@
   background: var(--bg2);
 }
 .evpanel .panelhead .lvl {
-  display: inline-block;
-  padding: 1px var(--s-8);
+  margin-right: var(--s-8);
 }
 .evpanel .panelmsg {
   padding: var(--s-12);

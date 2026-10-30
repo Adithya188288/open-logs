@@ -289,8 +289,9 @@ for tiny marks such as legend swatches. Borders are always 1px.
 
 ### Event table (signature)
 - A bordered 10px container with a Rail header row (11px, Ink Muted, weight 500) and rows on a fixed grid (time,
-  level, source, message, chevron), divided by hairlines. An opened row turns Rail. Level is shown with the
-  level colour, never by row background.
+  level, source, message, chevron), divided by hairlines. An opened row turns Rail. Level is shown as a 6px
+  square mark plus an 11px uppercase label, never as a pill and never by row background: info and debug are
+  muted grey, warn uses Warn text, error uses Error text at weight 600.
 
 ### Loader
 - A small pulsing green dot, shown once at start-up and when switching project. No other spinners between screens.
@@ -300,6 +301,7 @@ for tiny marks such as legend swatches. Borders are always 1px.
 ### Do:
 - **Do** set every timestamp, field, value, token and count in Geist Mono.
 - **Do** keep info and debug grey; reserve red and amber for error and warn.
+- **Do** show log level as a mark plus text, the same in the table and the event panel.
 - **Do** use the 6px radius for controls and 10px for containers.
 - **Do** give every interactive element hover, focus-visible, disabled and, where relevant, loading and empty states.
 - **Do** check every change in both light and dark themes.
