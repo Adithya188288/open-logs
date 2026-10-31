@@ -39,21 +39,29 @@ export function wrangler(args, opts = {}) {
   return { ok: r.status === 0, out: redact(`${r.stdout ?? ''}${r.stderr ?? ''}`) };
 }
 
+/** Cloudflare's API sometimes answers with an HTML error page or a 5xx; those are worth retrying. */
+const TRANSIENT =
+  /<!DOCTYPE html|\b50[0-9]\b|internal server error|timed out|ETIMEDOUT|ECONNRESET|temporarily/i;
+
 /**
- * Like `wrangler`, but stops the whole command with the output when it fails.
- * "Already exists" counts as success, so setup can be re-run after a partial failure.
+ * Like `wrangler`, but stops the whole command with the output when it fails. Retries temporary Cloudflare
+ * errors twice. "Already exists" counts as success, so setup can be re-run after a partial failure.
  * @param {string} label
  * @param {string[]} args
  */
 export function mustWrangler(label, args) {
   process.stdout.write(`  • ${label}… `);
-  const r = wrangler(args, { quiet: true });
+  let r = wrangler(args, { quiet: true });
+  for (let attempt = 1; attempt < 3 && !r.ok && TRANSIENT.test(r.out); attempt++) {
+    spawnSync('sleep', [String(5 * attempt)]);
+    r = wrangler(args, { quiet: true });
+  }
   if (r.ok || /already exists|already enabled|conflict/i.test(r.out)) {
     console.log(r.ok ? 'done' : 'already there');
     return r.out;
   }
   console.log('failed');
-  console.error(r.out);
+  console.error(r.out.length > 2000 ? `${r.out.slice(0, 2000)}…` : r.out);
   process.exit(1);
 }
 
