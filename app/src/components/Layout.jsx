@@ -110,6 +110,12 @@ export function Layout() {
     queryClient.setQueryData(['me'], (/** @type {any} */ m) => (m ? { ...m, team_name } : m));
   }, []);
 
+  // Each screen opens at its top, not at the previous screen's scroll position.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the screen changing is the trigger
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
+
   const asked = params.get('project');
   const project = useMemo(() => {
     if (!projects) return undefined;

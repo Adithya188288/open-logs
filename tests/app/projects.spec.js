@@ -55,7 +55,14 @@ test('the projects table shows 12 per page with name, sources and created date',
   await expect(withSources.locator('td').nth(1)).toHaveText('2');
   await expect(page.getByText('Page 1 of 2')).toBeVisible();
 
+  // While page 2 loads, the pager keeps describing the rows on screen and can't be clicked again.
+  await page.route('**/api/projects?page=2*', async (route) => {
+    await new Promise((r) => setTimeout(r, 2000));
+    await route.continue();
+  });
   await page.getByRole('button', { name: 'Next' }).click();
+  await expect(page.getByText('Page 1 of 2')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Next' })).toBeDisabled();
   await expect(page.getByTestId('project-row')).toHaveCount(2);
   await expect(page.getByText('Page 2 of 2')).toBeVisible();
   await expect(page).toHaveURL(/page=2/);

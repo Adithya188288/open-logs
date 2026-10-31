@@ -129,7 +129,10 @@ export function Sources() {
   const [params, setParams] = useSearchParams();
   const page = Math.max(1, Number(params.get('page')) || 1);
   // Keep the previous page on screen while the next one loads.
-  const { data } = useQuery({ ...q.sourcesPage(project.id, page), placeholderData: (prev) => prev });
+  const { data, isPlaceholderData } = useQuery({
+    ...q.sourcesPage(project.id, page),
+    placeholderData: (prev) => prev,
+  });
   const navigate = useNavigate();
   const projectId = project.id;
   const changed = useCallback(() => refresh.sources(projectId), [projectId]);
@@ -184,7 +187,7 @@ export function Sources() {
           </div>
         ) : (
           <section className="card sources" aria-label="Sources">
-            <table className="grid clickable">
+            <table className={`grid clickable${isPlaceholderData ? ' stale' : ''}`}>
               <thead>
                 <tr>
                   {['Name', 'Created', ''].map((t) => (
@@ -214,7 +217,13 @@ export function Sources() {
                 ))}
               </tbody>
             </table>
-            <Pager page={page} pageSize={data.page_size} total={data.total} onPage={goTo} />
+            <Pager
+              page={data.page}
+              pageSize={data.page_size}
+              total={data.total}
+              busy={isPlaceholderData}
+              onPage={goTo}
+            />
           </section>
         )}
       </div>

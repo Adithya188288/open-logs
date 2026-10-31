@@ -21,7 +21,10 @@ export function Projects() {
   const search = useDeferredValue(find.trim());
   const navigate = useNavigate();
   // Keep the previous page on screen while the next one loads.
-  const { data } = useQuery({ ...q.projectsPage(page, search), placeholderData: (prev) => prev });
+  const { data, isPlaceholderData } = useQuery({
+    ...q.projectsPage(page, search),
+    placeholderData: (prev) => prev,
+  });
   /** @param {number} n */
   const goTo = (n) => setParams(n > 1 ? { page: String(n) } : {}, { replace: true });
 
@@ -114,7 +117,7 @@ export function Projects() {
           <PageLoader />
         ) : (
           <section className="card" aria-label="Projects">
-            <table className="grid clickable" data-testid="projects">
+            <table className={`grid clickable${isPlaceholderData ? ' stale' : ''}`} data-testid="projects">
               <thead>
                 <tr>
                   {['Name', 'Sources', 'Created', ''].map((t) => (
@@ -176,7 +179,13 @@ export function Projects() {
               </tbody>
             </table>
             {!data.projects.length && <p className="small muted empty-row">No projects match.</p>}
-            <Pager page={page} pageSize={data.page_size} total={data.total} onPage={goTo} />
+            <Pager
+              page={data.page}
+              pageSize={data.page_size}
+              total={data.total}
+              busy={isPlaceholderData}
+              onPage={goTo}
+            />
           </section>
         )}
       </div>

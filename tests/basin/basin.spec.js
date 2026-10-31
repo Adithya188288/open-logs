@@ -126,6 +126,36 @@ test('live tail filters stay in sync: source picker, level toggles, chips and sa
   await expect(page.getByTestId('event')).toHaveCount(16);
 });
 
+test("while a new filter loads, live tail shows the loader, never the old filter's rows", async ({
+  page,
+}) => {
+  const { projectId } = seed();
+  await page.goto(`/tail?project=${projectId}`);
+  await expect(page.getByTestId('event')).toHaveCount(50);
+  // Slow the next load down so the in-between state can be seen.
+  await page.route('**/api/query', async (route) => {
+    await new Promise((r) => setTimeout(r, 3000));
+    await route.continue();
+  });
+  await page
+    .getByRole('group', { name: 'Show levels' })
+    .getByRole('button', { name: 'warn', exact: true })
+    .click();
+  await expect(page.getByRole('status', { name: 'Loading events' })).toBeVisible();
+  await expect(page.getByTestId('event')).toHaveCount(0);
+  await expect(page.getByTestId('event')).toHaveCount(40);
+  await expect(page.getByTestId('event').filter({ hasText: 'WARN' })).toHaveCount(0);
+});
+
+test('in a narrow window the event details open where they can be seen', async ({ page }) => {
+  const { projectId } = seed();
+  await page.setViewportSize({ width: 800, height: 700 });
+  await page.goto(`/tail?project=${projectId}`);
+  await expect(page.getByTestId('event')).toHaveCount(50);
+  await page.getByTestId('event').first().getByRole('button').first().click();
+  await expect(page.getByRole('complementary', { name: 'Event details' })).toBeInViewport();
+});
+
 // Regression check for the source_id fix: logs belong to the source's id, not its name.
 test('a renamed source keeps its logs; a new source with the old name starts empty', async ({
   page,

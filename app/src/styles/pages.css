@@ -466,7 +466,10 @@ table.grid.clickable td.right {
   max-width: none;
 }
 
-/* Paged tables (Projects, Sources) */
+/* Paged tables (Projects, Sources). While the next page loads, the current rows dim. */
+table.grid.stale tbody {
+  opacity: 0.55;
+}
 .pager {
   display: flex;
   align-items: center;

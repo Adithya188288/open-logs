@@ -653,7 +653,7 @@ export function Tail() {
             <input
               id="q"
               ref={searchRef}
-              placeholder="Search message, or field:value  e.g. status:500"
+              placeholder="Search, or field:value"
               autoComplete="off"
               spellCheck="false"
               value={input}
@@ -773,13 +773,15 @@ export function Tail() {
           <div
             ref={listRef}
             role="region"
-            className={`list${wrap ? ' wrap' : ''}${phase === 'loading' ? ' refreshing' : ''}`}
+            className={`list${wrap ? ' wrap' : ''}`}
             // biome-ignore lint/a11y/noNoninteractiveTabindex: the list takes focus so j/k/Enter can move through events
             tabIndex={0}
             aria-label="Event list. j and k move between events, Enter opens details, slash jumps to search."
             onKeyDown={onListKey}
           >
-            {phase === 'loading' && !events.length ? (
+            {/* Rows from the previous filter would be wrong for this one (e.g. WARN rows after hiding warn):
+                show the loader until this filter's rows arrive. */}
+            {phase === 'loading' ? (
               <div className="list-loading">
                 <Loader label="Loading events" />
               </div>
@@ -856,45 +858,38 @@ export function Tail() {
                 </div>
               )
             ) : (
-              <>
-                {phase === 'loading' && (
-                  <div className="list-refreshing">
-                    <Loader size="sm" inline label="Loading events" />
-                  </div>
-                )}
-                {events.map((e, i) => {
-                  const open = selected === e.id;
-                  return (
-                    <div
-                      key={e.id}
-                      className={`ev${open ? ' open' : ''}${cursor === i ? ' cursor' : ''}${freshIds.has(e.id) ? ' fresh' : ''}`}
-                      data-testid="event"
-                      data-id={e.id}
+              events.map((e, i) => {
+                const open = selected === e.id;
+                return (
+                  <div
+                    key={e.id}
+                    className={`ev${open ? ' open' : ''}${cursor === i ? ' cursor' : ''}${freshIds.has(e.id) ? ' fresh' : ''}`}
+                    data-testid="event"
+                    data-id={e.id}
+                  >
+                    <button
+                      className="row"
+                      type="button"
+                      tabIndex={-1}
+                      aria-pressed={open}
+                      onClick={() => {
+                        setCursor(i);
+                        setSelected(open ? null : e.id);
+                      }}
                     >
-                      <button
-                        className="row"
-                        type="button"
-                        tabIndex={-1}
-                        aria-pressed={open}
-                        onClick={() => {
-                          setCursor(i);
-                          setSelected(open ? null : e.id);
-                        }}
-                      >
-                        <span className="t">{relative ? ago(e.ts) : eventTime(e.ts, dated)}</span>
-                        <span className={`lvl ${e.level}`}>{e.level.toUpperCase()}</span>
-                        <span className="src" title={e.source}>
-                          {e.source}
-                        </span>
-                        <span className="msg">{e.message}</span>
-                        <span className="chev" aria-hidden="true">
-                          ›
-                        </span>
-                      </button>
-                    </div>
-                  );
-                })}
-              </>
+                      <span className="t">{relative ? ago(e.ts) : eventTime(e.ts, dated)}</span>
+                      <span className={`lvl ${e.level}`}>{e.level.toUpperCase()}</span>
+                      <span className="src" title={e.source}>
+                        {e.source}
+                      </span>
+                      <span className="msg">{e.message}</span>
+                      <span className="chev" aria-hidden="true">
+                        ›
+                      </span>
+                    </button>
+                  </div>
+                );
+              })
             )}
           </div>
         </div>
