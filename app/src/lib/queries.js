@@ -23,12 +23,17 @@ const enc = (id) => encodeURIComponent(id);
 
 export const q = {
   me: () => queryOptions({ queryKey: ['me'], queryFn: () => api('/api/me') }),
-  /** Projects with their sources and 24h stats (cards, sidebar, switcher). Refreshed when visited after 5 min. */
+  /** Every project with its sources' ids and names (sidebar, switcher, start-up). From D1 only. */
   projects: () =>
+    queryOptions({ queryKey: ['projects'], queryFn: async () => (await api('/api/projects')).projects }),
+  /**
+   * One page of the Projects table (12 rows, newest first), with each project's source count.
+   * @param {number} page @param {string} find
+   */
+  projectsPage: (page, find) =>
     queryOptions({
-      queryKey: ['projects'],
-      queryFn: async () => (await api('/api/projects')).projects,
-      staleTime: 5 * 60_000,
+      queryKey: ['projects', 'page', page, find],
+      queryFn: () => api(`/api/projects?page=${page}&find=${encodeURIComponent(find)}`),
     }),
   team: () => queryOptions({ queryKey: ['team'], queryFn: () => api('/api/users') }),
   settings: () =>
@@ -40,6 +45,15 @@ export const q = {
     queryOptions({
       queryKey: ['project', projectId, 'sources'],
       queryFn: async () => (await api(`/api/projects/${enc(projectId)}/sources`)).sources,
+    }),
+  /**
+   * One page of the Sources table (12 rows, newest first).
+   * @param {string} projectId @param {number} page
+   */
+  sourcesPage: (projectId, page) =>
+    queryOptions({
+      queryKey: ['project', projectId, 'sources', 'page', page],
+      queryFn: () => api(`/api/projects/${enc(projectId)}/sources?page=${page}`),
     }),
   /** @param {string} id */
   source: (id) =>

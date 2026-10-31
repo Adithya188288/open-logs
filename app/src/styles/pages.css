@@ -1,104 +1,4 @@
 /* Projects + team, invite, connect a source. */
-.projects {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: var(--s-12);
-}
-.project {
-  padding: var(--s-16) var(--s-16);
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-12);
-  min-width: 0;
-}
-.project:hover {
-  border-color: var(--line2);
-}
-.project .head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: var(--s-8);
-}
-.project .name {
-  font-size: 13px;
-  font-weight: 500;
-  text-decoration: none;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.project .name:hover {
-  text-decoration: underline;
-}
-.project svg {
-  display: block;
-  width: 100%;
-  height: 40px;
-}
-.project polyline {
-  fill: none;
-  stroke: var(--tx2);
-  stroke-width: 1.5;
-  stroke-linejoin: round;
-  stroke-linecap: round;
-  vector-effect: non-scaling-stroke;
-}
-.project polyline.empty {
-  stroke: var(--line2);
-  stroke-dasharray: 3 4;
-}
-.project .stats {
-  display: flex;
-  gap: var(--s-12);
-  font-size: 12px;
-  color: var(--tx3);
-  flex-wrap: wrap;
-}
-.project .stats b {
-  color: var(--tx);
-  font-weight: 500;
-  font-family: var(--mono);
-}
-.project .stats b.bad {
-  color: var(--errtx);
-}
-.project .foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--s-8);
-  flex-wrap: wrap;
-  padding-top: var(--s-12);
-  border-top: 1px solid var(--line);
-}
-.project .foot .tags {
-  display: flex;
-  gap: var(--s-4);
-  flex-wrap: wrap;
-}
-.project .foot .seen {
-  font-size: 11px;
-  color: var(--tx3);
-  white-space: nowrap;
-}
-.empty-projects {
-  padding: var(--s-40) var(--s-24);
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--s-8);
-  color: var(--tx3);
-  border: 1px dashed var(--line2);
-  border-radius: 10px;
-}
-.empty-projects h2 {
-  font-size: 15px;
-  color: var(--tx);
-  font-weight: 600;
-}
 
 .team {
   overflow: hidden;
@@ -463,9 +363,6 @@ table.grid .email {
   gap: var(--s-6);
   justify-content: flex-end;
 }
-.empty-projects {
-  grid-column: 1 / -1;
-}
 .connect .stack {
   flex: 999 1 520px;
   min-width: 0;
@@ -482,13 +379,6 @@ table.grid .email {
 .rowline .input {
   max-width: 320px;
   flex: 1 1 200px;
-}
-
-/* Projects cards: name + status + menu */
-.project .headr {
-  display: flex;
-  align-items: center;
-  gap: var(--s-4);
 }
 
 /* Team */
@@ -574,4 +464,18 @@ table.grid.clickable td.right {
 }
 .sendpanel .platforms {
   max-width: none;
+}
+
+/* Paged tables (Projects, Sources) */
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--s-8);
+  padding: var(--s-8) var(--s-12);
+  border-top: 1px solid var(--line);
+}
+.empty-row {
+  padding: var(--s-16);
+  text-align: center;
 }

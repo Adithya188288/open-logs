@@ -16,7 +16,7 @@ const PROJECT_PAGES = new Set(['/dashboard', '/tail', '/sources', '/source']);
 
 /**
  * @typedef {{ id: string, email: string, name: string, role: 'owner' | 'admin' | 'member' }} Me
- * @typedef {{ id: string, name: string, created_at: number, last_event_at: number | null, sources: any[], stats: any }} Project
+ * @typedef {{ id: string, name: string, created_at: number, sources: { id: string, name: string }[] }} Project
  * @typedef {{ me: Me, team: string, setTeam: (t: string) => void, projects: Project[], project: Project | undefined, reloadProjects: () => Promise<unknown> }} AppState
  */
 

@@ -45,6 +45,9 @@ CREATE TABLE projects (
 
 -- token_hash is the SHA-256 of the source token; token_prefix is its first 8 characters.
 -- prev_token_prefix lets ingest attribute 401s from a regenerated token to its source.
+-- first_event_at is written once, by the source's first accepted log; logs after that never write to D1.
+-- last_rejected_at is written at most once a minute per source, so a sender stuck on an old token can't
+-- turn into a stream of writes.
 CREATE TABLE sources (
   id TEXT PRIMARY KEY,
   project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
@@ -53,8 +56,7 @@ CREATE TABLE sources (
   token_prefix TEXT NOT NULL,
   prev_token_prefix TEXT,
   created_at INTEGER NOT NULL,
-  last_event_at INTEGER,
-  rejected_count INTEGER NOT NULL DEFAULT 0,
+  first_event_at INTEGER,
   last_rejected_at INTEGER,
   UNIQUE (project_id, name)
 );

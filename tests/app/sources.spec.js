@@ -16,6 +16,7 @@ test('new source: token shown once and copyable; the first event is noticed', as
   await dialog.getByRole('button', { name: 'Create source' }).click();
   const token = await dialog.getByTestId('token').textContent();
   expect(token).toMatch(/^ol_[A-Za-z0-9_-]{43}$/);
+  await expect(dialog.getByTestId('verify')).toContainText('Waiting for the first event from web');
   await dialog.getByRole('button', { name: 'Copy token' }).click();
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(token);
 
@@ -24,11 +25,13 @@ test('new source: token shown once and copyable; the first event is noticed', as
     headers: { authorization: `Bearer ${token}` },
   });
   expect(sent.status()).toBe(202);
+  // The first log is recorded once in D1, so this shows within seconds, well before Basin has the log.
   await expect(dialog.getByTestId('verify')).toContainText('First event received from web', {
     timeout: 20_000,
   });
   await dialog.getByRole('button', { name: 'Done' }).click();
   await expect(page.getByTestId('source-row')).toHaveCount(1);
+  await expect(page.getByRole('columnheader')).toHaveText(['Name', 'Created', '']);
 
   await page.reload();
   await expect(page.getByTestId('token')).toHaveCount(0);
@@ -58,6 +61,14 @@ test('source page: rename, regenerate (old token stops working), delete with DEL
   expect((await send(token)).status()).toBe(401);
   expect((await send(fresh)).status()).toBe(202);
   await page.keyboard.press('Escape');
+  // The old token's request is recorded on the source; the first accepted log sets "First event".
+  await expect(async () => {
+    await page.reload();
+    await expect(page.getByRole('alert').filter({ hasText: 'Requests are being rejected' })).toBeVisible({
+      timeout: 2000,
+    });
+    await expect(page.locator('.stats-row')).not.toContainText('not yet', { timeout: 2000 });
+  }).toPass({ timeout: 20_000 });
 
   await page.getByRole('button', { name: 'Delete', exact: true }).click();
   const confirm = page.getByRole('button', { name: 'Delete source' });
@@ -67,4 +78,19 @@ test('source page: rename, regenerate (old token stops working), delete with DEL
   await expect(page).toHaveURL(/\/sources\?project=/);
   await expect(page.getByTestId('no-sources')).toBeVisible();
   expect((await send(fresh)).status()).toBe(401);
+});
+
+test('the sources table shows 12 per page', async ({ page, app }) => {
+  const { project } = await app.post('/api/projects', { name: named('many-sources') });
+  for (let i = 1; i <= 13; i++) {
+    await app.post(`/api/projects/${project.id}/sources`, { name: `svc-${String(i).padStart(2, '0')}` });
+  }
+  await page.goto(`/sources?project=${project.id}`);
+  await expect(page.getByTestId('source-row')).toHaveCount(12);
+  // Newest first: the last one created leads page 1, the first one created is alone on page 2.
+  await expect(page.getByTestId('source-row').first()).toContainText('svc-13');
+  await page.getByRole('button', { name: 'Next' }).click();
+  await expect(page.getByTestId('source-row')).toHaveCount(1);
+  await expect(page.getByTestId('source-row')).toContainText('svc-01');
+  await expect(page.getByText('Page 2 of 2')).toBeVisible();
 });

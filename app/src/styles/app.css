@@ -233,7 +233,8 @@ p {
   font: inherit;
   font-size: 13px;
   padding: var(--s-8) var(--s-12);
-  border: 1px solid var(--line);
+  /* --line2, not --line: --line nearly disappears against the dark background. */
+  border: 1px solid var(--line2);
   border-radius: 6px;
   background: var(--bg);
   color: var(--tx);
@@ -586,7 +587,8 @@ kbd {
   font-size: 13px;
   font-weight: 500;
   padding: var(--s-8) var(--s-12);
-  border: 1px solid var(--line);
+  /* --line2, not --line: --line nearly disappears against the dark background. */
+  border: 1px solid var(--line2);
   border-radius: 6px;
   background: var(--bg);
   margin-bottom: var(--s-12);

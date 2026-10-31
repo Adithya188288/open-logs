@@ -9,7 +9,8 @@ export const MAX_BATCH_BYTES = 5 * 1024 * 1024; // Basin Pipelines accepts up to
 export const MAX_EVENT_BYTES = 256 * 1024;
 export const MAX_EVENTS = 10_000;
 const TOKEN_RE = /^ol_[A-Za-z0-9_-]{43}$/;
-const LAST_EVENT_WRITE_MS = 5_000;
+// A sender stuck on an old token is recorded at most this often per source (one D1 write).
+const REJECTION_WRITE_MS = 60_000;
 
 const CORS = {
   'access-control-allow-origin': '*',
@@ -47,7 +48,9 @@ async function ingest(request, env, ctx) {
   const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
   if (!TOKEN_RE.test(token)) throw new HttpError(401, 'invalid_token', 'Missing or invalid token');
 
-  const source = await env.DB.prepare('SELECT id, project_id, name FROM sources WHERE token_hash = ?')
+  const source = await env.DB.prepare(
+    'SELECT id, project_id, name, first_event_at FROM sources WHERE token_hash = ?',
+  )
     .bind(await sha256Hex(token))
     .first();
   if (!source) {
@@ -85,27 +88,29 @@ async function ingest(request, env, ctx) {
   });
 
   await getStorage(env).write(events);
-  ctx.waitUntil(
-    env.DB.prepare(
-      'UPDATE sources SET last_event_at = ? WHERE id = ? AND (last_event_at IS NULL OR last_event_at < ?)',
-    )
-      .bind(now, source.id, now - LAST_EVENT_WRITE_MS)
-      .run(),
-  );
+  // The source's first log marks it connected. Every later log leaves D1 alone.
+  if (source.first_event_at === null) {
+    ctx.waitUntil(
+      env.DB.prepare('UPDATE sources SET first_event_at = ? WHERE id = ? AND first_event_at IS NULL')
+        .bind(now, source.id)
+        .run(),
+    );
+  }
   return json({ accepted: events.length }, 202);
 }
 
 /**
- * Counts a rejected request against the source whose current or previous token has this prefix,
- * so the UI can say "requests from worker are being rejected".
+ * Records when a request was rejected for the source whose current or previous token has this prefix,
+ * so the UI can say "requests from worker are being rejected". At most once a minute per source.
  * @param {Env} env
  * @param {string} prefix
  */
 async function recordRejection(env, prefix) {
+  const now = Date.now();
   await env.DB.prepare(
-    `UPDATE sources SET rejected_count = rejected_count + 1, last_rejected_at = ?
-     WHERE token_prefix = ? OR prev_token_prefix = ?`,
+    `UPDATE sources SET last_rejected_at = ?
+     WHERE (token_prefix = ? OR prev_token_prefix = ?) AND (last_rejected_at IS NULL OR last_rejected_at < ?)`,
   )
-    .bind(Date.now(), prefix, prefix)
+    .bind(now, prefix, prefix, now - REJECTION_WRITE_MS)
     .run();
 }

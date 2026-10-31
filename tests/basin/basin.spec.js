@@ -74,6 +74,58 @@ test('switching projects shows the other project, then back again', async ({ pag
   await expect(page.getByTestId('chart').first().getByTestId('chart-value')).toHaveText('50');
 });
 
+// The chips are the one filter: the source picker, the level toggles and saved views all show and edit them.
+test('live tail filters stay in sync: source picker, level toggles, chips and saved views', async ({
+  page,
+}) => {
+  const { projectId } = seed();
+  await page.goto(`/tail?project=${projectId}`);
+  await expect(page.getByTestId('event')).toHaveCount(50);
+  const chips = page.locator('.query .chip');
+  const level = (/** @type {string} */ name) =>
+    page.getByRole('group', { name: 'Show levels' }).getByRole('button', { name, exact: true });
+
+  // Picking a source adds its chip; the address bar keeps it.
+  await page.getByLabel('Source', { exact: true }).selectOption('api');
+  await expect(chips).toHaveText(['source = api']);
+  await expect(page.getByTestId('event')).toHaveCount(40);
+  await expect(page).toHaveURL(/q=source%3Aapi/);
+
+  // Turning a level off edits the level chip; turning it back on removes it.
+  await level('info').click();
+  await expect(level('info')).toHaveAttribute('aria-pressed', 'false');
+  await expect(chips).toHaveText(['source = api', 'level = warn, error, fatal']);
+  await expect(page.getByTestId('event')).toHaveCount(24);
+  await level('info').click();
+  await expect(chips).toHaveText(['source = api']);
+
+  // A typed level chip shows on the toggles too.
+  await page.getByLabel('Search events').fill('level:error');
+  await page.getByLabel('Search events').press('Enter');
+  await expect(level('info')).toHaveAttribute('aria-pressed', 'false');
+  await expect(level('warn')).toHaveAttribute('aria-pressed', 'false');
+  await expect(level('error')).toHaveAttribute('aria-pressed', 'true');
+
+  // Save it, clear everything, then apply the view: every control comes back.
+  await page.getByTestId('views-menu').click();
+  await page.getByRole('menuitem', { name: 'Save current view…' }).click();
+  await page.getByRole('dialog', { name: 'Save view' }).getByLabel('Name').fill(named('errors'));
+  await page.getByRole('button', { name: 'Save view' }).click();
+  while ((await chips.count()) > 0) await chips.first().getByRole('button').click();
+  await expect(chips).toHaveCount(0);
+  await expect(page.getByLabel('Source', { exact: true })).toHaveValue('');
+  await expect(level('info')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('event')).toHaveCount(50);
+
+  await page.getByTestId('views-menu').click();
+  await page.getByRole('menuitem', { name: named('errors') }).click();
+  await expect(chips).toHaveText(['source = api', 'level = error']);
+  await expect(page.getByLabel('Source', { exact: true })).toHaveValue('api');
+  await expect(level('info')).toHaveAttribute('aria-pressed', 'false');
+  await expect(level('error')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('event')).toHaveCount(16);
+});
+
 // Regression check for the source_id fix: logs belong to the source's id, not its name.
 test('a renamed source keeps its logs; a new source with the old name starts empty', async ({
   page,

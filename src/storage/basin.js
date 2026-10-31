@@ -8,9 +8,9 @@
 // Verified on real Basin (staging, 2026-10-30): responses are `{ result: { schema, rows: [{…}], metrics }, success }`;
 // backslash is an ordinary character inside string literals; LIKE only accepts ESCAPE '\'.
 import { HttpError } from '../http.js';
-import { buildEventsSql, buildHistogramSql, buildOverviewSql } from '../query/sql.js';
+import { buildEventsSql, buildHistogramSql } from '../query/sql.js';
 import { runAggregate } from './aggregate.js';
-import { eventsPage, histogramBuckets, overviewShape } from './shape.js';
+import { eventsPage, histogramBuckets } from './shape.js';
 
 const SQL_API = 'https://api.sql.cloudflarestorage.com/api/v1/accounts';
 const TABLE_NAME = /^[a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*$/;
@@ -168,18 +168,6 @@ export class BasinStorage {
     });
     const ts = rows[0]?.ts;
     return ts === null || ts === undefined ? null : Number(ts);
-  }
-
-  /**
-   * @param {string[]} projectIds
-   * @param {number} from
-   * @param {number} to
-   * @param {number} interval
-   */
-  async overview(projectIds, from, to, interval) {
-    if (!projectIds.length) return {};
-    const rows = await this.all(buildOverviewSql(projectIds, from, to, interval, this.dialect));
-    return overviewShape(rows, projectIds, from, to, interval);
   }
 
   /** Basin SQL is read-only: a deleted project's files stay in R2 until removed there. */
