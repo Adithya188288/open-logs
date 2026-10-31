@@ -21,8 +21,12 @@ describe('projects', () => {
     const id = created.json.project.id;
     expect(id).toMatch(/^prj_/);
 
+    await api(`/api/projects/${id}/sources`, { cookie, body: { name: 'web' } });
     const list = await api('/api/projects', { cookie });
     expect(list.json.projects.map((p) => p.name)).toEqual(['Default', 'checkout-app']);
+    expect(list.json.projects.find((x) => x.name === 'checkout-app').sources.map((s) => s.name)).toEqual([
+      'web',
+    ]);
 
     const renamed = await api(`/api/projects/${id}`, { method: 'PATCH', cookie, body: { name: 'shop' } });
     expect(renamed.status).toBe(200);
@@ -54,7 +58,8 @@ describe('projects', () => {
 });
 
 describe('sources', () => {
-  it('creates a source and returns its token exactly once', async () => {
+  it('creates a source, returns its token exactly once and stores only its SHA-256 hash', async () => {
+    const { env } = await import('cloudflare:test');
     const cookie = await signInOwner();
     const { json: p } = await api('/api/projects', { cookie, body: { name: 'app' } });
     const created = await api(`/api/projects/${p.project.id}/sources`, { cookie, body: { name: 'api' } });
@@ -67,15 +72,11 @@ describe('sources', () => {
     expect(list.json.sources).toHaveLength(1);
     expect(JSON.stringify(list.json)).not.toContain(created.json.token);
     expect(list.json.sources[0].token_hash).toBeUndefined();
-  });
 
-  it('stores only a SHA-256 hash of the token', async () => {
-    const { env } = await import('cloudflare:test');
-    const cookie = await signInOwner();
-    const { json: p } = await api('/api/projects', { cookie, body: { name: 'app' } });
-    const { json } = await api(`/api/projects/${p.project.id}/sources`, { cookie, body: { name: 'api' } });
-    const row = await env.DB.prepare('SELECT * FROM sources WHERE id = ?').bind(json.source.id).first();
-    expect(JSON.stringify(row)).not.toContain(json.token);
+    const row = await env.DB.prepare('SELECT * FROM sources WHERE id = ?')
+      .bind(created.json.source.id)
+      .first();
+    expect(JSON.stringify(row)).not.toContain(created.json.token);
     expect(row.token_hash).toMatch(/^[0-9a-f]{64}$/);
   });
 
@@ -98,13 +99,5 @@ describe('sources', () => {
       (await api(`/api/projects/${p.project.id}/sources`, { cookie, body: { name: 'api' } })).status,
     ).toBe(409);
     expect((await api('/api/projects/prj_nope/sources', { cookie, body: { name: 'api' } })).status).toBe(404);
-  });
-
-  it('lists projects with their sources', async () => {
-    const cookie = await signInOwner();
-    const { json: p } = await api('/api/projects', { cookie, body: { name: 'app' } });
-    await api(`/api/projects/${p.project.id}/sources`, { cookie, body: { name: 'web' } });
-    const list = await api('/api/projects', { cookie });
-    expect(list.json.projects.find((x) => x.name === 'app').sources.map((s) => s.name)).toEqual(['web']);
   });
 });

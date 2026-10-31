@@ -66,10 +66,28 @@ describe('BasinStorage', () => {
     const sent = [];
     const s = new BasinStorage(env({ LOG_STREAM: { send: async (rows) => sent.push(...rows) } }));
     await s.write([
-      { id: 'e1', ts: 1, project_id: 'p', source: 'api', level: 'info', message: 'm', fields: '{}' },
+      {
+        id: 'e1',
+        ts: 1,
+        project_id: 'p',
+        source_id: 'src_1',
+        source: 'api',
+        level: 'info',
+        message: 'm',
+        fields: '{}',
+      },
     ]);
     expect(sent).toEqual([
-      { id: 'e1', ts: 1, project_id: 'p', source: 'api', level: 'info', message: 'm', fields: '{}' },
+      {
+        id: 'e1',
+        ts: 1,
+        project_id: 'p',
+        source_id: 'src_1',
+        source: 'api',
+        level: 'info',
+        message: 'm',
+        fields: '{}',
+      },
     ]);
   });
 
@@ -80,14 +98,32 @@ describe('BasinStorage', () => {
       return Response.json({
         success: true,
         result: {
-          rows: [{ id: 'e1', ts: 5, source: 'api', level: 'error', message: 'boom', fields: '{"a":1}' }],
+          rows: [
+            {
+              id: 'e1',
+              ts: 5,
+              source_id: 'src_1',
+              source: 'api',
+              level: 'error',
+              message: 'boom',
+              fields: '{"a":1}',
+            },
+          ],
         },
       });
     };
     const s = new BasinStorage(env({}), fetcher);
     const page = await s.query(f([]));
     expect(page.events).toEqual([
-      { id: 'e1', ts: 5, source: 'api', level: 'error', message: 'boom', fields: { a: 1 } },
+      {
+        id: 'e1',
+        ts: 5,
+        source_id: 'src_1',
+        source: 'api',
+        level: 'error',
+        message: 'boom',
+        fields: { a: 1 },
+      },
     ]);
     expect(calls[0].url).toBe(
       'https://api.sql.cloudflarestorage.com/api/v1/accounts/acc123/basin-sql/query/logs-bucket',
@@ -113,7 +149,6 @@ describe('BasinStorage', () => {
 
 function env(extra) {
   return {
-    LOG_STORAGE: 'basin',
     BASIN_ACCOUNT_ID: 'acc123',
     BASIN_BUCKET: 'logs-bucket',
     BASIN_TABLE: 'open_logs.events',

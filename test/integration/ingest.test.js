@@ -3,12 +3,10 @@ import { exports } from 'cloudflare:workers';
 import { describe, expect, it } from 'vitest';
 import { api, createProjectWithSource, ingest, signInOwner } from '../helpers.js';
 
-const range = () => ({ from: Date.now() - 60_000, to: Date.now() + 1000 });
-
 describe('ingest', () => {
-  it('accepts one event or a batch and stamps project and source server side', async () => {
+  it('accepts one event or a batch and records when the source last sent', async () => {
     const cookie = await signInOwner();
-    const { project, source, token } = await createProjectWithSource(cookie);
+    const { source, token } = await createProjectWithSource(cookie);
 
     const one = await ingest(token, {
       level: 'error',
@@ -21,13 +19,6 @@ describe('ingest', () => {
 
     const many = await ingest(token, [{ message: 'a' }, { message: 'b', level: 'warn' }]);
     expect(many.json).toEqual({ accepted: 2 });
-
-    const q = await api('/api/query', { cookie, body: { project_id: project.id, ...range() } });
-    expect(q.status).toBe(200);
-    expect(q.json.events).toHaveLength(3);
-    expect(q.json.events.every((e) => e.source === 'api')).toBe(true);
-    const failed = q.json.events.find((e) => e.message === 'payment failed');
-    expect(failed.fields).toEqual({ order_id: 4821 });
 
     const row = await env.DB.prepare('SELECT last_event_at FROM sources WHERE id = ?')
       .bind(source.id)
@@ -81,17 +72,6 @@ describe('ingest', () => {
     expect(res.status).toBe(204);
     expect(res.headers.get('access-control-allow-origin')).toBe('*');
     expect(res.headers.get('access-control-allow-headers')).toMatch(/authorization/i);
-  });
-
-  it('deletes a project’s logs with the project (local storage)', async () => {
-    const cookie = await signInOwner();
-    const { project, token } = await createProjectWithSource(cookie);
-    await ingest(token, { message: 'bye' });
-    await api(`/api/projects/${project.id}`, { method: 'DELETE', cookie });
-    const row = await env.DB.prepare('SELECT COUNT(*) AS n FROM logs WHERE project_id = ?')
-      .bind(project.id)
-      .first();
-    expect(row.n).toBe(0);
   });
 
   it('rate limits per token', async () => {

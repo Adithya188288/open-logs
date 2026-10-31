@@ -11,29 +11,30 @@ async function member(owner, email = 'm@example.com') {
 }
 
 describe('default project', () => {
-  it('is created when the owner first signs in, with its Overview dashboard', async () => {
+  it('is created once when the owner first signs in, with its Overview dashboard', async () => {
+    await signInOwner();
     const cookie = await signInOwner();
     const { json } = await api('/api/projects', { cookie });
+    expect(json.projects).toHaveLength(1);
     expect(json.projects.map((p) => p.name)).toEqual(['Default']);
     const boards = await api(`/api/projects/${json.projects[0].id}/dashboards`, { cookie });
     expect(boards.json.dashboards.map((d) => d.name)).toEqual(['Overview']);
   });
-
-  it('is not created again on later sign-ins', async () => {
-    await signInOwner();
-    const cookie = await signInOwner();
-    expect((await api('/api/projects', { cookie })).json.projects).toHaveLength(1);
-  });
 });
 
 describe('settings', () => {
-  it('admins rename the team; everyone sees the new name', async () => {
+  it('admins rename the team; everyone sees the new name, including the invite page', async () => {
     const owner = await signInOwner();
     expect((await api('/api/settings', { cookie: owner })).json.settings.team_name).toBe('Open Logs');
     const saved = await api('/api/settings', { method: 'PATCH', cookie: owner, body: { team_name: 'Acme' } });
     expect(saved.json.settings.team_name).toBe('Acme');
     expect((await api('/api/config')).json.team_name).toBe('Acme');
     expect((await api('/api/me', { cookie: owner })).json.team_name).toBe('Acme');
+    const inv = await api('/api/invites', {
+      cookie: owner,
+      body: { email: 'x@example.com', role: 'member' },
+    });
+    expect((await api(`/api/invites/${inv.json.invite_url.split('#')[1]}`)).json.team_name).toBe('Acme');
     const m = await member(owner);
     expect(
       (await api('/api/settings', { method: 'PATCH', cookie: m, body: { team_name: 'x' } })).status,
@@ -166,18 +167,6 @@ describe('sources', () => {
   });
 });
 
-describe('invites', () => {
-  it('always returns the link and says whether an email went out', async () => {
-    const owner = await signInOwner();
-    const inv = await api('/api/invites', {
-      cookie: owner,
-      body: { email: 'mate@example.com', role: 'member' },
-    });
-    expect(inv.json.invite_url).toMatch(/\/invite#ol_inv_/);
-    expect(inv.json.email).toEqual({ sent: false, reason: 'not_configured' });
-  });
-});
-
 describe('security review fixes', () => {
   it('rate limits current-password guesses', async () => {
     const cookie = await signInOwner();
@@ -197,16 +186,5 @@ describe('security review fixes', () => {
     expect((await api('/api/no-such-endpoint')).status).toBe(401);
     const cookie = await signInOwner();
     expect((await api('/api/no-such-endpoint', { cookie })).status).toBe(404);
-  });
-
-  it('shows the team name from settings on the invite page', async () => {
-    const owner = await signInOwner();
-    await api('/api/settings', { method: 'PATCH', cookie: owner, body: { team_name: 'Acme Ops' } });
-    const inv = await api('/api/invites', {
-      cookie: owner,
-      body: { email: 'x@example.com', role: 'member' },
-    });
-    const token = inv.json.invite_url.split('#')[1];
-    expect((await api(`/api/invites/${token}`)).json.team_name).toBe('Acme Ops');
   });
 });

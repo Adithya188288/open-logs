@@ -102,6 +102,7 @@ describe('invites and roles', () => {
     });
     expect(inv.status).toBe(201);
     expect(inv.json.invite_url).toMatch(/\/invite#ol_inv_/);
+    expect(inv.json.email).toEqual({ sent: false, reason: 'not_configured' });
     const token = inv.json.invite_url.split('#')[1];
 
     const peek = await api(`/api/invites/${token}`);

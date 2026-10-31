@@ -5,7 +5,7 @@ const TIME_KEYS = ['ts', 'timestamp', 'dt'];
 const LEVEL_KEYS = ['level', 'severity'];
 const MESSAGE_KEYS = ['message', 'msg'];
 // Set by the server from the token; dropped from the body so they can't be spoofed.
-const SERVER_KEYS = ['project_id', 'source'];
+const SERVER_KEYS = ['project_id', 'source_id', 'source'];
 const RESERVED = new Set([...TIME_KEYS, ...LEVEL_KEYS, ...MESSAGE_KEYS, ...SERVER_KEYS]);
 
 /** @type {Record<string, 'debug' | 'info' | 'warn' | 'error' | 'fatal'>} */
@@ -83,7 +83,7 @@ function pick(body, keys) {
 
 /**
  * @param {Record<string, unknown>} body  one event object from the request
- * @param {{ project_id: string, name: string }} source  resolved from the token
+ * @param {{ id: string, project_id: string, name: string }} source  resolved from the token
  * @param {number} now
  * @returns {import('../storage/index.js').StoredEvent}
  */
@@ -99,6 +99,7 @@ export function normalizeEvent(body, source, now) {
     id: eventId(ts),
     ts,
     project_id: source.project_id,
+    source_id: source.id,
     source: source.name,
     level: normalizeLevel(pick(body, LEVEL_KEYS)),
     message,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { api, createProjectWithSource, ingest, signInOwner } from '../helpers.js';
+import { api, createProjectWithSource, signInOwner } from '../helpers.js';
 
 async function setup() {
   const cookie = await signInOwner();
@@ -34,17 +34,12 @@ describe('saved views', () => {
 });
 
 describe('dashboards and charts', () => {
-  it('gives every new project an Overview dashboard with starter charts', async () => {
-    const { cookie, project } = await setup();
-    const list = await api(`/api/projects/${project.id}/dashboards`, { cookie });
-    expect(list.json.dashboards.map((d) => d.name)).toEqual(['Overview']);
-    const one = await api(`/api/dashboards/${list.json.dashboards[0].id}`, { cookie });
-    expect(one.json.charts.length).toBeGreaterThanOrEqual(4);
-  });
-
   it('brings back one Overview with its starter charts when the last dashboard is deleted', async () => {
     const { cookie, project } = await setup();
     const list = await api(`/api/projects/${project.id}/dashboards`, { cookie });
+    expect(list.json.dashboards.map((d) => d.name)).toEqual(['Overview']);
+    const starter = await api(`/api/dashboards/${list.json.dashboards[0].id}`, { cookie });
+    expect(starter.json.charts.length).toBeGreaterThanOrEqual(4);
     await api(`/api/dashboards/${list.json.dashboards[0].id}`, { method: 'DELETE', cookie });
     const [a, b] = await Promise.all([
       api(`/api/projects/${project.id}/dashboards`, { cookie }),
@@ -114,31 +109,5 @@ describe('dashboards and charts', () => {
     expect((await api(url, { cookie, body: { ...base, viz: 'radar' } })).status).toBe(400);
     expect((await api(url, { cookie, body: { ...base, measure: 'p95', field: 'level' } })).status).toBe(400);
     expect((await api(url, { cookie, body: { ...base, field: 'bad field' } })).status).toBe(400);
-  });
-
-  it('a pinned chart’s numbers match the query API', async () => {
-    const { cookie, project, token } = await setup();
-    const now = Date.now();
-    await ingest(token, [
-      { ts: now - 3000, level: 'error', message: 'payment failed', code: 'card_declined' },
-      { ts: now - 2000, level: 'error', message: 'payment failed', code: 'card_declined' },
-      { ts: now - 1000, level: 'error', message: 'payment failed', code: 'insufficient_funds' },
-      { ts: now - 500, level: 'info', message: 'ok' },
-    ]);
-    const where = [{ field: 'level', op: '=', value: 'error' }];
-    const range = { project_id: project.id, from: now - 60_000, to: now + 1000 };
-    const agg = await api('/api/aggregate', {
-      cookie,
-      body: { ...range, where, measure: 'count', field: 'fields.code' },
-    });
-    expect(agg.json.groups).toEqual([
-      { key: 'card_declined', value: 2 },
-      { key: 'insufficient_funds', value: 1 },
-    ]);
-    const q = await api('/api/query', { cookie, body: { ...range, where } });
-    expect(agg.json.value).toBe(q.json.events.length);
-    expect(agg.json.series_by_group.map((g) => g.key)).toEqual(['card_declined', 'insufficient_funds']);
-    const total = agg.json.series_by_group[0].series.reduce((n, p) => n + p.value, 0);
-    expect(total).toBe(2);
   });
 });

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { normalizeEvent, normalizeLevel } from '../../src/ingest/normalize.js';
 
 const NOW = Date.UTC(2026, 9, 30, 10, 0, 0);
-const source = { project_id: 'prj_a', name: 'api' };
+const source = { id: 'src_a', project_id: 'prj_a', name: 'api' };
 
 describe('normalizeLevel', () => {
   it('maps common spellings and numeric levels', () => {
@@ -19,8 +19,13 @@ describe('normalizeLevel', () => {
 
 describe('normalizeEvent', () => {
   it('stamps project and source from the token, never the body', () => {
-    const e = normalizeEvent({ message: 'hi', project_id: 'prj_evil', source: 'evil' }, source, NOW);
+    const e = normalizeEvent(
+      { message: 'hi', project_id: 'prj_evil', source: 'evil', source_id: 'src_evil' },
+      source,
+      NOW,
+    );
     expect(e.project_id).toBe('prj_a');
+    expect(e.source_id).toBe('src_a');
     expect(e.source).toBe('api');
     expect(JSON.parse(e.fields)).toEqual({});
   });

@@ -1,5 +1,5 @@
-// Turns a validated Filter into parameterised SQL for a storage dialect.
-// Values are never interpolated: they go through `b.param()`.
+// Turns a validated Filter into SQL for Basin. Values never go in raw: they go through `b.param()`,
+// which the dialect renders as an escaped literal (Basin SQL has no bound parameters).
 
 /**
  * @typedef {import('./filter.js').Filter} Filter
@@ -16,15 +16,13 @@
  *   like: (expr: string, pattern: string) => string,
  *   bucket: (b: Builder, interval: number) => string,
  *   percentile?: (numberExpr: string) => string,
- *   likeEscape?: string,  LIKE escape character (default backslash)
  * }} Dialect
- * @typedef {string | Dialect} DialectRef  a registered name (`d1`) or a dialect object
  */
 
 export class Builder {
-  /** @param {DialectRef} dialect */
+  /** @param {Dialect} dialect */
   constructor(dialect) {
-    this.d = typeof dialect === 'string' ? DIALECTS[dialect] : dialect;
+    this.d = dialect;
     /** @type {unknown[]} */
     this.params = [];
   }
@@ -35,37 +33,12 @@ export class Builder {
   }
 }
 
-/** SQLite / D1: values are bound as `?` parameters. @type {Dialect} */
-const D1 = {
-  table: 'logs',
-  fieldsColumn: 'fields_json',
-  param: (b, value) => {
-    b.params.push(value);
-    return '?';
-  },
-  path: (key) =>
-    `$.${key
-      .split('.')
-      .map((s) => `"${s}"`)
-      .join('.')}`,
-  fieldText: (p) => `CAST(json_extract(fields_json, ${p}) AS TEXT)`,
-  fieldNumber: (p) => `CAST(json_extract(fields_json, ${p}) AS REAL)`,
-  fieldExists: (p) => `json_type(fields_json, ${p}) IS NOT NULL`,
-  fieldIsNumber: (p) => `json_type(fields_json, ${p}) IN ('integer', 'real')`,
-  like: (expr, p) => `${expr} LIKE ${p} ESCAPE '\\'`,
-  bucket: (b, interval) => `CAST(ts / ${b.param(interval)} AS INTEGER) * ${b.param(interval)}`,
-};
-
-/** @type {Record<string, Dialect>} */
-const DIALECTS = { d1: D1 };
-
 /**
- * Escapes LIKE wildcards (and the escape character itself) with `esc`.
+ * Escapes LIKE wildcards (and backslash, Basin's only LIKE escape character).
  * @param {string} s
- * @param {string} esc  the dialect's LIKE escape character
  */
-function escapeLike(s, esc) {
-  return [...s].map((ch) => (ch === '%' || ch === '_' || ch === esc ? esc + ch : ch)).join('');
+function escapeLike(s) {
+  return [...s].map((ch) => (ch === '%' || ch === '_' || ch === '\\' ? `\\${ch}` : ch)).join('');
 }
 
 /** Booleans compare as SQLite/JSON text would render them. @param {unknown} v */
@@ -91,7 +64,7 @@ function textExpr(b, field) {
  */
 function clauseSql(b, c) {
   if ('text' in c) {
-    const pattern = `%${escapeLike(c.text, b.d.likeEscape ?? '\\')}%`;
+    const pattern = `%${escapeLike(c.text)}%`;
     return `(${b.d.like('message', b.param(pattern))} OR ${b.d.like(b.d.fieldsColumn, b.param(pattern))})`;
   }
   const isField = c.field.startsWith('fields.');
@@ -99,10 +72,7 @@ function clauseSql(b, c) {
     case 'exists':
       return isField ? b.d.fieldExists(b.param(b.d.path(c.field.slice(7)))) : 'TRUE';
     case 'contains':
-      return b.d.like(
-        textExpr(b, c.field),
-        b.param(`%${escapeLike(asText(c.value), b.d.likeEscape ?? '\\')}%`),
-      );
+      return b.d.like(textExpr(b, c.field), b.param(`%${escapeLike(asText(c.value))}%`));
     case 'in':
     case 'not_in': {
       const expr = textExpr(b, c.field);
@@ -139,7 +109,7 @@ function whereSql(b, f) {
 
 /**
  * @param {Filter} f
- * @param {DialectRef} dialect
+ * @param {Dialect} dialect
  */
 export function buildEventsSql(f, dialect) {
   const b = new Builder(dialect);
@@ -148,7 +118,7 @@ export function buildEventsSql(f, dialect) {
     where += ` AND (ts < ${b.param(f.cursor.ts)} OR (ts = ${b.param(f.cursor.ts)} AND id < ${b.param(f.cursor.id)}))`;
   }
   const sql =
-    `SELECT id, ts, source, level, message, ${b.d.fieldsColumn} AS fields FROM ${b.d.table} ` +
+    `SELECT id, ts, source_id, source, level, message, ${b.d.fieldsColumn} AS fields FROM ${b.d.table} ` +
     `WHERE ${where} ORDER BY ts DESC, id DESC LIMIT ${b.param(f.limit + 1)}`;
   return { sql, params: b.params };
 }
@@ -156,7 +126,7 @@ export function buildEventsSql(f, dialect) {
 /**
  * @param {Filter} f
  * @param {number} interval
- * @param {DialectRef} dialect
+ * @param {Dialect} dialect
  */
 export function buildHistogramSql(f, interval, dialect) {
   const b = new Builder(dialect);
@@ -170,12 +140,12 @@ export function buildHistogramSql(f, interval, dialect) {
  * (given the top group keys) one series per group. avg / p95 use nearest-rank on numeric `field`.
  * @param {Filter} f
  * @param {{ measure: 'count' | 'count_over_time' | 'avg' | 'p95', field?: string, group_by?: string, interval: number }} spec
- * @param {DialectRef} dialect
+ * @param {Dialect} dialect
  */
 export function buildAggregateSql(f, spec, dialect) {
   const d = new Builder(dialect).d;
   const counting = spec.measure === 'count' || spec.measure === 'count_over_time';
-  const groupField = counting ? spec.field : (spec.group_by ?? 'source');
+  const groupField = counting ? spec.field : (spec.group_by ?? 'source_id');
 
   /**
    * @param {{ group?: boolean, bucket?: boolean, onlyKeys?: string[] }} shape
@@ -232,7 +202,7 @@ export function buildAggregateSql(f, spec, dialect) {
  * @param {number} from
  * @param {number} to
  * @param {number} interval
- * @param {DialectRef} dialect
+ * @param {Dialect} dialect
  */
 export function buildOverviewSql(projectIds, from, to, interval, dialect) {
   const b = new Builder(dialect);
