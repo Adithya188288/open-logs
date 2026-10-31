@@ -16,3 +16,7 @@ CLAUDE.md
 DESIGN.md
 PRODUCT.md
 .impeccable/
+# Playwright: report, run state (holds a session and source tokens), traces
+tests/report/
+tests/.state/
+test-results/

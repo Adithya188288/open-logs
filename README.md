@@ -183,22 +183,24 @@ D1 holds only app data, so it stays small.
 
 Open Logs only runs on Cloudflare, so there is no local server. `npm run dev` only prints a reminder.
 
-Branches:
+Branches: `main` is released code (tagged `vX.Y.Z`), `develop` is where finished work is merged. Work happens
+on branches off `develop`: `feature/`, `bugfix/`, `test/`, `chore/`, `docs/`.
 
-- `main` is released code. Each release is tagged `vX.Y.Z`.
-- `develop` is where finished work is merged.
-- Work happens on `feature/*` branches from `develop`. Each branch is deployed to a test install with
-  `npm run deploy` and tried there against real Basin, then merged into `develop`.
-
-A test install is an ordinary install. Create one once, e.g. `npm run setup open-logs-staging`.
+Every working branch gets its own install, named after it (`feature/integrations` →
+`open-logs-feature-integrations`), so branches never share data. Copy `.dev.vars.example` to `.dev.vars` first.
 
 ```bash
-npm run deploy open-logs-staging   # put the code you have checked out (any branch) on that install
-npm run reset open-logs-staging    # wipe that install's app data (asks you to type the name), then deploy
+npm run deploy     # put the code you have checked out on this branch's install (created the first time)
+npm run verify     # Playwright against that install: sends logs, checks the screens, then checks Basin
+npm run destroy    # remove this branch's install
 npm run lint
 ```
 
-There are no automated tests or CI yet; they will be added later. Changes are checked on staging.
+`npm run verify` sends logs first, runs everything that needs no log data while Basin catches up (about
+2 minutes), then checks search, live tail and the dashboard against the real logs. The report, with a video of
+each test, is in `tests/report/` (`npx playwright show-report tests/report`).
+
+`npm run deploy <name>` and `npm run reset <name>` work on any named install (reset wipes its app data first).
 
 Worker: Hono on Cloudflare Workers (`src/`). UI: React + Vite (`app/`), built to `dist/` and served by the Worker.
 Plain JavaScript with JSDoc.
