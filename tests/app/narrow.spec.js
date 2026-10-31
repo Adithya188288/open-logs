@@ -10,7 +10,7 @@ test('in a narrow window the page shows right away and the menu opens as a drawe
 
   await page.getByRole('button', { name: 'Open menu' }).click();
   await expect(nav).toBeInViewport();
-  await nav.getByRole('link', { name: 'Team' }).click();
+  await nav.getByRole('link', { name: 'Team', exact: true }).click();
   await expect(page).toHaveURL(/\/team/);
   await expect(nav).toBeHidden();
   await expect(page.getByRole('heading', { name: 'Team', exact: true })).toBeInViewport();
