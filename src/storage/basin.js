@@ -23,6 +23,9 @@ const NEWEST_LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
 // attempt gets a time limit, and a stuck one is tried once more before the request fails.
 const ATTEMPT_TIMEOUT_MS = 15_000;
 const ATTEMPTS = 2;
+// Basin creates the table when the sink writes its first file, about a minute after a new install's first log.
+// Until then every query answers 404 with this code ("iceberg table not found"): that just means no logs yet.
+const TABLE_NOT_FOUND = 40010;
 
 /**
  * Renders a value as a SQL literal. Strings are single-quoted with quotes doubled; NUL is removed;
@@ -111,6 +114,7 @@ export class BasinStorage {
           signal: AbortSignal.timeout(ATTEMPT_TIMEOUT_MS),
         });
         const body = await res.json().catch(() => ({}));
+        if (body?.errors?.some((/** @type {any} */ e) => e.code === TABLE_NOT_FOUND)) return [];
         if (!res.ok || body?.success === false) {
           const message =
             body?.errors?.map((/** @type {any} */ e) => e.message).join('; ') ||
