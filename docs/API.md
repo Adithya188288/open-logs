@@ -22,14 +22,16 @@ One Worker serves everything:
 
 | Status | Codes |
 |---|---|
-| 400 | `invalid_json`, `invalid_body`, `invalid_field`, `invalid_filter`, `invalid_event`, `empty_batch` |
+| 400 | `invalid_json`, `invalid_body`, `invalid_field`, `invalid_filter`, `invalid_event`, `empty_batch`, `cannot_remove_self`, `wrong_password` |
 | 401 | `unauthorized`, `invalid_credentials`, `invalid_token` |
-| 403 | `forbidden`, `bad_origin`, `cannot_remove_self` |
+| 403 | `forbidden`, `bad_origin` |
 | 404 | `not_found` |
+| 405 | `method_not_allowed` (ingest only accepts `POST` and `OPTIONS`) |
 | 409 | `conflict`, `already_member` |
 | 413 | `payload_too_large`, `event_too_large`, `too_many_events` |
 | 422 | `query_too_large` (includes a `hint`) |
 | 429 | `rate_limited` |
+| 500 | `internal` |
 
 ---
 
@@ -55,7 +57,7 @@ How each event is read:
 | `ts` | `ts`, `timestamp`, `dt` | ms, seconds or ISO 8601. Outside ±24h of server time → server time. |
 | `level` | `level`, `severity` | Normalised to `debug\|info\|warn\|error\|fatal`. Pino numbers (10–60) work. Unknown → `info`. |
 | `message` | `message`, `msg` | Non-strings are JSON-encoded. |
-| `project_id`, `source` | the token | Always set by the server. Body keys with these names are dropped. |
+| `project_id`, `source_id`, `source` | the token | Always set by the server. Body keys with these names are dropped. `source_id` is the source's permanent id; `source` is its name at ingest. |
 | `fields` | every other key | Kept as JSON; filterable and chartable as `fields.<key>` (nested: `fields.http.status`). |
 
 Limits: 5 MB per request, 10,000 events per request, 256 KB per event, 1,200 requests per minute per
@@ -64,8 +66,20 @@ token (batch your events). CORS is open (`*`) because auth is the bearer token, 
 Errors: `401 invalid_token`, `400 invalid_json|empty_batch|invalid_event` (with `index`),
 `413 payload_too_large|too_many_events|event_too_large` (with `index`), `429 rate_limited`.
 
+Accepted events are written to the Basin Pipelines stream. They become searchable about 1 to 3 minutes later.
+
 Requests made with a regenerated (old) token are counted on that source
 (`rejected_count`, `last_rejected_at`) so the dashboard can show an ingestion problem.
+
+---
+
+## Health and config
+
+### `GET /api/health` (public)
+`200 { "ok": true }`. Used by `npm run update` when the log check is skipped.
+
+### `GET /api/config` (public)
+`200 { "team_name": "Acme" }`: used by the sign-in page.
 
 ---
 
@@ -87,8 +101,17 @@ Deletes the session. `200 { "ok": true }` and clears the cookie.
 
 `User = { id, email, name, role, created_at, last_active_at }`
 
-### `GET /api/config` (public)
-`200 { "team_name": "Acme" }`: used by the sign-in page.
+### `POST /api/me/password`
+`{ "current_password": "…", "new_password": "8 to 256 chars" }` → `200 { "ok": true }`.
+Wrong current password → `400 wrong_password`. Signs out your other sessions; this one stays signed in.
+Rate limited to 10 attempts per minute per user.
+
+### `GET /api/settings`
+`200 { "settings": { "team_name": "Acme" } }`
+
+### `PATCH /api/settings` (admin)
+`{ "team_name": "Acme" }` (1–60 chars) → `200 { "settings": { "team_name": "Acme" } }`.
+Stored in D1; until set, the team name comes from the `TEAM_NAME` Worker var.
 
 ### `GET /api/users`
 `200 { "users": User[], "invites": [{ id, email, role, created_at, expires_at }] }` (pending invites only).
@@ -134,8 +157,8 @@ Names: 1–64 chars, letters, digits, space, `_ . -`, unique (case-insensitive) 
 `{ "name": "new-name" }` → `200 { "project": Project }`
 
 ### `DELETE /api/projects/:id` (admin)
-Deletes the project, its sources, views and dashboards. With `LOG_STORAGE=local` its logs are deleted
-too. With Basin, already-written log files stay in R2 (Basin SQL is read-only).
+Deletes the project, its sources, views and dashboards. Its log files stay in R2: Basin SQL is read-only,
+so Open Logs cannot delete them.
 
 ### `GET /api/projects/:id/sources`
 `200 { "sources": Source[] }`
@@ -148,10 +171,18 @@ The token itself and its hash are never returned after creation.
 `{ "name": "api" }` → `201 { "source": Source, "token": "ol_…" }`. **The token is shown once.**
 Names: 1–64 chars, letters, digits, `_ . -`, unique within the project.
 
+### `GET /api/sources/:id`
+`200 { "source": Source, "project": Project }`
+
+### `PATCH /api/sources/:id`
+`{ "name": "api-v2" }` → `200 { "source": Source }`. Same name rules as creating; a clash → `409 conflict`.
+Logs are linked to the source by its id, so its history keeps showing under the new name.
+
 ### `POST /api/sources/:id/regenerate`
 `200 { "source": Source, "token": "ol_…" }`. The old token stops working immediately.
 
 ### `DELETE /api/sources/:id` (admin)
+`200 { "ok": true }`. The source's logs stay in Basin. A new source with the same name does not show them.
 
 ---
 
@@ -175,11 +206,13 @@ All query endpoints take the same **filter** body. Clients never send SQL.
 ```
 
 - `from`/`to` are required, `from < to`, at most 7 days apart.
-- `field`: `level`, `source`, `message` or `fields.<key>` where key matches `^[a-zA-Z0-9_]+(\.[a-zA-Z0-9_]+)*$`
+- `field`: `level`, `source` (by name), `message` or `fields.<key>` where key matches `^[a-zA-Z0-9_]+(\.[a-zA-Z0-9_]+)*$`
   (≤64 chars; dots walk into nested objects).
 - `op`: `=`, `!=`, `in`, `not_in` (1–50 values), `contains`, `exists` (no value),
   `>`, `>=`, `<`, `<=` (numbers, `fields.*` only).
   `=`/`in` compare as text, so `500` matches both `500` and `"500"`. Booleans compare as `1`/`0`.
+- `source` clauses match the source's **current** name. The server turns names into source ids before
+  querying, so a renamed source keeps its history and an unknown name matches nothing.
 - `{ "text": "…" }` is a case-insensitive substring search over the message and fields (1–200 chars).
 - Up to 20 clauses, all ANDed. `limit` defaults to 100, capped at 500.
 - A text search over more than 24h with no `=`/`in` field clause returns `422 query_too_large` with a `hint`.
@@ -187,10 +220,12 @@ All query endpoints take the same **filter** body. Clients never send SQL.
 
 ### `POST /api/query`
 ```json
-{ "events": [{ "id": "…", "ts": 0, "source": "api", "level": "error", "message": "…", "fields": {} }],
+{ "events": [{ "id": "…", "ts": 0, "source_id": "src_…", "source": "api", "level": "error",
+               "message": "…", "fields": {} }],
   "next_cursor": "…" | null }
 ```
-Newest first. Pass `next_cursor` back as `cursor` for the next (older) page.
+`source_id` is the source's permanent id. `source` is its name today, or the name it had when the event
+arrived if the source has since been deleted. Newest first. Pass `next_cursor` back as `cursor` for the next (older) page.
 
 ### `POST /api/histogram`
 ```json
@@ -215,10 +250,13 @@ Filter plus:
   "series": [{ "t": 0, "value": 12 }] }
 ```
 `value` is the overall number, `groups` the top 10 groups (largest first), `series` ~30 points over time
-(counts zero-filled; averages skip empty buckets). p95 is nearest-rank.
+(counts zero-filled; averages skip empty buckets). p95 is approximate (Basin's `approx_percentile_cont`).
+When grouped by `source`, groups are keyed by source id internally and returned with today's names;
+logs from a deleted source are labelled `deleted source`.
 
 ### `GET /api/status?project_id=…`
-`200 { "storage": "local" | "basin", "lag_ms": 0, "now": 0, "newest_event_at": 0 | null }`.
+`200 { "storage": "basin", "lag_ms": 180000, "now": 0, "newest_event_at": 0 | null }`.
+`project_id` is optional; without it `newest_event_at` is `null`.
 The UI uses this for honest freshness ("Data through 10:42:18 UTC · ~1–3 min ingest lag").
 
 ---

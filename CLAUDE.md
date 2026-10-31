@@ -35,30 +35,44 @@ Inside the repo, on a feature branch, you may write code, run tests, and commit 
 - `main` = production. Only release merges from `develop` land here, tagged `vX.Y.Z`.
 - `develop` = integration. **Never commit directly to `develop` or `main`.**
 - Every unit of work: `git switch develop && git pull` → `git switch -c feature/<short-name>` →
-  tests first → implement → all tests green → security review → PR into `develop` → merge → delete branch.
+  tests first → implement → all tests green → `npm run deploy:staging` and test on staging against real Basin →
+  security review → PR into `develop` → merge → delete branch.
 - Fixes: `fix/<short-name>`. Docs only: `docs/<short-name>`. Same flow.
 - Small commits, Conventional Commits style: `feat(ingest): accept batched events`, `test(auth): …`, `fix(ui): …`.
 - One feature branch = one coherent, tested thing. Verify it works before starting the next.
-- CI (GitHub Actions) runs lint + unit + e2e on every PR. Never merge red.
+- CI (GitHub Actions) runs lint + unit tests on every PR. Never merge red.
+- Staging (`open-logs-staging`) is an ordinary install kept in `.open-logs/`. `npm run deploy:staging` deploys
+  the current branch to it. `npm run staging:reset` (only from `develop`) wipes its D1 and redeploys `develop`.
 
 ### Test-driven
 - Write the failing test first, then the code, then refactor.
-- Backend: Vitest with `@cloudflare/vitest-pool-workers` (runs inside the real Workers runtime, with a local D1).
-- UI: Playwright against `wrangler dev`, covering every user flow in `docs/PLAN.md`.
+- `npm test`: Vitest with `@cloudflare/vitest-plugin` (the renamed `vitest-pool-workers`), inside the Workers
+  runtime with a local D1. It covers app-data features (auth, projects, sources, settings, dashboards CRUD),
+  filter and SQL building for Basin, and normalising. Logs have no local storage, so it cannot run real searches.
+- `npm run test:e2e`: Playwright against the staging install with real Basin, covering every user flow in
+  `docs/PLAN.md`. It sends logs, waits about 3 minutes, then checks search, live tail and dashboards.
+  (The suite is being moved from `wrangler dev` to staging on `feature/basin-only`.)
 - Functionality before polish: a screen must work end to end with the real API before visual refinement.
 - A phase is only done when every box in its checklist is ticked and CI is green.
 
 ### Agents
-This repo defines four subagents in `.claude/agents/`. You (the main session) are the **lead**:
-you own the plan, git, branches, merges, and the API contract. Delegate:
-- `backend`: Worker, API, D1, auth, storage adapters, Basin.
-- `ui-builder`: the dashboard app (React + Vite in `app/`, built to `dist/` and served by the Worker).
-- `landing-page`: the public landing page, README, install docs.
-- `security-reviewer`: reviews every feature branch diff before merge. **A critical finding blocks the merge.**
+You (the main session) are the **lead**: you own the plan, git, branches, merges, and the API contract.
+Work is delegated to subagents, each with a narrow, explicit brief (branch name, files it owns, tests that
+must pass).
 
-Order of work: backend defines/updates `docs/API.md` first → ui-builder builds against it.
-Landing page can run in parallel any time. Security review runs at the end of every feature branch.
-Give each agent a narrow, explicit brief (branch name, files it owns, tests that must pass).
+Order of work: the backend change updates `docs/API.md` first → the UI builds against it.
+A security review runs at the end of every feature branch. **A critical finding blocks the merge.**
+
+### Release rules
+- Before the first release, migrations may be edited.
+- After the first release, `migrations/0001_init.sql` is frozen. Every schema change is a new migration that
+  only adds: new tables, new nullable or defaulted columns. Never remove or rename a table or column in the
+  same release that stops using it, because the previous Worker version must keep working for rollback.
+- Basin table columns (`basin/stream-schema.json`) are fixed once users have installed it. New log data goes
+  into the `fields` JSON.
+- Every release is tested as an update from the previous release: `npm run setup` from the old tag on a
+  throwaway install → `npm run update` → check. Every release gets release notes.
+- Standing rule, every change: prune obsolete or duplicate tests in the same change.
 
 ### Code style
 - Plain JavaScript (ES modules, JSX in the UI) with JSDoc types. No TypeScript.
@@ -69,7 +83,7 @@ Give each agent a narrow, explicit brief (branch name, files it owns, tests that
   refresh exactly what they affect. Loading = a small pulsing green dot (`<Loader/>`), first load only.
   (Owner decision 2026-10-30: moved from vanilla multi-page HTML to React + Hono for instant navigation.)
 - Clear names over clever code. No dead code, no commented-out blocks.
-- Never log secrets or full tokens. Never commit `.dev.vars` or real credentials.
+- Never log secrets or full tokens. Never commit `.dev.vars`, `.open-logs/` or real credentials.
 
 ### Honesty
 - If something can't be done or verified (e.g. a Basin feature that doesn't run locally), say so
@@ -86,10 +100,13 @@ Give each agent a narrow, explicit brief (branch name, files it owns, tests that
 | Project name | Open Logs (`open-logs`) |
 | Local path | `~/Documents/Personal/projects/open-logs` |
 | Runtime | Cloudflare Workers + static assets |
-| App DB | D1 (users, sessions, projects, sources, tokens, views, charts) |
-| Log storage, local | D1 `logs` table (via `LocalStorage` adapter) |
-| Log storage, prod | Basin Pipelines → Iceberg table in R2 → Basin SQL (via `BasinStorage` adapter) |
+| App DB | D1, app data only (users, sessions, invites, projects, sources, views, dashboards, charts, settings) |
+| Log storage | Basin only: Pipelines stream → Iceberg table in R2 (Basin Catalog) → Basin SQL (`BasinStorage`). No local logs. |
+| Plan | Workers Paid ($5/month), needed for Basin |
 | Ingest | `POST /v1/logs` with `Authorization: Bearer <source token>` |
 | Admin bootstrap | `ADMIN_PASSWORD` secret (first sign-in) |
-| Install target | `npx create-open-logs` + "Deploy to Cloudflare" button |
+| Install | `git clone` + `npm run setup` (writes `.open-logs/<name>.jsonc` and `.json`, gitignored) |
+| Maintain | `npm run update`, `npm run rollback`, `npm run uninstall` |
+| Staging | `open-logs-staging` install; `npm run deploy:staging`, `npm run staging:reset` |
+| Local run | None. `npm run dev` only prints that Open Logs runs on Cloudflare. |
 | Design reference | `docs/design/` and the canvas link in `docs/design/README.md` |

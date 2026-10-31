@@ -2,7 +2,8 @@
 
 Each phase is one or more feature branches off `develop` (see Git Flow in `CLAUDE.md`).
 Tick boxes as they're done. A phase is done only when every box is ticked and CI is green.
-Phases 0–4 run fully locally and cost nothing. Phase 5 needs the owner's Cloudflare Workers Paid plan.
+Phases 0–4 were first built to run locally. Since 2026-10-31 logs live only in Basin (see Progress notes),
+so running Open Logs needs the owner's Cloudflare account on the Workers Paid plan. Only `npm test` runs locally.
 
 ---
 
@@ -21,6 +22,8 @@ Phases 0–4 run fully locally and cost nothing. Phase 5 needs the owner's Cloud
 - [x] `README.md` stub, `LICENSE` (MIT), `docs/API.md` stub
 
 **Done means:** `npm test` and `npm run test:e2e` pass locally and in CI; `npm run dev` serves a hello page.
+(Since 2026-10-31 there is no local server: `npm run dev` only prints that Open Logs runs on Cloudflare,
+and `npm run test:e2e` is being moved to the staging install.)
 
 ## Phase 1: Backend core
 **Agent:** backend. Branches: `feature/db-schema`, `feature/auth`, `feature/projects-sources`, `feature/ingest`, `feature/query-api`.
@@ -44,6 +47,9 @@ bad token → 401; oversized batch → 413; no session → 401 on app routes.
 ## Phase 2: Storage adapter (local first)
 **Agent:** backend. Branch: `feature/storage-adapter`.
 
+**Superseded 2026-10-31** (`feature/basin-only`): `LocalStorage`, the D1 `logs` table and the `LOG_STORAGE`
+switch are removed. `BasinStorage` is the only adapter. The boxes below record what was built then.
+
 - [x] `LogStorage` interface: `write(events)`, `query(filter)`, `histogram(filter)`
 - [x] `LocalStorage`: D1 `logs` table, JSON fields via `json_extract`, indexes on (project_id, ts)
 - [x] Adapter chosen by env var `LOG_STORAGE=local|basin`
@@ -66,6 +72,7 @@ Match `docs/design/` (layout, tokens, type scale 11/12/13/15/24, radii 6/10, lig
 - [x] Theme toggle remembered across pages
 
 **Done means:** Playwright covers every bullet above against real `wrangler dev`, in both themes.
+(Being moved: the e2e suite will run against the staging install with real Basin.)
 
 ## Phase 4: Charts and dashboards
 **Agents:** backend (API) then ui-builder. Branch: `feature/charts`.
@@ -87,13 +94,14 @@ Match `docs/design/` (layout, tokens, type scale 11/12/13/15/24, radii 6/10, lig
       (unit-tested with a mocked SQL API; **not yet run against real Basin**)
 - [x] Event schema for the stream matches `docs/ARCHITECTURE.md`; roll interval 60s (`basin/stream-schema.json`, plus an `id` column)
 - [x] `scripts/setup-basin.js`: creates bucket, catalog, stream, sink, pipeline via wrangler (idempotent)
-      (written, **not run**: needs the owner's go-ahead and Workers Paid)
+      (2026-10-31: replaced by `scripts/setup.js`, which creates Basin and D1 and deploys in one go)
 - [x] Deploy to a **staging** Worker on the owner's account; shared query test suite passes against Basin
       (2026-10-30: `open-logs-staging` on workers.dev. 10 events sent → in `open_logs.events` in under 2 min.
       The app's own queries all pass on real Basin: filters, nested JSON, number compares, free-text search,
       LIKE escaping, injection probe, histogram, p95, grouped series, freshness. Live tail, search and the
       Overview dashboard show correct numbers in the UI.)
 - [ ] UI shows ingest lag honestly; document every Basin limitation found in `docs/PLAN.md` and README
+      (README and Known constraints updated 2026-10-31; the UI freshness text still to re-check on staging)
 
 **Done means:** a real event sent to staging shows up in live tail via Basin SQL (~60s), and charts work on Basin.
 
@@ -113,9 +121,12 @@ Match `docs/design/` (layout, tokens, type scale 11/12/13/15/24, radii 6/10, lig
 
 - [ ] Landing page (static, served at `/` when signed out or as a separate Pages site; decide with owner)
       (built in `site/` as a standalone Pages site; serving it at `/` is still the owner's call)
-- [ ] `npx create-open-logs`: clone → `wrangler login` → create D1 + Basin resources → set `ADMIN_PASSWORD` → deploy
-      (written: `create-open-logs/` + `scripts/install.js`; not run against a real account or published to npm)
-- [ ] "Deploy to Cloudflare" button in README; document clearly if it can't provision Basin
+- [ ] ~~`npx create-open-logs`~~ → `git clone` + `npm run setup`: `wrangler login` → create Basin + D1 →
+      deploy → set `ADMIN_PASSWORD` and `BASIN_SQL_TOKEN` → test log reaches Basin
+      (2026-10-31: `create-open-logs/` and `scripts/install.js` removed; `scripts/setup.js` replaces them)
+- [ ] `npm run update`, `npm run rollback`, `npm run uninstall` (written 2026-10-31, `scripts/`)
+- [x] ~~"Deploy to Cloudflare" button in README~~ dropped 2026-10-31: it cannot create Basin resources,
+      and Open Logs no longer works without them
 - [x] README: what it is, screenshots, install in one command, sending logs (curl, JS, Python, Go), limits, costs
 - [x] SDK snippets work as shown (tested: e2e runs JS, Python, curl; Go on CI)
 
@@ -132,13 +143,35 @@ Match `docs/design/` (layout, tokens, type scale 11/12/13/15/24, radii 6/10, lig
 
 ## Progress notes
 - 2026-10-30: Phases 0–4 built locally on feature branches merged into a local `develop`
-  (79 Worker tests, 41 Playwright tests in light + dark, all green). Not done yet: creating the GitHub
+  (all tests green at the time; the suites are being restructured on `feature/basin-only`, so the counts
+  from that day no longer apply). Not done yet: creating the GitHub
   repo, pushing, branch protection and the first CI run. Those wait for the owner's go-ahead.
 - Rate limiting uses the Workers Rate Limiting binding (`LOGIN_LIMITER`, `INGEST_LIMITER`): no extra
   dependency, works in `wrangler dev` and tests. Its counters are per Cloudflare location, so limits are
   approximate, not global.
 - Owner can remove teammates (`DELETE /api/users/:id`). Not in the original plan; added because without
   it there is no way to revoke access.
+- 2026-10-31, `feature/basin-only`:
+  - **Logs live only in Basin.** D1 holds only app data. Removed: `src/storage/local.js`, the D1 `logs` table,
+    the `LOG_STORAGE` switch, `env.staging` in `wrangler.jsonc`. There is no local run: `npm run dev` only
+    prints that Open Logs runs on Cloudflare. Workers Paid is required.
+  - **`source_id` on every log** (new column in `basin/stream-schema.json`). Filters and charts use the id;
+    the API shows today's name (`src/query/sources.js`). Renaming a source keeps its history; a new source
+    reusing a deleted source's name never shows the old logs. Sources can be renamed (`PATCH /api/sources/:id`).
+  - **Install**: `git clone` + `npm run setup` (`scripts/setup.js`). One Cloudflare API token (R2 Admin
+    Read & Write) for the sink and `BASIN_SQL_TOKEN`. Each install's config and resource ids go in
+    `.open-logs/` (gitignored); `wrangler.jsonc` is now a template with no account ids.
+    `create-open-logs/`, `scripts/install.js`, `scripts/setup-basin.js` and the Deploy button are gone.
+  - **Maintain**: `npm run update` (newest release tag, new migrations only, deploy, log check),
+    `npm run rollback` (previous Worker version; D1 Time Travel explained), `npm run uninstall`
+    (removes everything, including the bucket's files; the API token is deleted by hand).
+  - **Staging**: `open-logs-staging` is an ordinary install. `npm run deploy:staging` deploys the current
+    branch; `npm run staging:reset` (from `develop` only) wipes its D1 and redeploys `develop`.
+  - **Tests**: `npm test` covers app data and Basin SQL building. The e2e suite is being moved to staging
+    (real Basin, ~3 min wait per run). Test counts are not recorded while the suites are being restructured.
+  - Release rules added to `CLAUDE.md` (additive migrations after the first release, fixed Basin columns,
+    every release tested as an update from the previous one).
+  - Still to verify on a throwaway install: setup, update, rollback and uninstall each end to end.
 
 ## Known constraints (keep updated)
 - Remaining low findings from the security pass (accepted for v1): a known token prefix lets someone inflate a
@@ -147,7 +180,8 @@ Match `docs/design/` (layout, tokens, type scale 11/12/13/15/24, radii 6/10, lig
 - Basin Pipelines needs the Workers Paid plan ($5/month minimum).
 - Iceberg sink roll interval minimum is 60s, so prod data is ~60s+ behind. The live tail is "near real time".
 - Basin SQL is read-only and can time out on heavy queries: always time-bound, select columns, use LIMIT.
-- Whether Basin runs inside `wrangler dev` is unconfirmed; local dev uses `LocalStorage` regardless.
+- Basin has no local version, so Open Logs has no local run. `npm test` covers app data and SQL building
+  only; real searches are tested on staging.
 - **Basin SQL has no bound parameters** (the HTTP API takes one `query` string). The Basin dialect inlines
   values as SQL literals (`'…'` with quotes doubled, NUL stripped, numbers must be finite). Values only ever
   come from a validated filter; table names are checked against `^[a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*$`.
@@ -160,12 +194,15 @@ Match `docs/design/` (layout, tokens, type scale 11/12/13/15/24, radii 6/10, lig
   - Sink type in the CLI is `r2-data-catalog` (docs say `basin-catalog`); `--catalog-token` is required and
     needs R2 **Admin** Read & Write. Sinks and new pipelines cannot be edited, only deleted and recreated.
   - An R2 Admin Read & Write token can also run Basin SQL queries.
+- Freshness: on staging, events became searchable 1.5–3.5 minutes after ingest. The status endpoint
+  reports a 3-minute lag.
 - Latency: Basin queries take ~1–2 s each, so the first live tail load takes a few seconds. A dashboard load
   runs ~25 queries (each billed at the 10 MB minimum, ~250 MB per load).
-- p95 on Basin uses `approx_percentile_cont` (T-Digest), so it can differ slightly from the exact
-  nearest-rank p95 used locally.
+- p95 on Basin uses `approx_percentile_cont` (T-Digest), so it is approximate.
 - Free-text search on Basin uses `lower(x) LIKE lower('%…%')` (no ILIKE). Window functions and
   PERCENTILE_CONT are budget-gated; queries that would scan too much return 400 → shown as "query too large".
 - Deleting a project does not delete its Basin data (Basin SQL is read-only); files stay in R2.
+  `npm run uninstall` deletes every file in the bucket through the Cloudflare API.
+- Scripts cannot delete Cloudflare API tokens. Uninstall tells the user to delete the token by hand.
 - Ingest on Basin: invalid events on a structured stream are dropped, not rejected, so the Worker validates
   and normalises every event before `send()`.

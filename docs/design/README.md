@@ -6,7 +6,8 @@ https://claude.ai/artifact/5k5HBmtsD2SqpXxZJCf4Pu
 The `screens/*.dc.html` files here are the exact source of those six screens, kept as reference.
 They use a design-tool format (`<x-dc>` markup, `{{holes}}` filled by a `renderVals()` script, `<sc-for>`/`<sc-if>`)
 and **won't render on their own in a browser**. Read them for structure, tokens, copy, and behaviour.
-Build the real app in plain HTML/CSS/JS. Don't copy the design-tool format.
+The real app is a React + Vite single-page app in `app/` (plain CSS with these tokens, no UI kit), built to
+`dist/` and served by the Worker. Don't copy the design-tool format.
 
 | Screen | File | Key behaviour |
 |---|---|---|
