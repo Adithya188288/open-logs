@@ -41,7 +41,7 @@ Inside the repo, on a feature branch, you may write code, run tests, and commit 
 - Small commits, Conventional Commits style: `feat(ingest): accept batched events`, `test(auth): …`, `fix(ui): …`.
 - One feature branch = one coherent, tested thing. Verify it works before starting the next.
 - CI (GitHub Actions) runs lint + unit tests on every PR. Never merge red.
-- Staging (`open-logs-staging`) is an ordinary install kept in `.open-logs/`. `npm run deploy:staging` deploys
+- Staging is an ordinary install kept in `.open-logs/`. `npm run deploy:staging -- --name <staging install>` deploys
   the current branch to it. `npm run staging:reset` (only from `develop`) wipes its D1 and redeploys `develop`.
 
 ### Test-driven
@@ -106,7 +106,7 @@ A security review runs at the end of every feature branch. **A critical finding 
 | Ingest | `POST /v1/logs` with `Authorization: Bearer <source token>` |
 | Admin bootstrap | `ADMIN_PASSWORD` secret (first sign-in) |
 | Install | `git clone` + `npm run setup` (writes `.open-logs/<name>.jsonc` and `.json`, gitignored) |
-| Maintain | `npm run update`, `npm run rollback`, `npm run uninstall` |
-| Staging | `open-logs-staging` install; `npm run deploy:staging`, `npm run staging:reset` |
+| Maintain | `npm run update`, `npm run rollback`, `npm run uninstall` (each asks the install name, or `-- --name`; Enter = `open-logs`) |
+| Staging | an ordinary install, picked by name; `npm run deploy:staging`, `npm run staging:reset` |
 | Local run | None. `npm run dev` only prints that Open Logs runs on Cloudflare. |
 | Design reference | `docs/design/` and the canvas link in `docs/design/README.md` |

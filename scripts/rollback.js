@@ -3,7 +3,7 @@
 // The database is not rolled back: releases only add to it, so the older Worker still works with it.
 import { loadState, step, wrangler } from './lib.js';
 
-const state = loadState();
+const state = await loadState();
 process.env.CLOUDFLARE_ACCOUNT_ID = state.accountId;
 
 step(`Rolling back "${state.name}" to its previous version`);

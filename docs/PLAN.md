@@ -165,7 +165,7 @@ Match `docs/design/` (layout, tokens, type scale 11/12/13/15/24, radii 6/10, lig
   - **Maintain**: `npm run update` (newest release tag, new migrations only, deploy, log check),
     `npm run rollback` (previous Worker version; D1 Time Travel explained), `npm run uninstall`
     (removes everything, including the bucket's files; the API token is deleted by hand).
-  - **Staging**: `open-logs-staging` is an ordinary install. `npm run deploy:staging` deploys the current
+  - **Staging**: an ordinary install, picked by name like every command. `npm run deploy:staging` deploys the current
     branch; `npm run staging:reset` (from `develop` only) wipes its D1 and redeploys `develop`.
   - **Tests**: `npm test` covers app data and Basin SQL building. The e2e suite is being moved to staging
     (real Basin, ~3 min wait per run). Test counts are not recorded while the suites are being restructured.

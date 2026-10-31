@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Our own test install, "open-logs-staging" (a normal install, kept in .open-logs/ like any other).
+// Our own test install (a normal install, kept in .open-logs/ like any other), picked with --name.
 //   npm run deploy:staging   deploys the current branch there: new D1 migrations, build, deploy.
 //   npm run staging:reset    wipes its D1 and redeploys `develop`, for when a branch's migration broke it.
 // Logs in Basin are left alone by both.
@@ -14,8 +14,7 @@ import {
   writeConfig,
 } from './lib.js';
 
-if (!process.argv.includes('--name')) process.argv.push('--name', 'open-logs-staging');
-const state = loadState();
+const state = await loadState();
 process.env.CLOUDFLARE_ACCOUNT_ID = state.accountId;
 const reset = process.argv[2] === 'reset';
 

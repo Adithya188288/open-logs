@@ -64,7 +64,8 @@ again. You can change it in Settings. Sign in, then invite your team from the Te
 
 Options:
 
-- `npm run setup -- --name my-logs` picks the install name (default `open-logs`). Each name is a separate install.
+- Setup asks for the install name (press Enter for `open-logs`); `npm run setup -- --name my-logs` skips the
+  question. Each name is a separate install, and every resource it creates gets that name.
 - `OPEN_LOGS_TOKEN`, `OPEN_LOGS_EMAIL` and `OPEN_LOGS_PASSWORD` make setup non-interactive.
 
 ## Security
@@ -158,7 +159,8 @@ Full contract: [docs/API.md](docs/API.md). Design: [docs/ARCHITECTURE.md](docs/A
 
 ## Update, roll back, uninstall
 
-Run these from your clone. With more than one install, add `-- --name <name>`.
+Run these from your clone. Each one asks which install (press Enter for `open-logs`); `-- --name <name>` skips
+the question.
 
 ```bash
 npm run update      # move to the newest release
@@ -197,8 +199,8 @@ Branches:
 - Work happens on `feature/*` branches from `develop`. Each branch is deployed to the test install with
   `npm run deploy:staging` and tested there against real Basin, then merged into `develop`.
 
-Staging is an ordinary install named `open-logs-staging`, kept in `.open-logs/` like any other. Create it once
-with `npm run setup -- --name open-logs-staging`.
+Staging is an ordinary install, kept in `.open-logs/` like any other. Create it once with a name of your choice,
+e.g. `npm run setup -- --name open-logs-staging`. The staging commands ask which install, or take `-- --name`.
 
 ```bash
 npm run deploy:staging   # deploy the current branch to staging (new D1 migrations, build, deploy)

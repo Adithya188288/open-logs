@@ -18,7 +18,7 @@ import {
 } from './lib.js';
 
 const API = 'https://api.cloudflare.com/client/v4/accounts';
-const state = loadState();
+const state = await loadState();
 process.env.CLOUDFLARE_ACCOUNT_ID = state.accountId;
 
 console.log(`

@@ -103,6 +103,11 @@ export function flag(flag) {
   return i >= 0 ? process.argv[i + 1] : undefined;
 }
 
+/** The install name from `--name`, or asked for; Enter means "open-logs". */
+export async function installName() {
+  return flag('name') ?? ((await ask('Install name (press Enter for open-logs): ')) || 'open-logs');
+}
+
 /** @param {string} name */
 export const configPath = (name) => `${INSTALLS_DIR}/${name}.jsonc`;
 /** @param {string} name */
@@ -123,19 +128,20 @@ export function saveState(state) {
  * The install named by --name, or the only one there is.
  * @returns {InstallState}
  */
-export function loadState() {
+export async function loadState() {
   const names = existsSync(INSTALLS_DIR)
     ? readdirSync(INSTALLS_DIR)
         .filter((f) => f.endsWith('.json'))
         .map((f) => f.slice(0, -5))
     : [];
-  const name = flag('name') ?? (names.length === 1 ? names[0] : undefined);
-  if (!name || !names.includes(name)) {
-    console.error(
-      names.length
-        ? `Pick an install with --name (${names.join(', ')}).`
-        : 'No Open Logs install found here. Run: npm run setup',
-    );
+  if (!names.length) {
+    console.error('No Open Logs install found here. Run: npm run setup');
+    process.exit(1);
+  }
+  if (!flag('name')) console.log(`Your installs: ${names.join(', ')}`);
+  const name = await installName();
+  if (!names.includes(name)) {
+    console.error(`No install called "${name}". Your installs: ${names.join(', ')}`);
     process.exit(1);
   }
   return JSON.parse(readFileSync(statePath(name), 'utf8'));

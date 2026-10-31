@@ -18,7 +18,7 @@ import {
 /** @param {string[]} args */
 const git = (args) => spawnSync('git', args, { encoding: 'utf8' }).stdout.trim();
 
-const state = loadState();
+const state = await loadState();
 process.env.CLOUDFLARE_ACCOUNT_ID = state.accountId;
 
 step('Finding the newest release');

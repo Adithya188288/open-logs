@@ -15,9 +15,9 @@ import {
   BASIN_TABLE,
   buildAndDeploy,
   configPath,
-  flag,
   hideInOutput,
   INSTALLS_DIR,
+  installName,
   mustWrangler,
   run,
   saveState,
@@ -32,9 +32,9 @@ Open Logs needs one Cloudflare API token, for writing logs into Basin and search
   → Permissions: Admin Read & Write (this includes Basin SQL Read) → Create → copy the token value.
   It is stored only as a secret on your Worker; nothing is written to disk.`;
 
-const name = flag('name') ?? 'open-logs';
+const name = await installName();
 if (!/^[a-z][a-z0-9-]{2,40}$/.test(name)) {
-  console.error('--name must be 3-41 lowercase letters, digits or dashes, starting with a letter.');
+  console.error('The install name must be 3-41 lowercase letters, digits or dashes, starting with a letter.');
   process.exit(1);
 }
 if (existsSync(`${INSTALLS_DIR}/${name}.json`)) {

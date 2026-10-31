@@ -119,7 +119,7 @@ Time range is mandatory and capped at 7 days; limit capped at 500.
 
 ## Install layout
 
-Each install is named (`--name`, default `open-logs`) and lives in `.open-logs/` in the clone (gitignored):
+Each install is named (`--name`, or asked for; Enter means `open-logs`) and lives in `.open-logs/` in the clone (gitignored):
 - `.open-logs/<name>.jsonc`: the generated wrangler config. `scripts/lib.js` builds it from `wrangler.jsonc`
   (a template with no account ids) plus the install's own D1 id, stream id, bucket and account.
 - `.open-logs/<name>.json`: the Cloudflare resources the install created (account, URL, bucket, stream,
@@ -135,7 +135,7 @@ Scripts (`scripts/`):
   back; it prints the D1 Time Travel restore command.
 - `uninstall.js` (`npm run uninstall`): removes the Worker and secrets, pipeline, sink, stream, Basin Catalog,
   every file in the bucket (Cloudflare API), the bucket and D1. The API token must be deleted by hand.
-- `staging.js` (`npm run deploy:staging`, `npm run staging:reset`): deploys to the `open-logs-staging` install.
+- `staging.js` (`npm run deploy:staging`, `npm run staging:reset`): deploys to the install you name (the staging one).
 
 Tests run against `wrangler.jsonc` directly (the template), with a local D1. They cover app data and SQL
 building; they do not reach Basin.
