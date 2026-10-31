@@ -13,6 +13,7 @@ import { ago, eventTime, hm, hms, hmsms, lagLabel, needsDate, num, span } from '
 import { fetchTail, RANGES, TAIL_PAGE, tailKey } from '../lib/live.js';
 import { q, queryClient, refresh } from '../lib/queries.js';
 import { clauseLabel, clauseToSearch, parseSearch } from '../lib/search.js';
+import { rejectedRecently } from '../lib/rejections.js';
 import { copyText } from '../lib/store.js';
 
 const LEGEND = /** @type {const} */ ([
@@ -30,6 +31,34 @@ const LATE_ARRIVAL_MS = 5 * 60_000;
 function newestFirst(events) {
   return events.sort((a, b) => b.ts - a.ts || (a.id < b.id ? 1 : a.id > b.id ? -1 : 0));
 }
+/**
+ * The legend groups (info, warn, error) the level chip lets through. No level chip lets everything through.
+ * The level toggles under the histogram show this, so they always agree with the chips.
+ * @param {FieldClause[]} chips
+ */
+function shownLevels(chips) {
+  const c = chips.find((x) => x.field === 'level');
+  if (!c) return LEGEND.map(([k]) => k);
+  const values = (Array.isArray(c.value) ? c.value : [c.value]).map(String);
+  /** @param {string} lv */
+  const passes = (lv) =>
+    c.op === '=' || c.op === 'in'
+      ? values.includes(lv)
+      : c.op === '!=' || c.op === 'not_in'
+        ? !values.includes(lv)
+        : true;
+  return LEGEND.filter(([, levels]) => levels.some(passes)).map(([k]) => k);
+}
+
+/**
+ * The chips with the clause on `field` replaced (or removed when `clause` is null).
+ * @param {FieldClause[]} chips @param {string} field @param {FieldClause | null} clause
+ */
+function withClause(chips, field, clause) {
+  const rest = chips.filter((c) => c.field !== field);
+  return clause ? [...rest, clause] : rest;
+}
+
 const SEARCH_HELP = [
   ['payment failed', 'words anywhere in the message or fields'],
   ['level:error', 'a field equals a value'],
@@ -75,10 +104,20 @@ export function Tail() {
   const [custom, setCustom] = useState({ from: 0, to: 0 });
   const [showCustom, setShowCustom] = useState(false);
   const [initial] = useState(() => parseSearch(params.get('q') ?? ''));
-  const [chips, setChips] = useState(/** @type {FieldClause[]} */ (initial.clauses));
+  // The chips are the one filter: the source picker, the level toggles and saved views all read and edit them.
+  // Links like /tail?source=api (from a source's page) start with that source's chip.
+  const [chips, setChips] = useState(
+    /** @type {FieldClause[]} */ (
+      () => {
+        const linked = params.get('source');
+        return linked
+          ? withClause(initial.clauses, 'source', { field: 'source', op: '=', value: linked })
+          : initial.clauses;
+      }
+    ),
+  );
   const [text, setText] = useState(initial.text);
   const [input, setInput] = useState(initial.text);
-  const [hidden, setHidden] = useState(/** @type {string[]} */ ([]));
   const [zoom, setZoom] = useState(
     /** @type {{ from: number, to: number } | null} */ (
       () => {
@@ -87,7 +126,6 @@ export function Tail() {
       }
     ),
   );
-  const [source, setSource] = useState(params.get('source') ?? '');
   const [paused, setPaused] = useState(false);
   const [wrap, setWrap] = useState(false);
   const [relative, setRelative] = useState(false);
@@ -133,17 +171,27 @@ export function Tail() {
     return { from: to - RANGES[range], to };
   }, [zoom, range, custom]);
 
-  const where = useMemo(() => {
-    /** @type {object[]} */
-    const w = [...chips];
-    if (source) w.push({ field: 'source', op: '=', value: source });
-    if (text) w.push({ text });
-    const hiddenLevels = LEGEND.filter(([k]) => hidden.includes(k)).flatMap(([, lv]) => lv);
-    if (hiddenLevels.length) w.push({ field: 'level', op: 'not_in', value: hiddenLevels });
-    return w;
-  }, [chips, source, text, hidden]);
+  const where = useMemo(() => (text ? [...chips, { text }] : [...chips]), [chips, text]);
+  const filtered = Boolean(chips.length || text);
+  const sourceChip = chips.find((c) => c.field === 'source');
+  const source = sourceChip?.op === '=' ? String(sourceChip.value) : '';
+  const shown = shownLevels(chips);
+  const hidden = LEGEND.map(([k]) => k).filter((k) => !shown.includes(k));
 
-  const filtered = Boolean(chips.length || text || hidden.length || source);
+  // The address bar keeps the whole filter, so a copied link shows the same view.
+  useEffect(() => {
+    const search = [...chips.map(clauseToSearch), text].filter(Boolean).join(' ');
+    setParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('source');
+        if (search) next.set('q', search);
+        else next.delete('q');
+        return next;
+      },
+      { replace: true },
+    );
+  }, [chips, text, setParams]);
   const cacheKey = tailKey(project.id, { where, zoom, range, custom, reloadKey });
   const queryKey = cacheKey[1];
   const [loadedKey, setLoadedKey] = useState('');
@@ -323,18 +371,28 @@ export function Tail() {
     setChips([]);
     setText('');
     setInput('');
-    setHidden([]);
-    pickSource('');
   };
 
   /** @param {string} name */
-  const pickSource = (name) => {
-    setSource(name);
-    const next = new URLSearchParams(params);
-    if (name) next.set('source', name);
-    else next.delete('source');
-    setParams(next, { replace: true });
-  };
+  const pickSource = (name) =>
+    setChips((c) => withClause(c, 'source', name ? { field: 'source', op: '=', value: name } : null));
+
+  /** Turns a legend group on or off by editing the level chip. The last group can't be turned off. @param {string} key */
+  const toggleLevel = (key) =>
+    setChips((c) => {
+      const on = shownLevels(c);
+      const next = on.includes(key) ? on.filter((k) => k !== key) : [...on, key];
+      if (!next.length) return c;
+      if (next.length === LEGEND.length) return withClause(c, 'level', null);
+      const levels = LEGEND.filter(([k]) => next.includes(k)).flatMap(([, lv]) => lv);
+      return withClause(
+        c,
+        'level',
+        levels.length === 1
+          ? { field: 'level', op: '=', value: levels[0] }
+          : { field: 'level', op: 'in', value: levels },
+      );
+    });
 
   /** @param {Range} r */
   const pickRange = (r) => {
@@ -351,15 +409,13 @@ export function Tail() {
 
   /** @param {any} v */
   const applyView = (v) => {
-    const src = v.filter.where.find((/** @type {any} */ c) => c.field === 'source' && c.op === '=');
-    setChips(v.filter.where.filter((/** @type {any} */ c) => 'field' in c && c !== src));
+    setChips(v.filter.where.filter((/** @type {any} */ c) => 'field' in c));
     const t = v.filter.where.find((/** @type {any} */ c) => 'text' in c)?.text ?? '';
     setText(t);
     setInput(t);
-    setHidden([]);
     setZoom(null);
+    setShowCustom(false);
     if (v.filter.range) setRange(v.filter.range);
-    pickSource(src ? String(src.value) : '');
   };
 
   const saveView = () =>
@@ -371,7 +427,6 @@ export function Tail() {
         onSubmit={async (v) => {
           /** @type {object[]} */
           const w = [...chips];
-          if (source) w.push({ field: 'source', op: '=', value: source });
           if (text) w.push({ text });
           try {
             await api(`/api/projects/${project.id}/views`, {
@@ -391,7 +446,7 @@ export function Tail() {
           </label>
           <input id="vname" className="input" name="name" required maxLength={60} placeholder="Errors only" />
         </div>
-        <p className="small muted">Saves the source, search, filters and time range.</p>
+        <p className="small muted">Saves the filters (source, levels, search) and the time range.</p>
       </FormDialog>
     ));
 
@@ -445,9 +500,6 @@ export function Tail() {
       setSelected((s) => (s === id ? null : id));
       e.preventDefault();
       return;
-    } else if (e.key === 'Escape' && selected) {
-      setSelected(null);
-      return;
     } else return;
     e.preventDefault();
     setCursor(next);
@@ -466,10 +518,29 @@ export function Tail() {
       : zoom || range === 'custom'
         ? `Viewing ${hms(w.from)}–${hms(w.to)} UTC${lag}`
         : `Data through ${hms(dataThrough)} UTC${lag} · next check ${Math.max(0, Math.ceil((nextCheckAt - Date.now()) / 1000))}s`;
-  const bad = sources.find(
-    (s) => s.rejected_count > 0 && s.last_rejected_at > (s.last_event_at ?? 0) && !isDismissed(s),
-  );
+  const bad = sources.find((s) => rejectedRecently(s) && !isDismissed(s));
   const panelEvent = events.find((e) => e.id === selected);
+
+  // The details drawer closes on Escape or a click outside it; clicking another row just switches events.
+  useEffect(() => {
+    if (!selected) return;
+    /** @param {MouseEvent} e */
+    const onDown = (e) => {
+      const at = e.target instanceof Element ? e.target : null;
+      if (at?.closest('.evpanel, [data-testid="event"], [role="menu"], [role="dialog"]')) return;
+      setSelected(null);
+    };
+    /** @param {KeyboardEvent} e */
+    const onKey = (e) => {
+      if (e.key === 'Escape') setSelected(null);
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [selected]);
   void dismissed;
 
   return (
@@ -522,13 +593,9 @@ export function Tail() {
           <div className="alert err" role="alert" data-testid="ingestion-problem">
             <Icon name="info" />
             <div className="body">
-              <strong>
-                {bad.last_event_at
-                  ? `No events from ${bad.name} for ${Math.round((Date.now() - bad.last_event_at) / 60_000)} minute${Math.round((Date.now() - bad.last_event_at) / 60_000) === 1 ? '' : 's'}`
-                  : `Requests from ${bad.name} are being rejected`}
-              </strong>
+              <strong>{`Requests from ${bad.name} are being rejected`}</strong>
               <span>
-                {`The last ${num(bad.rejected_count)} request${bad.rejected_count === 1 ? '' : 's'} from this source (latest ${hms(bad.last_rejected_at)} UTC) were rejected with `}
+                {`Requests for this source (latest ${hms(bad.last_rejected_at)} UTC) were rejected with `}
                 <code>401 invalid token</code>. The token may have been regenerated.
               </span>
             </div>
@@ -604,7 +671,7 @@ export function Tail() {
             <input
               id="q"
               ref={searchRef}
-              placeholder="Search message, or field:value  e.g. status:500"
+              placeholder="Search, or field:value"
               autoComplete="off"
               spellCheck="false"
               value={input}
@@ -696,12 +763,12 @@ export function Tail() {
                 : span(RANGES[/** @type {keyof typeof RANGES} */ (range)])
           }
           hidden={hidden}
-          onToggle={(k) => setHidden((h) => (h.includes(k) ? h.filter((x) => x !== k) : [...h, k]))}
+          onToggle={toggleLevel}
           onZoom={setZoom}
         />
       </div>
 
-      <div className={`tail-body${panelEvent ? ' with-panel' : ''}`}>
+      <div className="tail-body">
         <div className={`table${dated ? ' dated' : ''}`}>
           <div className="thead">
             <button
@@ -724,13 +791,15 @@ export function Tail() {
           <div
             ref={listRef}
             role="region"
-            className={`list${wrap ? ' wrap' : ''}${phase === 'loading' ? ' refreshing' : ''}`}
+            className={`list${wrap ? ' wrap' : ''}`}
             // biome-ignore lint/a11y/noNoninteractiveTabindex: the list takes focus so j/k/Enter can move through events
             tabIndex={0}
             aria-label="Event list. j and k move between events, Enter opens details, slash jumps to search."
             onKeyDown={onListKey}
           >
-            {phase === 'loading' && !events.length ? (
+            {/* Rows from the previous filter would be wrong for this one (e.g. WARN rows after hiding warn):
+                show the loader until this filter's rows arrive. */}
+            {phase === 'loading' ? (
               <div className="list-loading">
                 <Loader label="Loading events" />
               </div>
@@ -766,12 +835,8 @@ export function Tail() {
                   <Icon name="nothing" size={28} />
                   <h2>
                     No events match{' '}
-                    <code>
-                      {[source ? `source:${source}` : '', ...chips.map(clauseToSearch), text]
-                        .filter(Boolean)
-                        .join(' ') || 'these levels'}
-                    </code>{' '}
-                    in {windowName}
+                    <code>{[...chips.map(clauseToSearch), text].filter(Boolean).join(' ')}</code> in{' '}
+                    {windowName}
                   </h2>
                   <p>{`${num(unfilteredTotal)} events came in during that time, none with this value.`}</p>
                   <div className="rowline">
@@ -811,43 +876,38 @@ export function Tail() {
                 </div>
               )
             ) : (
-              <>
-                {phase === 'loading' && (
-                  <div className="list-refreshing">
-                    <Loader size="sm" inline label="Loading events" />
-                  </div>
-                )}
-                {events.map((e, i) => {
-                  const open = selected === e.id;
-                  return (
-                    <div
-                      key={e.id}
-                      className={`ev${open ? ' open' : ''}${cursor === i ? ' cursor' : ''}${freshIds.has(e.id) ? ' fresh' : ''}`}
-                      data-testid="event"
-                      data-id={e.id}
+              events.map((e, i) => {
+                const open = selected === e.id;
+                return (
+                  <div
+                    key={e.id}
+                    className={`ev${open ? ' open' : ''}${cursor === i ? ' cursor' : ''}${freshIds.has(e.id) ? ' fresh' : ''}`}
+                    data-testid="event"
+                    data-id={e.id}
+                  >
+                    <button
+                      className="row"
+                      type="button"
+                      tabIndex={-1}
+                      aria-pressed={open}
+                      onClick={() => {
+                        setCursor(i);
+                        setSelected(open ? null : e.id);
+                      }}
                     >
-                      <button
-                        className="row"
-                        type="button"
-                        tabIndex={-1}
-                        aria-pressed={open}
-                        onClick={() => {
-                          setCursor(i);
-                          setSelected(open ? null : e.id);
-                        }}
-                      >
-                        <span className="t">{relative ? ago(e.ts) : eventTime(e.ts, dated)}</span>
-                        <span className={`lvl ${e.level}`}>{e.level.toUpperCase()}</span>
-                        <span className="src">{e.source}</span>
-                        <span className="msg">{e.message}</span>
-                        <span className="chev" aria-hidden="true">
-                          ›
-                        </span>
-                      </button>
-                    </div>
-                  );
-                })}
-              </>
+                      <span className="t">{relative ? ago(e.ts) : eventTime(e.ts, dated)}</span>
+                      <span className={`lvl ${e.level}`}>{e.level.toUpperCase()}</span>
+                      <span className="src" title={e.source}>
+                        {e.source}
+                      </span>
+                      <span className="msg">{e.message}</span>
+                      <span className="chev" aria-hidden="true">
+                        ›
+                      </span>
+                    </button>
+                  </div>
+                );
+              })
             )}
           </div>
         </div>
@@ -861,11 +921,7 @@ export function Tail() {
             }}
             onFilter={(field, value) => addFilter(field, value)}
             onAround={() => {
-              setChips([]);
-              setText('');
-              setInput('');
-              setHidden([]);
-              pickSource('');
+              clearFilters();
               focusId.current = panelEvent.id;
               setZoom({ from: panelEvent.ts - 30_000, to: panelEvent.ts + 30_000 });
             }}

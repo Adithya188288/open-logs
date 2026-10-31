@@ -16,7 +16,7 @@ const PROJECT_PAGES = new Set(['/dashboard', '/tail', '/sources', '/source']);
 
 /**
  * @typedef {{ id: string, email: string, name: string, role: 'owner' | 'admin' | 'member' }} Me
- * @typedef {{ id: string, name: string, created_at: number, last_event_at: number | null, sources: any[], stats: any }} Project
+ * @typedef {{ id: string, name: string, created_at: number, sources: { id: string, name: string }[] }} Project
  * @typedef {{ me: Me, team: string, setTeam: (t: string) => void, projects: Project[], project: Project | undefined, reloadProjects: () => Promise<unknown> }} AppState
  */
 
@@ -110,6 +110,24 @@ export function Layout() {
     queryClient.setQueryData(['me'], (/** @type {any} */ m) => (m ? { ...m, team_name } : m));
   }, []);
 
+  // Narrow windows: the sidebar is a drawer behind the top bar's menu button, closed on every screen change.
+  const [menuOpen, setMenuOpen] = useState(false);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the screen or project changing is the trigger
+  useEffect(() => setMenuOpen(false), [location.pathname, location.search]);
+  useEffect(() => {
+    if (!menuOpen) return;
+    /** @param {KeyboardEvent} e */
+    const onKey = (e) => e.key === 'Escape' && setMenuOpen(false);
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [menuOpen]);
+
+  // Each screen opens at its top, not at the previous screen's scroll position.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the screen changing is the trigger
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
+
   const asked = params.get('project');
   const project = useMemo(() => {
     if (!projects) return undefined;
@@ -154,7 +172,21 @@ export function Layout() {
   return (
     <AppContext.Provider value={state}>
       <div className="app">
-        <Sidebar />
+        <header className="mobilebar">
+          <button
+            className="iconbtn"
+            type="button"
+            aria-label="Open menu"
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen(true)}
+          >
+            <Icon name="menu" />
+          </button>
+          <span className="team">{state.team}</span>
+          {project && <span className="project small muted">{project.name}</span>}
+        </header>
+        {menuOpen && <div className="scrim" aria-hidden="true" onClick={() => setMenuOpen(false)} />}
+        <Sidebar open={menuOpen} onClose={() => setMenuOpen(false)} />
         <main className="main">
           <Outlet key={`${location.pathname}?${project?.id ?? ''}`} />
         </main>
@@ -164,7 +196,8 @@ export function Layout() {
   );
 }
 
-function Sidebar() {
+/** @param {{ open: boolean, onClose: () => void }} props  open: shown as a drawer (narrow windows only) */
+function Sidebar({ open, onClose }) {
   const { me, team, projects, project, reloadProjects } = useApp();
   const location = useLocation();
   const navigate = useNavigate();
@@ -187,11 +220,16 @@ function Sidebar() {
   );
 
   return (
-    <nav className="nav" aria-label="Main">
-      <Link className="brand" to="/">
-        <span className="logo" />
-        <span>{team}</span>
-      </Link>
+    <nav className={`nav${open ? ' open' : ''}`} aria-label="Main">
+      <div className="brandrow">
+        <Link className="brand" to="/">
+          <span className="logo" />
+          <span>{team}</span>
+        </Link>
+        <button className="iconbtn close" type="button" aria-label="Close menu" onClick={onClose}>
+          <Icon name="x" />
+        </button>
+      </div>
       <MenuButton
         className="switcher"
         title="Switch project"

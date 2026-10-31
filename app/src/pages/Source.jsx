@@ -10,6 +10,7 @@ import { SendPanel, TokenPanel } from '../components/SendPanel.jsx';
 import { ApiError, api } from '../lib/api.js';
 import { ago, hms, num } from '../lib/format.js';
 import { q, queryClient, refresh } from '../lib/queries.js';
+import { rejectedRecently } from '../lib/rejections.js';
 
 const DAY = 86_400_000;
 
@@ -150,8 +151,7 @@ export function Source() {
       },
     });
 
-  const rejected = source.rejected_count > 0;
-  const recent = source.last_event_at && Date.now() - source.last_event_at < 5 * 60_000;
+  const rejected = rejectedRecently(source);
   const tail = `/tail?project=${encodeURIComponent(project.id)}&source=${encodeURIComponent(source.name)}`;
 
   return (
@@ -188,10 +188,10 @@ export function Source() {
       <div className="page">
         <div className="stats-row">
           <Stat label="Created">{`${new Date(source.created_at).toISOString().slice(0, 16).replace('T', ' ')} UTC`}</Stat>
-          <Stat label="Last event">
-            {source.last_event_at
-              ? `${ago(source.last_event_at)} (${hms(source.last_event_at)} UTC)`
-              : 'never'}
+          <Stat label="First event">
+            {source.first_event_at
+              ? `${ago(source.first_event_at)} (${hms(source.first_event_at)} UTC)`
+              : 'not yet'}
           </Stat>
           <Stat label="Events · 24h">
             {count === undefined ? (
@@ -199,17 +199,19 @@ export function Source() {
             ) : (
               <span data-testid="events-24h">{count}</span>
             )}
-            {recent && <span className="tiny muted"> · new events take 1–3 minutes to appear</span>}
+            <span className="tiny muted"> · new events take 1–3 minutes to appear</span>
           </Stat>
-          <Stat label="Rejected requests">
-            {rejected ? (
-              <span className="bad">{`${num(source.rejected_count)} · last ${hms(source.last_rejected_at)} UTC`}</span>
+          <Stat label="Last rejected request">
+            {source.last_rejected_at ? (
+              <span className={rejected ? 'bad' : undefined}>
+                {`${ago(source.last_rejected_at)} (${hms(source.last_rejected_at)} UTC)`}
+              </span>
             ) : (
-              '0'
+              'none'
             )}
           </Stat>
         </div>
-        {rejected && source.last_rejected_at > (source.last_event_at ?? 0) && (
+        {rejected && (
           <div className="alert err" role="alert">
             <Icon name="info" />
             <div className="body">

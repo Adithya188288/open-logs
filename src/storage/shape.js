@@ -71,30 +71,6 @@ export function seriesPoints(rows, from, to, interval, zeroFill) {
 }
 
 /**
- * @param {Record<string, unknown>[]} rows  { project_id, t, n, e }
- * @param {string[]} projectIds
- * @param {number} from
- * @param {number} to
- * @param {number} interval
- */
-export function overviewShape(rows, projectIds, from, to, interval) {
-  const start = Math.floor(from / interval) * interval;
-  const count = Math.ceil((to - start) / interval);
-  /** @type {Record<string, { total: number, errors: number, series: number[] }>} */
-  const out = {};
-  for (const id of projectIds) out[id] = { total: 0, errors: 0, series: new Array(count).fill(0) };
-  for (const r of rows) {
-    const o = out[String(r.project_id)];
-    if (!o) continue;
-    const i = Math.floor((Number(r.t) - start) / interval);
-    o.total += Number(r.n);
-    o.errors += Number(r.e);
-    if (i >= 0 && i < count) o.series[i] += Number(r.n);
-  }
-  return out;
-}
-
-/**
  * @param {import('./index.js').AggregateSpec} spec
  * @param {import('../query/filter.js').Filter} filter
  * @param {Record<string, unknown>[]} valueRows  { v }

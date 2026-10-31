@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // npm run uninstall [my-logs]: removes everything setup created in Cloudflare, logs included.
+// npm run destroy: the same for the checked-out branch's own install, without the typed confirmation.
 //   Worker (and its secrets) → every pipeline, sink and stream with the install's name → Basin table
 //   → Basin Catalog (deleted, not just disabled) → every file in the bucket → bucket → D1.
 // The API token itself can't be deleted by a script (Cloudflare doesn't allow it): the last step links to it.
@@ -9,22 +10,26 @@ import {
   askHidden,
   BASIN_NAMESPACE,
   BASIN_TABLE,
+  branchInstall,
   configPath,
   hideInOutput,
   INSTALLS_DIR,
+  loadDevVars,
   loadState,
   step,
   wrangler,
 } from './lib.js';
 
 const API = 'https://api.cloudflare.com/client/v4/accounts';
-const state = await loadState();
+const branch = process.argv.includes('--branch');
+if (branch) loadDevVars();
+const state = await loadState(branch ? branchInstall() : undefined);
 process.env.CLOUDFLARE_ACCOUNT_ID = state.accountId;
 
 console.log(`
 This permanently deletes the Open Logs install "${state.name}" (${state.url || 'no URL recorded'}):
 the Worker, all of its logs in Basin, and its D1 database (users, projects, dashboards).`);
-if ((await ask(`  Type "${state.name}" to confirm: `)) !== state.name) {
+if (!branch && (await ask(`  Type "${state.name}" to confirm: `)) !== state.name) {
   console.log('  Nothing was deleted.');
   process.exit(1);
 }

@@ -1,5 +1,9 @@
 // Fetch wrapper for /api. Redirects to sign-in when the session is gone.
 
+// The Worker gives up on a stuck Basin query after two 15s tries; this is the browser's own backstop, so a
+// request can never keep a loader spinning forever.
+const REQUEST_TIMEOUT_MS = 60_000;
+
 export class ApiError extends Error {
   /**
    * @param {number} status
@@ -24,6 +28,12 @@ export async function api(path, opts = {}) {
     headers: opts.body !== undefined ? { 'content-type': 'application/json' } : undefined,
     body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
     credentials: 'same-origin',
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  }).catch((err) => {
+    if (err instanceof DOMException && err.name === 'TimeoutError') {
+      throw new ApiError(0, { code: 'timeout', message: 'The server took too long to answer. Try again.' });
+    }
+    throw err;
   });
   const data = await res.json().catch(() => ({}));
   if (res.status === 401 && opts.redirectOn401 !== false) {

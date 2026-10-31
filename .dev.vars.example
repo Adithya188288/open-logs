@@ -1,2 +1,5 @@
-# Copy to .dev.vars for `npm run dev`. Never commit .dev.vars.
-ADMIN_PASSWORD=change-me-locally
+# For developers. Copy to .dev.vars (gitignored, never commit it).
+# npm run deploy uses these to create a branch's own install the first time; npm run verify and destroy use them too.
+OPEN_LOGS_TOKEN=your-cloudflare-r2-admin-read-write-token
+OPEN_LOGS_EMAIL=you@example.com
+OPEN_LOGS_PASSWORD=a-long-password-for-test-installs
