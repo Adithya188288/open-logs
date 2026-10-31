@@ -4,12 +4,6 @@
 Live tail, search, filters, charts and dashboards for your team. It runs on Cloudflare Workers, keeps app data
 in D1 and stores logs in Cloudflare Basin. Your logs never leave your account.
 
-![Live tail](docs/screenshots/live-tail-light.png)
-
-| Dashboards | Connect a source |
-|---|---|
-| ![Dashboard](docs/screenshots/dashboard-dark.png) | ![Connect](docs/screenshots/connect-light.png) |
-
 ## What it is
 
 Cloudflare Basin (Pipelines + Catalog + SQL) is cheap, serverless log storage. It has no product on top:
@@ -154,9 +148,6 @@ The connect page generates these with your URL filled in.
 
 Known Basin behaviour: p95 is approximate (`approx_percentile_cont`), heavy searches can time out and show
 "query too large", and deleting a project does not delete its log files in R2 (Basin SQL is read-only).
-Details in [docs/PLAN.md](docs/PLAN.md).
-
-Full contract: [docs/API.md](docs/API.md). Design: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Update, roll back, uninstall
 
@@ -211,7 +202,7 @@ npm run lint
 There are no automated tests or CI yet; they will be added later. Changes are checked on staging.
 
 Worker: Hono on Cloudflare Workers (`src/`). UI: React + Vite (`app/`), built to `dist/` and served by the Worker.
-Plain JavaScript with JSDoc. See [CLAUDE.md](CLAUDE.md) and [docs/PLAN.md](docs/PLAN.md).
+Plain JavaScript with JSDoc.
 
 ## License
 

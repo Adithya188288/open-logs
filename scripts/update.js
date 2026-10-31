@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // npm run update [-- --name my-logs] [-- --to v0.2.0]: moves an install to the newest release.
 //   newest release tag → packages → new D1 migrations only (D1 remembers which ran) → build and deploy → check.
-// Releases only add to the database (see CLAUDE.md), so the running Worker keeps working while this runs.
+// Releases only add to the database (new tables and columns, never removals), so the running Worker keeps working while this runs.
 import { spawnSync } from 'node:child_process';
 import { checkUp } from './check.js';
 import { applyMigrations, buildAndDeploy, flag, loadState, run, step, writeConfig } from './lib.js';
