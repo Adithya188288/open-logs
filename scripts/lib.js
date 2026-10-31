@@ -122,6 +122,33 @@ export async function installName() {
   return givenName() ?? ((await ask('Install name (press Enter for open-logs): ')) || 'open-logs');
 }
 
+/**
+ * The install that belongs to the checked-out branch: `test/e2e` → `open-logs-test-e2e`.
+ * Every branch gets its own install, so branches never share data. `main` has none: it is released code.
+ */
+export function branchInstall() {
+  const branch = spawnSync('git', ['branch', '--show-current'], { encoding: 'utf8' }).stdout.trim();
+  if (!branch || branch === 'main') {
+    console.error(`Branch installs are for working branches, not ${branch || 'a detached checkout'}.`);
+    process.exit(1);
+  }
+  const slug = branch
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+  return `open-logs-${slug}`.slice(0, 41).replace(/-$/, '');
+}
+
+/** Reads .dev.vars (KEY=value lines, gitignored) into process.env, without overriding what is already set. */
+export function loadDevVars() {
+  if (!existsSync('.dev.vars')) return;
+  for (const line of readFileSync('.dev.vars', 'utf8').split('\n')) {
+    const match = line.match(/^([A-Z_]+)=(.*)$/);
+    if (match && !process.env[match[1]])
+      process.env[match[1]] = match[2].trim().replace(/^(['"])(.*)\1$/, '$2');
+  }
+}
+
 /** @param {string} name */
 export const configPath = (name) => `${INSTALLS_DIR}/${name}.jsonc`;
 /** @param {string} name */
@@ -139,10 +166,11 @@ export function saveState(state) {
 }
 
 /**
- * The install named by --name, or the only one there is.
- * @returns {InstallState}
+ * The install with this name; with no name, it lists the installs and asks.
+ * @param {string} [name]
+ * @returns {Promise<InstallState>}
  */
-export async function loadState() {
+export async function loadState(name = givenName()) {
   const names = existsSync(INSTALLS_DIR)
     ? readdirSync(INSTALLS_DIR)
         .filter((f) => f.endsWith('.json'))
@@ -152,8 +180,10 @@ export async function loadState() {
     console.error('No Open Logs install found here. Run: npm run setup');
     process.exit(1);
   }
-  if (!givenName()) console.log(`Your installs: ${names.join(', ')}`);
-  const name = await installName();
+  if (!name) {
+    console.log(`Your installs: ${names.join(', ')}`);
+    name = await installName();
+  }
   if (!names.includes(name)) {
     console.error(`No install called "${name}". Your installs: ${names.join(', ')}`);
     process.exit(1);

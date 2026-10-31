@@ -1,22 +1,39 @@
 #!/usr/bin/env node
-// For developers: put the code you have checked out (any branch, uncommitted changes included) on an install.
-//   npm run deploy <name>   new D1 migrations, build, deploy.
+// For developers: put the code you have checked out (uncommitted changes included) on an install.
+//   npm run deploy          the branch's own install, open-logs-<branch>; created the first time (setup), using
+//                           OPEN_LOGS_TOKEN, OPEN_LOGS_EMAIL and OPEN_LOGS_PASSWORD from .dev.vars.
+//   npm run deploy <name>   a named install: new D1 migrations, build, deploy.
 //   npm run reset <name>    wipes the install's D1 first (users, projects, dashboards), then deploys.
-// Logs in Basin are left alone by both.
+// Logs in Basin are left alone by all of them.
+import { spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import {
   applyMigrations,
   ask,
+  branchInstall,
   buildAndDeploy,
   configPath,
+  givenName,
+  INSTALLS_DIR,
+  loadDevVars,
   loadState,
   step,
   wrangler,
   writeConfig,
 } from './lib.js';
 
-const state = await loadState();
-process.env.CLOUDFLARE_ACCOUNT_ID = state.accountId;
 const reset = process.argv.includes('--reset');
+const name = givenName() ?? (reset ? undefined : branchInstall());
+
+if (name && !givenName() && !existsSync(`${INSTALLS_DIR}/${name}.json`)) {
+  loadDevVars();
+  step(`Creating ${name}, the install for this branch`);
+  const setup = spawnSync('node', ['scripts/setup.js', name], { stdio: 'inherit' });
+  process.exit(setup.status ?? 1);
+}
+
+const state = await loadState(name);
+process.env.CLOUDFLARE_ACCOUNT_ID = state.accountId;
 
 if (reset) {
   console.log(`\nThis deletes all app data in "${state.name}": users, projects, sources, dashboards.`);

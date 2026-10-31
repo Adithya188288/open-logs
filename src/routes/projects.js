@@ -7,8 +7,21 @@ import { overviewStatements } from './boards.js';
 
 const PROJECT_NAME = /^[A-Za-z0-9][A-Za-z0-9 _.-]{0,63}$/;
 const SOURCE_NAME = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/;
-const SOURCE_COLUMNS =
-  'id, project_id, name, token_prefix, created_at, last_event_at, rejected_count, last_rejected_at';
+const SOURCE_COLUMNS = 'id, project_id, name, token_prefix, created_at, first_event_at, last_rejected_at';
+/** Rows per page on the Projects and Sources tables. */
+export const PAGE_SIZE = 12;
+
+/**
+ * `?page=N` (1-based) asks for one page of a table; without it, the whole list is returned.
+ * @param {URL} url
+ */
+function pageOf(url) {
+  const raw = url.searchParams.get('page');
+  if (raw === null) return null;
+  const page = Number(raw);
+  if (!Number.isInteger(page) || page < 1) throw new HttpError(400, 'invalid_page', 'page must be 1 or more');
+  return page;
+}
 
 /**
  * @param {Env} env
@@ -36,41 +49,33 @@ async function runUnique(stmt, message) {
   }
 }
 
-/** @param {import('../types.js').RouteContext} c */
-export async function listProjects({ env }) {
-  const [projects, sources] = await Promise.all([
-    env.DB.prepare('SELECT id, name, created_at FROM projects ORDER BY created_at').all(),
-    env.DB.prepare(`SELECT ${SOURCE_COLUMNS} FROM sources ORDER BY created_at`).all(),
+/**
+ * Projects, from D1 only. Without `?page` (sidebar, switcher, start-up): every project with its sources'
+ * ids and names. With `?page=N` (the Projects table): 12 projects with their source counts, and the total.
+ * @param {import('../types.js').RouteContext} c
+ */
+export async function listProjects({ env, url }) {
+  const page = pageOf(url);
+  if (page !== null) {
+    // `?find=` narrows the table by name (a substring, any case).
+    const find = `%${(url.searchParams.get('find') ?? '').replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+    const [rows, total] = await env.DB.batch([
+      env.DB.prepare(
+        `SELECT p.id, p.name, p.created_at, COUNT(s.id) AS source_count
+         FROM projects p LEFT JOIN sources s ON s.project_id = p.id
+         WHERE p.name LIKE ? ESCAPE '\\'
+         GROUP BY p.id ORDER BY p.created_at DESC LIMIT ? OFFSET ?`,
+      ).bind(find, PAGE_SIZE, (page - 1) * PAGE_SIZE),
+      env.DB.prepare(`SELECT COUNT(*) AS n FROM projects WHERE name LIKE ? ESCAPE '\\'`).bind(find),
+    ]);
+    return json({ projects: rows.results, total: total.results[0].n, page, page_size: PAGE_SIZE });
+  }
+  const [projects, sources] = await env.DB.batch([
+    env.DB.prepare('SELECT id, name, created_at FROM projects ORDER BY created_at'),
+    env.DB.prepare('SELECT id, project_id, name FROM sources ORDER BY created_at'),
   ]);
   const byProject = Map.groupBy(sources.results, (s) => s.project_id);
-  const now = Date.now();
-  const hour = 60 * 60 * 1000;
-  const to = Math.ceil(now / hour) * hour;
-  const ids = projects.results.map((p) => String(p.id));
-  // The 24h counts come from Basin. If Basin can't answer, the app still loads; the cards just show no counts.
-  const stats = await getStorage(env)
-    .overview(ids, to - 24 * hour, to, hour)
-    .catch((/** @type {unknown} */ err) => {
-      console.error('project stats unavailable', err instanceof Error ? err.message : err);
-      return {};
-    });
-  return json({
-    projects: projects.results.map((p) => {
-      const own = byProject.get(p.id) ?? [];
-      const lastEvent = Math.max(0, ...own.map((s) => Number(s.last_event_at ?? 0)));
-      const s = stats[String(p.id)];
-      return {
-        ...p,
-        sources: own,
-        last_event_at: lastEvent || null,
-        stats: {
-          events_24h: s?.total ?? 0,
-          errors_24h: s?.errors ?? 0,
-          spark: s?.series ?? new Array(24).fill(0),
-        },
-      };
-    }),
-  });
+  return json({ projects: projects.results.map((p) => ({ ...p, sources: byProject.get(p.id) ?? [] })) });
 }
 
 /** @param {import('../types.js').RouteContext} c */
@@ -128,8 +133,18 @@ export async function deleteProject({ env, params, user }) {
 }
 
 /** @param {import('../types.js').RouteContext} c */
-export async function listSources({ env, params }) {
+export async function listSources({ env, params, url }) {
   const project = await findProject(env, params.id);
+  const page = pageOf(url);
+  if (page !== null) {
+    const [rows, total] = await env.DB.batch([
+      env.DB.prepare(
+        `SELECT ${SOURCE_COLUMNS} FROM sources WHERE project_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+      ).bind(project.id, PAGE_SIZE, (page - 1) * PAGE_SIZE),
+      env.DB.prepare('SELECT COUNT(*) AS n FROM sources WHERE project_id = ?').bind(project.id),
+    ]);
+    return json({ sources: rows.results, total: total.results[0].n, page, page_size: PAGE_SIZE });
+  }
   const sources = await env.DB.prepare(
     `SELECT ${SOURCE_COLUMNS} FROM sources WHERE project_id = ? ORDER BY created_at`,
   )
@@ -150,8 +165,7 @@ export async function createSource({ request, env, params }) {
     name,
     token_prefix: token.slice(0, 8),
     created_at: Date.now(),
-    last_event_at: null,
-    rejected_count: 0,
+    first_event_at: null,
     last_rejected_at: null,
   };
   await runUnique(
@@ -168,7 +182,7 @@ export async function regenerateSource({ env, params }) {
   const token = newSourceToken();
   const res = await env.DB.prepare(
     `UPDATE sources SET prev_token_prefix = token_prefix, token_hash = ?, token_prefix = ?,
-       rejected_count = 0, last_rejected_at = NULL WHERE id = ?`,
+       last_rejected_at = NULL WHERE id = ?`,
   )
     .bind(await sha256Hex(token), token.slice(0, 8), params.id)
     .run();

@@ -195,22 +195,3 @@ export function buildAggregateSql(f, spec, dialect) {
       groupField && keys.length ? build({ group: true, bucket: true, onlyKeys: keys }) : null,
   };
 }
-
-/**
- * Event counts per project per bucket, for the projects page.
- * @param {string[]} projectIds
- * @param {number} from
- * @param {number} to
- * @param {number} interval
- * @param {Dialect} dialect
- */
-export function buildOverviewSql(projectIds, from, to, interval, dialect) {
-  const b = new Builder(dialect);
-  const bucket = b.d.bucket(b, interval);
-  const ids = projectIds.map((id) => b.param(id)).join(', ');
-  const sql =
-    `SELECT project_id, ${bucket} AS t, COUNT(*) AS n, ` +
-    `SUM(CASE WHEN level IN ('error', 'fatal') THEN 1 ELSE 0 END) AS e FROM ${b.d.table} ` +
-    `WHERE project_id IN (${ids}) AND ts >= ${b.param(from)} AND ts < ${b.param(to)} GROUP BY project_id, t`;
-  return { sql, params: b.params };
-}

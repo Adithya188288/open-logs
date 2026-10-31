@@ -1,5 +1,5 @@
 // Routes. Signed-in screens share <Layout/> so the sidebar never reloads.
-import { useEffect } from 'react';
+import { useLayoutEffect } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
 import { Layout, PageLoader, projectHome, useApp } from './components/Layout.jsx';
 import { Dashboard } from './pages/Dashboard.jsx';
@@ -27,7 +27,8 @@ function NeedsProject({ children }) {
 
 /** @param {{ title: string, children: import('react').ReactNode }} props */
 function Titled({ title, children }) {
-  useEffect(() => {
+  // Before paint, so the tab never shows the previous screen's title.
+  useLayoutEffect(() => {
     document.title = title === 'Open Logs' ? title : `${title} · Open Logs`;
   }, [title]);
   return children;

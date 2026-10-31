@@ -1,46 +1,35 @@
-// Sources (/sources): the project's sources, and a modal to create one.
+// Sources (/sources): the project's sources (name and created date, 12 per page), and a modal to create one.
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { Modal, openDialog } from '../components/Dialogs.jsx';
 import { Icon } from '../components/Icon.jsx';
 import { PageLoader, Topbar, useProject } from '../components/Layout.jsx';
+import { Pager } from '../components/Pager.jsx';
 import { SendPanel } from '../components/SendPanel.jsx';
 import { ApiError, api } from '../lib/api.js';
-import { activity } from '../lib/activity.js';
-import { ago, lagLabel } from '../lib/format.js';
+import { ago, hm } from '../lib/format.js';
 import { q, refresh } from '../lib/queries.js';
 
 const POLL_MS = 3000;
 
-/** @param {{ s: any }} props */
-function StatusPill({ s }) {
-  const rejecting = s.rejected_count > 0 && (!s.last_event_at || s.last_rejected_at > s.last_event_at);
-  if (rejecting)
-    return (
-      <span className="pill err" title={`${s.rejected_count} requests rejected with 401`}>
-        {s.rejected_count} rejected
-      </span>
-    );
-  const a = activity(s.last_event_at);
-  return <span className={`pill${a.state === 'live' ? ' ok' : ''}`}>{a.label}</span>;
-}
-
 /**
- * New source: name → the one-time token and snippet → listening for the first event.
- * @param {{ projectId: string, lagMs: number, onCreated: () => void, onClose: () => void }} props
+ * New source: name → the one-time token and snippet → waiting for the first event.
+ * The source's first accepted log is recorded once in D1 (first_event_at), so this knows within seconds that
+ * the app is connected, while the log itself shows up in live tail once Basin has it (about 1–2 minutes).
+ * @param {{ projectId: string, onCreated: () => void, onClose: () => void }} props
  */
-function NewSource({ projectId, lagMs, onCreated, onClose }) {
+function NewSource({ projectId, onCreated, onClose }) {
   const [created, setCreated] = useState(/** @type {{ source: any, token: string } | null} */ (null));
   const [error, setError] = useState('');
-  // Listens for the first event: polls only while it hasn't arrived and the tab is visible.
+  // Waits for the first event: polls only while this dialog is open, it hasn't arrived and the tab is visible.
   const { data: live } = useQuery({
     ...q.source(created?.source.id ?? ''),
     enabled: Boolean(created),
     staleTime: 0,
-    refetchInterval: (query) => (query.state.data?.last_event_at ? false : POLL_MS),
+    refetchInterval: (query) => (query.state.data?.first_event_at ? false : POLL_MS),
   });
-  const got = Boolean(live?.last_event_at);
+  const got = Boolean(live?.first_event_at);
   useEffect(() => {
     if (got) onCreated();
   }, [got, onCreated]);
@@ -94,7 +83,8 @@ function NewSource({ projectId, lagMs, onCreated, onClose }) {
   return (
     <Modal title="New source" wide onClose={onClose}>
       <p className="small">
-        Source <b className="mono">{source.name}</b> created. Send it one event:
+        Source <b className="mono">{source.name}</b> created. Send us a log event; it shows up in live tail in
+        about 1–2 minutes.
       </p>
       <SendPanel sourceName={source.name} token={token} />
       <div className={`verify ${got ? 'got' : 'listening'}`} role="status" data-testid="verify">
@@ -104,14 +94,14 @@ function NewSource({ projectId, lagMs, onCreated, onClose }) {
         </span>
         <div className="text">
           <span>
-            {got ? 'First event received from ' : 'Listening for the first event from '}
+            {got ? 'First event received from ' : 'Waiting for the first event from '}
             <span className="mono">{source.name}</span>
             {got ? '' : '…'}
           </span>
           <span>
             {got
-              ? 'You’re connected.'
-              : `${lagMs > 0 ? `Events land ${lagLabel(lagMs).replace('~', 'about ')} after they’re sent.` : 'Events show up within seconds.'} This updates on its own.`}
+              ? 'You’re connected. It shows up in live tail in about 1–2 minutes.'
+              : 'This updates on its own once your app sends a log.'}
           </span>
         </div>
         <Link className="btn" to={tail} onClick={onClose}>
@@ -136,30 +126,38 @@ function NewSource({ projectId, lagMs, onCreated, onClose }) {
 
 export function Sources() {
   const project = useProject();
-  const { data: sources } = useQuery(q.sources(project.id));
-  const lagMs = useQuery(q.status()).data?.lag_ms ?? 0;
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
+  const page = Math.max(1, Number(params.get('page')) || 1);
+  // Keep the previous page on screen while the next one loads.
+  const { data, isPlaceholderData } = useQuery({
+    ...q.sourcesPage(project.id, page),
+    placeholderData: (prev) => prev,
+  });
   const navigate = useNavigate();
   const projectId = project.id;
   const changed = useCallback(() => refresh.sources(projectId), [projectId]);
+  /** @param {number} n */
+  const goTo = (n) => {
+    const next = new URLSearchParams(params);
+    if (n > 1) next.set('page', String(n));
+    else next.delete('page');
+    setParams(next, { replace: true });
+  };
 
   const newSource = useCallback(
-    () =>
-      openDialog((close) => (
-        <NewSource projectId={project.id} lagMs={lagMs} onCreated={changed} onClose={close} />
-      )),
-    [project.id, lagMs, changed],
+    () => openDialog((close) => <NewSource projectId={project.id} onCreated={changed} onClose={close} />),
+    [project.id, changed],
   );
 
   // ?new=1 (from "Connect a source" links) opens the New source modal once the list has loaded.
   const wantsNew = params.get('new') === '1';
   const openedNew = useRef(false);
   useEffect(() => {
-    if (wantsNew && sources && !openedNew.current) {
+    if (wantsNew && data && !openedNew.current) {
       openedNew.current = true;
       newSource();
     }
-  }, [wantsNew, sources, newSource]);
+  }, [wantsNew, data, newSource]);
 
   const detail = (/** @type {any} */ s) =>
     `/source?project=${encodeURIComponent(project.id)}&id=${encodeURIComponent(s.id)}`;
@@ -173,9 +171,9 @@ export function Sources() {
         </button>
       </Topbar>
       <div className="page">
-        {!sources ? (
+        {!data ? (
           <PageLoader />
-        ) : !sources.length ? (
+        ) : !data.total ? (
           <div className="empty" data-testid="no-sources">
             <h2>Add your first source</h2>
             <p className="small">
@@ -189,10 +187,10 @@ export function Sources() {
           </div>
         ) : (
           <section className="card sources" aria-label="Sources">
-            <table className="grid clickable">
+            <table className={`grid clickable${isPlaceholderData ? ' stale' : ''}`}>
               <thead>
                 <tr>
-                  {['Name', 'Token', 'Last event', 'Status', ''].map((t) => (
+                  {['Name', 'Created', ''].map((t) => (
                     <th key={t} scope="col">
                       {t}
                     </th>
@@ -200,21 +198,17 @@ export function Sources() {
                 </tr>
               </thead>
               <tbody>
-                {sources.map((s) => (
+                {data.sources.map((/** @type {any} */ s) => (
                   <tr key={s.id} data-testid="source-row" onClick={() => navigate(detail(s))}>
                     <td>
-                      <Link className="mono" to={detail(s)}>
+                      <Link className="mono" to={detail(s)} title={s.name}>
                         {s.name}
                       </Link>
                     </td>
                     <td>
-                      <code className="small muted">{s.token_prefix}…</code>
-                    </td>
-                    <td>
-                      <span className="small muted">{s.last_event_at ? ago(s.last_event_at) : 'never'}</span>
-                    </td>
-                    <td>
-                      <StatusPill s={s} />
+                      <span className="small muted" title={`${hm(s.created_at, true)} UTC`}>
+                        {ago(s.created_at)}
+                      </span>
                     </td>
                     <td className="right">
                       <Icon name="right" size={14} />
@@ -223,6 +217,13 @@ export function Sources() {
                 ))}
               </tbody>
             </table>
+            <Pager
+              page={data.page}
+              pageSize={data.page_size}
+              total={data.total}
+              busy={isPlaceholderData}
+              onPage={goTo}
+            />
           </section>
         )}
       </div>

@@ -1,53 +1,34 @@
-// All projects (/projects): one card per project, with rename and delete.
+// All projects (/projects): a table of name, number of sources and created date, 12 per page, from D1 only.
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { useDeferredValue, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import { confirmDelete, FormDialog, openDialog, toast } from '../components/Dialogs.jsx';
 import { Icon } from '../components/Icon.jsx';
-import { newProjectDialog, projectHome, Topbar, useApp } from '../components/Layout.jsx';
+import { newProjectDialog, PageLoader, projectHome, Topbar, useApp } from '../components/Layout.jsx';
 import { MenuButton } from '../components/Menu.jsx';
+import { Pager } from '../components/Pager.jsx';
 import { ApiError, api } from '../lib/api.js';
-import { activity } from '../lib/activity.js';
-import { ago, compact, num } from '../lib/format.js';
+import { ago, hm } from '../lib/format.js';
 import { q } from '../lib/queries.js';
 
-const LOOK = {
-  waiting: { cls: '', dot: 'dot idle' },
-  live: { cls: 'ok', dot: 'dot live' },
-  idle: { cls: '', dot: 'dot off' },
-};
-
-/** @param {{ last_event_at: number | null }} p */
-function status(p) {
-  const a = activity(p.last_event_at);
-  return { label: a.label, ...LOOK[a.state] };
-}
-
-/** @param {{ values: number[] }} props */
-function Sparkline({ values }) {
-  const max = Math.max(...values);
-  const pts = max
-    ? values
-        .map((v, i) => `${Math.round((i * 240) / (values.length - 1))},${37 - Math.round((v / max) * 32)}`)
-        .join(' ')
-    : '0,36 240,36';
-  return (
-    <svg viewBox="0 0 240 40" preserveAspectRatio="none" aria-hidden="true">
-      <polyline className={max ? undefined : 'empty'} points={pts} />
-    </svg>
-  );
-}
+/** @typedef {{ id: string, name: string, created_at: number, source_count: number }} ProjectRow */
 
 export function Projects() {
-  const { me, projects, reloadProjects } = useApp();
-  // Visiting this page refreshes the 24h stats if they're more than 5 minutes old.
-  useQuery(q.projects());
+  const { me, reloadProjects } = useApp();
+  const [params, setParams] = useSearchParams();
+  const page = Math.max(1, Number(params.get('page')) || 1);
   const [find, setFind] = useState('');
+  const search = useDeferredValue(find.trim());
   const navigate = useNavigate();
-  const live = projects.filter((p) => status(p).cls === 'ok').length;
-  const shown = projects.filter((p) => p.name.toLowerCase().includes(find.trim().toLowerCase()));
+  // Keep the previous page on screen while the next one loads.
+  const { data, isPlaceholderData } = useQuery({
+    ...q.projectsPage(page, search),
+    placeholderData: (prev) => prev,
+  });
+  /** @param {number} n */
+  const goTo = (n) => setParams(n > 1 ? { page: String(n) } : {}, { replace: true });
 
-  /** @param {import('../components/Layout.jsx').Project} p */
+  /** @param {ProjectRow} p */
   const rename = (p) =>
     openDialog((close) => (
       <FormDialog
@@ -80,7 +61,7 @@ export function Projects() {
       </FormDialog>
     ));
 
-  /** @param {import('../components/Layout.jsx').Project} p */
+  /** @param {ProjectRow} p */
   const remove = (p) =>
     confirmDelete({
       title: `Delete project ${p.name}?`,
@@ -103,7 +84,7 @@ export function Projects() {
       <Topbar
         title="Projects"
         meta={
-          <span className="small muted">{`${projects.length} project${projects.length === 1 ? '' : 's'} · ${live} live`}</span>
+          data && <span className="small muted">{`${data.total} project${data.total === 1 ? '' : 's'}`}</span>
         }
       >
         <div className="searchbox">
@@ -116,7 +97,10 @@ export function Projects() {
             type="search"
             placeholder="Find a project"
             value={find}
-            onChange={(e) => setFind(e.target.value)}
+            onChange={(e) => {
+              setFind(e.target.value);
+              goTo(1);
+            }}
           />
         </div>
         <button
@@ -129,81 +113,81 @@ export function Projects() {
         </button>
       </Topbar>
       <div className="page">
-        <div className="projects" data-testid="projects">
-          {shown.map((p) => {
-            const st = status(p);
-            return (
-              <article key={p.id} className="card project" data-testid="project-card">
-                <div className="head">
-                  <Link className="name" to={projectHome(p.id)}>
-                    {p.name}
-                  </Link>
-                  <div className="headr">
-                    <span className={`pill${st.cls ? ` ${st.cls}` : ''}`}>
-                      <span className={st.dot} />
-                      {st.label}
-                    </span>
-                    <MenuButton
-                      className="iconbtn"
-                      label={`Options for ${p.name}`}
-                      items={() => (
-                        <>
-                          <Link role="menuitem" to={projectHome(p.id)}>
-                            Open
-                          </Link>
-                          <button type="button" role="menuitem" onClick={() => rename(p)}>
-                            Rename
-                          </button>
-                          {me.role !== 'member' && (
-                            <button
-                              className="danger"
-                              type="button"
-                              role="menuitem"
-                              onClick={() => remove(p)}
-                            >
-                              Delete project
+        {!data ? (
+          <PageLoader />
+        ) : (
+          <section className="card" aria-label="Projects">
+            <table className={`grid clickable${isPlaceholderData ? ' stale' : ''}`} data-testid="projects">
+              <thead>
+                <tr>
+                  {['Name', 'Sources', 'Created', ''].map((t) => (
+                    <th key={t} scope="col">
+                      {t}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {data.projects.map((/** @type {ProjectRow} */ p) => (
+                  <tr
+                    key={p.id}
+                    data-testid="project-row"
+                    onClick={(e) => {
+                      // The options menu and its dialogs sit inside the row: only plain row clicks open it.
+                      if (!(e.target instanceof Element) || !e.target.closest('button, [role="menu"], a'))
+                        navigate(projectHome(p.id));
+                    }}
+                  >
+                    <td>
+                      <Link className="mono" to={projectHome(p.id)} title={p.name}>
+                        {p.name}
+                      </Link>
+                    </td>
+                    <td className="mono">{p.source_count}</td>
+                    <td>
+                      <span className="small muted" title={`${hm(p.created_at, true)} UTC`}>
+                        {ago(p.created_at)}
+                      </span>
+                    </td>
+                    <td className="right">
+                      <MenuButton
+                        className="iconbtn"
+                        label={`Options for ${p.name}`}
+                        items={() => (
+                          <>
+                            <button type="button" role="menuitem" onClick={() => rename(p)}>
+                              Rename
                             </button>
-                          )}
-                        </>
-                      )}
-                    >
-                      <Icon name="more" />
-                    </MenuButton>
-                  </div>
-                </div>
-                <Sparkline values={p.stats.spark} />
-                <div className="stats">
-                  <span>
-                    <b>{compact(p.stats.events_24h)}</b> events · 24h
-                  </span>
-                  <span>
-                    <b className={p.stats.errors_24h > 0 ? 'bad' : undefined}>{num(p.stats.errors_24h)}</b>{' '}
-                    errors
-                  </span>
-                </div>
-                <div className="foot">
-                  {p.sources.length ? (
-                    <div className="tags">
-                      {p.sources.map((s) => (
-                        <span key={s.id} className="tag">
-                          {s.name}
-                        </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <Link className="btn" to={`/sources?project=${encodeURIComponent(p.id)}`}>
-                      <Icon name="plug" size={14} />
-                      Add a source
-                    </Link>
-                  )}
-                  <span className="seen">
-                    {p.last_event_at ? `Last event ${ago(p.last_event_at)}` : `Created ${ago(p.created_at)}`}
-                  </span>
-                </div>
-              </article>
-            );
-          })}
-        </div>
+                            {me.role !== 'member' && (
+                              <button
+                                className="danger"
+                                type="button"
+                                role="menuitem"
+                                onClick={() => remove(p)}
+                              >
+                                Delete project
+                              </button>
+                            )}
+                          </>
+                        )}
+                      >
+                        <Icon name="more" />
+                      </MenuButton>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {!data.projects.length && <p className="small muted empty-row">No projects match.</p>}
+            <Pager
+              page={data.page}
+              pageSize={data.page_size}
+              total={data.total}
+              busy={isPlaceholderData}
+              onPage={goTo}
+            />
+          </section>
+        )}
       </div>
     </>
   );

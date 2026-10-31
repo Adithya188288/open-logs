@@ -9,6 +9,8 @@
   display: flex;
   gap: var(--s-8);
   flex-wrap: wrap;
+  /* When chips make the search box taller, the picker and buttons keep their own height. */
+  align-items: flex-start;
 }
 .query {
   flex: 1 1 360px;
@@ -194,7 +196,7 @@
 .thead,
 .row {
   display: grid;
-  grid-template-columns: 116px 64px 76px minmax(0, 1fr) 24px;
+  grid-template-columns: 116px 64px 120px minmax(0, 1fr) 24px;
   gap: var(--s-12);
   align-items: center;
 }
@@ -451,7 +453,7 @@
 }
 .sk {
   display: grid;
-  grid-template-columns: 116px 64px 76px minmax(0, 1fr);
+  grid-template-columns: 116px 64px 120px minmax(0, 1fr);
   gap: var(--s-12);
   padding: var(--s-12) var(--s-16);
   border-bottom: 1px solid var(--line);
@@ -519,28 +521,25 @@
   color: var(--tx);
 }
 
-/* Event details open in a side panel; the list keeps streaming beside it */
+/* The list always keeps its full width; event details open in a drawer over the right edge of the window. */
 .tail-body {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--s-12);
   margin: var(--s-12) var(--s-24) 0;
 }
 .tail-body .table {
   margin: 0;
-  flex: 1 1 0;
   min-width: 0;
 }
 .evpanel {
-  flex: 0 0 380px;
-  max-width: 42%;
-  position: sticky;
-  top: 12px;
-  max-height: calc(100vh - 24px);
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(440px, 100vw);
+  z-index: 35;
   overflow-y: auto;
-  border: 1px solid var(--line);
-  border-radius: 10px;
   background: var(--bg);
+  border-left: 1px solid var(--line2);
+  box-shadow: var(--shadow);
 }
 .evpanel .detail {
   padding: 0;
@@ -588,47 +587,12 @@
   padding: var(--s-12);
   border-top: 1px solid var(--line);
 }
-.with-panel .row {
-  grid-template-columns: 96px 60px 64px minmax(0, 1fr) 16px;
-}
-.with-panel .thead {
-  grid-template-columns: 96px 60px 64px minmax(0, 1fr) 16px;
-}
 /* Ranges longer than a day, or across midnight, show the date in the time column. */
 .table.dated .thead,
 .table.dated .row {
-  grid-template-columns: 156px 64px 76px minmax(0, 1fr) 24px;
-}
-.with-panel .table.dated .thead,
-.with-panel .table.dated .row {
-  grid-template-columns: 136px 60px 64px minmax(0, 1fr) 16px;
+  grid-template-columns: 156px 64px 120px minmax(0, 1fr) 24px;
 }
 .ev.open {
   background: var(--bg3);
-}
-@media (max-width: 1000px) {
-  .tail-body {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  /* In a column, flex-basis 0 would mean zero height: let the table size to its rows. */
-  .tail-body .table {
-    flex: none;
-  }
-  .evpanel {
-    position: static;
-    flex-basis: auto;
-    max-width: none;
-    width: 100%;
-    max-height: none;
-  }
-}
-.list-refreshing {
-  display: flex;
-  justify-content: center;
-  padding: var(--s-6) 0;
-  border-bottom: 1px solid var(--line);
-}
-.list.refreshing .ev {
-  opacity: 0.55;
+  box-shadow: inset 3px 0 0 var(--tx2);
 }
