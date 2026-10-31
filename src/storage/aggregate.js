@@ -1,4 +1,4 @@
-// Runs a chart aggregate with any storage's query function, computing only the requested parts.
+// Runs a chart aggregate through Basin SQL, computing only the requested parts.
 import { buildAggregateSql } from '../query/sql.js';
 import { aggregateShape } from './shape.js';
 
@@ -6,7 +6,7 @@ export const AGGREGATE_PARTS = ['value', 'groups', 'series', 'series_by_group'];
 
 /**
  * @param {(q: { sql: string, params: unknown[] }) => Promise<Record<string, unknown>[]>} all
- * @param {import('../query/sql.js').DialectRef} dialect
+ * @param {import('../query/sql.js').Dialect} dialect
  * @param {import('../query/filter.js').Filter} filter
  * @param {import('./index.js').AggregateSpec} spec
  */

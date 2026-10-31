@@ -1,21 +1,26 @@
 // Log search, histogram, chart aggregates and freshness status.
 import { HttpError, json, readJson } from '../http.js';
 import { parseField, parseFilter, pickInterval } from '../query/filter.js';
+import { bySourceId, nameOf, sourceNames } from '../query/sources.js';
 import { AGGREGATE_PARTS } from '../storage/aggregate.js';
 import { getStorage } from '../storage/index.js';
 import { findProject } from './projects.js';
 
 /**
- * Parses the body as a filter and checks the project exists.
+ * Parses the body as a filter, checks the project exists, and turns source names into source ids.
  * @param {Request} request
  * @param {Env} env
  */
 export async function readFilter(request, env) {
   const body = await readJson(request);
-  const filter = parseFilter(body);
-  await findProject(env, filter.project_id);
-  return { filter, body: /** @type {Record<string, unknown>} */ (body) };
+  const parsed = parseFilter(body);
+  await findProject(env, parsed.project_id);
+  const names = await sourceNames(env, parsed.project_id);
+  return { filter: bySourceId(parsed, names), names, body: /** @type {Record<string, unknown>} */ (body) };
 }
+
+/** Group by the source's id rather than its name. @param {string | undefined} field */
+const groupable = (field) => (field === 'source' ? 'source_id' : field);
 
 /**
  * Runs a storage call, mapping engine timeouts to the "query too large" state.
@@ -38,8 +43,10 @@ export async function runQuery(fn) {
 
 /** @param {import('../types.js').RouteContext} c */
 export async function query({ request, env }) {
-  const { filter } = await readFilter(request, env);
-  return json(await runQuery(() => getStorage(env).query(filter)));
+  const { filter, names } = await readFilter(request, env);
+  const page = await runQuery(() => getStorage(env).query(filter));
+  const events = page.events.map((e) => ({ ...e, source: nameOf(names, e.source_id, e.source) }));
+  return json({ ...page, events });
 }
 
 const MEASURES = new Set(['count', 'count_over_time', 'avg', 'p95']);
@@ -60,7 +67,7 @@ export async function histogram({ request, env }) {
 
 /** @param {import('../types.js').RouteContext} c */
 export async function aggregate({ request, env }) {
-  const { filter, body } = await readFilter(request, env);
+  const { filter, names, body } = await readFilter(request, env);
   const measure = String(body.measure);
   if (!MEASURES.has(measure))
     throw new HttpError(400, 'invalid_field', 'measure must be count, count_over_time, avg or p95');
@@ -75,12 +82,22 @@ export async function aggregate({ request, env }) {
   }
   const spec = {
     measure: /** @type {'count'} */ (measure),
-    field,
-    group_by,
+    field: measure === 'count' || measure === 'count_over_time' ? groupable(field) : field,
+    group_by: groupable(group_by),
     interval: pickInterval(filter.from, filter.to, 30),
     parts,
   };
-  return json(await runQuery(() => getStorage(env).aggregate(filter, spec)));
+  const result = await runQuery(() => getStorage(env).aggregate(filter, spec));
+  // Same rule as the SQL builder: counts group by `field`; avg / p95 group by `group_by`, else by source.
+  const counting = spec.measure === 'count' || spec.measure === 'count_over_time';
+  const groupedBy = counting ? spec.field : (spec.group_by ?? 'source_id');
+  if (groupedBy !== 'source_id') return json(result);
+  const label = (/** @type {string} */ key) => nameOf(names, key, 'deleted source');
+  return json({
+    ...result,
+    groups: result.groups.map((g) => ({ ...g, key: label(g.key) })),
+    series_by_group: result.series_by_group.map((g) => ({ ...g, key: label(g.key) })),
+  });
 }
 
 /** @param {import('../types.js').RouteContext} c */

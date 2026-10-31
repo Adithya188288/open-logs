@@ -1,4 +1,4 @@
-// Turns raw SQL rows into API shapes. Shared by both adapters.
+// Turns raw Basin SQL rows into API shapes.
 import { encodeCursor } from '../query/filter.js';
 
 const LEVELS = ['debug', 'info', 'warn', 'error', 'fatal'];
@@ -22,6 +22,7 @@ export function eventsPage(rows, limit) {
   const page = rows.slice(0, limit).map((r) => ({
     id: String(r.id),
     ts: Number(r.ts),
+    source_id: String(r.source_id),
     source: String(r.source),
     level: String(r.level),
     message: String(r.message),

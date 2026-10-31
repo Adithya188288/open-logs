@@ -47,7 +47,13 @@ export async function listProjects({ env }) {
   const hour = 60 * 60 * 1000;
   const to = Math.ceil(now / hour) * hour;
   const ids = projects.results.map((p) => String(p.id));
-  const stats = await getStorage(env).overview(ids, to - 24 * hour, to, hour);
+  // The 24h counts come from Basin. If Basin can't answer, the app still loads; the cards just show no counts.
+  const stats = await getStorage(env)
+    .overview(ids, to - 24 * hour, to, hour)
+    .catch((/** @type {unknown} */ err) => {
+      console.error('project stats unavailable', err instanceof Error ? err.message : err);
+      return {};
+    });
   return json({
     projects: projects.results.map((p) => {
       const own = byProject.get(p.id) ?? [];

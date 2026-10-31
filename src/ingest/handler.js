@@ -70,7 +70,7 @@ async function ingest(request, env, ctx) {
     throw new HttpError(413, 'too_many_events', `Send at most ${MAX_EVENTS} events per request`);
 
   const now = Date.now();
-  const src = { project_id: String(source.project_id), name: String(source.name) };
+  const src = { id: String(source.id), project_id: String(source.project_id), name: String(source.name) };
   const events = items.map((item, index) => {
     if (!item || typeof item !== 'object' || Array.isArray(item)) {
       throw new HttpError(400, 'invalid_event', 'Each event must be a JSON object', { index });

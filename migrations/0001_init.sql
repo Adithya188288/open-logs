@@ -88,16 +88,3 @@ CREATE TABLE charts (
   size TEXT NOT NULL DEFAULT 'md' CHECK (size IN ('sm', 'md', 'lg')),
   created_at INTEGER NOT NULL
 );
-
--- Log storage for LOG_STORAGE=local. Production uses Basin instead.
-CREATE TABLE logs (
-  id TEXT PRIMARY KEY,
-  ts INTEGER NOT NULL,
-  project_id TEXT NOT NULL,
-  source TEXT NOT NULL,
-  level TEXT NOT NULL,
-  message TEXT NOT NULL,
-  fields_json TEXT NOT NULL DEFAULT '{}'
-);
-CREATE INDEX logs_project_ts ON logs(project_id, ts DESC, id DESC);
-CREATE INDEX logs_project_level_ts ON logs(project_id, level, ts DESC);

@@ -1,19 +1,7 @@
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
   "files": {
-    "includes": [
-      "src/**",
-      "app/**",
-      "test/**",
-      "e2e/**",
-      "scripts/**",
-      "site/**",
-      "create-open-logs/**",
-      "*.js",
-      "*.json",
-      "!docs",
-      "!e2e/.auth"
-    ]
+    "includes": ["src/**", "app/**", "scripts/**", "site/**", "*.js", "*.json", "!docs"]
   },
   "formatter": { "indentStyle": "space", "indentWidth": 2, "lineWidth": 110 },
   "javascript": { "formatter": { "quoteStyle": "single" } },
