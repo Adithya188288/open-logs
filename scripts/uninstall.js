@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// npm run uninstall [-- --name my-logs]: removes everything setup created in Cloudflare, logs included.
+// npm run uninstall [my-logs]: removes everything setup created in Cloudflare, logs included.
 //   Worker (and its secrets) → every pipeline, sink and stream with the install's name → Basin table
 //   → Basin Catalog (deleted, not just disabled) → every file in the bucket → bucket → D1.
 // The API token itself can't be deleted by a script (Cloudflare doesn't allow it): the last step links to it.
