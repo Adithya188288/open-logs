@@ -1,0 +1,236 @@
+// Source detail (/source?project=…&id=…): stats, how to send, rename, regenerate token, delete.
+import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router';
+import { confirmDelete, FormDialog, Modal, openDialog } from '../components/Dialogs.jsx';
+import { Icon } from '../components/Icon.jsx';
+import { PageLoader, Topbar, useApp, useProject } from '../components/Layout.jsx';
+import { Loader } from '../components/Loader.jsx';
+import { SendPanel, TokenPanel } from '../components/SendPanel.jsx';
+import { ApiError, api } from '../lib/api.js';
+import { ago, hms, num } from '../lib/format.js';
+import { q, queryClient, refresh } from '../lib/queries.js';
+
+const DAY = 86_400_000;
+
+/** @param {{ label: string, children: import('react').ReactNode }} props */
+function Stat({ label, children }) {
+  return (
+    <div className="stat">
+      <span className="tiny muted">{label}</span>
+      <span>{children}</span>
+    </div>
+  );
+}
+
+export function Source() {
+  const project = useProject();
+  const { me } = useApp();
+  const [params] = useSearchParams();
+  const navigate = useNavigate();
+  const id = params.get('id') ?? '';
+  const list = `/sources?project=${encodeURIComponent(project.id)}`;
+  // Starts from the sources list loaded at start-up, so the page opens instantly.
+  const { data: source, isError } = useQuery({
+    ...q.source(id),
+    initialData: () =>
+      /** @type {any[] | undefined} */ (queryClient.getQueryData(['project', project.id, 'sources']))?.find(
+        (s) => s.id === id,
+      ),
+  });
+  useEffect(() => {
+    if (isError) navigate(list, { replace: true });
+  }, [isError, list, navigate]);
+  /** @param {any} s */
+  const setSource = (s) => queryClient.setQueryData(['source', id], s);
+  const changed = () => refresh.sources(project.id);
+
+  // Events in the last 24h for this source: refreshed when you come back to the page after a minute.
+  const { data: count } = useQuery({
+    queryKey: ['source', id, 'count24h', source?.name],
+    enabled: Boolean(source?.name),
+    staleTime: 60_000,
+    queryFn: async () => {
+      const now = Date.now();
+      const r = await api('/api/aggregate', {
+        body: {
+          project_id: project.id,
+          from: now - DAY,
+          to: now + 1000,
+          where: [{ field: 'source', op: '=', value: source.name }],
+          measure: 'count',
+          parts: ['value'],
+        },
+      });
+      return num(r.value ?? 0);
+    },
+  });
+
+  if (!source) return <PageLoader />;
+
+  const rename = () =>
+    openDialog((close) => (
+      <FormDialog
+        title="Rename source"
+        submitLabel="Rename"
+        onClose={close}
+        onSubmit={async (v) => {
+          try {
+            setSource(
+              (await api(`/api/sources/${source.id}`, { method: 'PATCH', body: { name: v.name } })).source,
+            );
+            changed();
+            return null;
+          } catch (err) {
+            return err instanceof ApiError ? err.message : 'Rename failed';
+          }
+        }}
+      >
+        <div className="field">
+          <label className="label" htmlFor="sname">
+            Name
+          </label>
+          <input
+            id="sname"
+            className="input mono"
+            name="name"
+            required
+            maxLength={64}
+            defaultValue={source.name}
+          />
+        </div>
+        <p className="small muted">New events get the new name. Events already stored keep the old one.</p>
+      </FormDialog>
+    ));
+
+  const regenerate = () =>
+    openDialog((close) => (
+      <FormDialog
+        title={`Regenerate token for ${source.name}?`}
+        submitLabel="Regenerate token"
+        onClose={close}
+        onSubmit={async () => {
+          const res = await api(`/api/sources/${source.id}/regenerate`, { method: 'POST' });
+          setSource(res.source);
+          changed();
+          setTimeout(() =>
+            openDialog((done) => (
+              <Modal title="New token" wide onClose={done}>
+                <p className="small">Update your apps with this token:</p>
+                <div className="sendpanel">
+                  <TokenPanel token={res.token} />
+                </div>
+              </Modal>
+            )),
+          );
+          return null;
+        }}
+      >
+        <p className="small muted">
+          The current token stops working immediately. Apps using it get 401 until you update them.
+        </p>
+      </FormDialog>
+    ));
+
+  const remove = () =>
+    confirmDelete({
+      title: `Delete source ${source.name}?`,
+      body: 'Its token stops working right away, so apps sending with it get 401. Logs already stored stay.',
+      confirmLabel: 'Delete source',
+      onConfirm: async () => {
+        try {
+          await api(`/api/sources/${source.id}`, { method: 'DELETE' });
+          queryClient.removeQueries({ queryKey: ['source', id] });
+          await changed();
+          navigate(list);
+          return null;
+        } catch (err) {
+          return err instanceof ApiError ? err.message : 'Delete failed';
+        }
+      },
+    });
+
+  const rejected = source.rejected_count > 0;
+  const recent = source.last_event_at && Date.now() - source.last_event_at < 5 * 60_000;
+  const tail = `/tail?project=${encodeURIComponent(project.id)}&source=${encodeURIComponent(source.name)}`;
+
+  return (
+    <>
+      <Topbar
+        title={
+          <div className="crumbs">
+            <Link className="muted" to={list}>
+              Sources
+            </Link>
+            <span className="muted"> / </span>
+            <h1 className="mono">{source.name}</h1>
+            <button
+              className="iconbtn"
+              type="button"
+              aria-label="Rename source"
+              title="Rename"
+              onClick={rename}
+            >
+              <Icon name="edit" size={14} />
+            </button>
+          </div>
+        }
+      >
+        <button className="btn" type="button" onClick={regenerate}>
+          Regenerate token
+        </button>
+        {me.role !== 'member' && (
+          <button className="btn danger" type="button" onClick={remove}>
+            Delete
+          </button>
+        )}
+      </Topbar>
+      <div className="page">
+        <div className="stats-row">
+          <Stat label="Created">{`${new Date(source.created_at).toISOString().slice(0, 16).replace('T', ' ')} UTC`}</Stat>
+          <Stat label="Last event">
+            {source.last_event_at
+              ? `${ago(source.last_event_at)} (${hms(source.last_event_at)} UTC)`
+              : 'never'}
+          </Stat>
+          <Stat label="Events · 24h">
+            {count === undefined ? (
+              <Loader size="sm" inline />
+            ) : (
+              <span data-testid="events-24h">{count}</span>
+            )}
+            {recent && <span className="tiny muted"> · new events take 1–3 minutes to appear</span>}
+          </Stat>
+          <Stat label="Rejected requests">
+            {rejected ? (
+              <span className="bad">{`${num(source.rejected_count)} · last ${hms(source.last_rejected_at)} UTC`}</span>
+            ) : (
+              '0'
+            )}
+          </Stat>
+        </div>
+        {rejected && source.last_rejected_at > (source.last_event_at ?? 0) && (
+          <div className="alert err" role="alert">
+            <Icon name="info" />
+            <div className="body">
+              <strong>Requests are being rejected</strong>
+              <span>
+                Apps are sending with an old token (401 invalid token). Update them with the current token, or
+                regenerate it.
+              </span>
+            </div>
+          </div>
+        )}
+        <section className="card panel">
+          <div className="spread">
+            <h2>How to send logs</h2>
+            <Link className="btn" to={tail}>
+              Open live tail →
+            </Link>
+          </div>
+          <SendPanel sourceName={source.name} tokenPrefix={source.token_prefix} />
+        </section>
+      </div>
+    </>
+  );
+}

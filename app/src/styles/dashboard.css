@@ -1,0 +1,493 @@
+/* Dashboards and chart builder. Layout from docs/design/screens/Dashboard. */
+.tiles {
+  padding: var(--s-24) var(--s-24) var(--s-32);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s-12);
+}
+@media (max-width: 900px) {
+  .tiles {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .tile.lg,
+  .tile.span-2,
+  .tile.span-3 {
+    grid-column: auto !important;
+  }
+}
+.tile {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: var(--s-16) var(--s-16);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-8);
+  background: var(--bg);
+  min-width: 0;
+}
+.tile.lg,
+.tile.span-2 {
+  grid-column: span 2;
+}
+.tile.span-3 {
+  grid-column: span 3;
+}
+.tile .head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--s-8);
+}
+.tile h2 {
+  font-size: 13px;
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tile h2 .sub {
+  font-weight: 400;
+  color: var(--tx3);
+}
+.tile.sm h2 {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--tx3);
+}
+.tile .more {
+  font: inherit;
+  color: var(--tx3);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 0 var(--s-4);
+  font-size: 15px;
+  opacity: 0.8;
+  border-radius: 6px;
+}
+.tile:hover .more,
+.tile:focus-within .more {
+  opacity: 1;
+}
+.tile .headr {
+  display: flex;
+  gap: var(--s-8);
+  align-items: center;
+}
+.tile .err {
+  font-size: 12px;
+  color: var(--errtx);
+}
+.tile .nodata {
+  font-size: 12px;
+  color: var(--tx3);
+  padding: var(--s-16) 0;
+  text-align: center;
+}
+.bigrow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: var(--s-12);
+}
+.big {
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.big.bad {
+  color: var(--errtx);
+}
+.delta {
+  font-size: 12px;
+  color: var(--tx3);
+}
+.delta.bad {
+  color: var(--errtx);
+  font-weight: 500;
+}
+.delta.good {
+  color: var(--oktx);
+  font-weight: 500;
+}
+.keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-8);
+  font-size: 11px;
+  color: var(--tx3);
+}
+.keys span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-4);
+}
+.keys i {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  display: inline-block;
+}
+.hbars {
+  display: grid;
+  grid-template-columns: fit-content(60%) minmax(64px, 1fr) auto;
+  column-gap: var(--s-12);
+  row-gap: var(--s-8);
+}
+/* Rows share the list's columns, so bars line up and start right after the longest label. */
+.hbar {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: center;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--tx2);
+  text-decoration: none;
+}
+.hbar span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hbar .track {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--bg3);
+  overflow: hidden;
+}
+.hbar .track div {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--tx);
+}
+.hbar.errors .track {
+  height: 3px;
+}
+.hbar.errors .track div {
+  background: var(--err);
+}
+.hbar b {
+  font-weight: 500;
+  color: var(--tx);
+}
+.vplot {
+  display: flex;
+  gap: var(--s-8);
+}
+.vplot .yaxis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  text-align: right;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--tx3);
+  height: 134px;
+  min-width: 28px;
+}
+.vbars {
+  flex-grow: 1;
+  display: flex;
+  align-items: flex-end;
+  gap: var(--s-4);
+  height: 134px;
+  border-bottom: 1px solid var(--line2);
+  position: relative;
+}
+.vbars .col {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: flex-start;
+  min-width: 0;
+  height: 100%;
+}
+.vbars .col span {
+  display: block;
+}
+.vbars .col span:last-child {
+  border-radius: 2px 2px 0 0;
+}
+.xaxis {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--tx3);
+  padding-left: var(--s-32);
+}
+.line-svg {
+  width: 100%;
+  height: 134px;
+  display: block;
+  border-bottom: 1px solid var(--line2);
+  overflow: visible;
+}
+.line-svg polyline {
+  fill: none;
+  stroke-width: 1.75;
+  vector-effect: non-scaling-stroke;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.donut {
+  display: flex;
+  align-items: center;
+  gap: var(--s-16);
+  flex-wrap: wrap;
+}
+.donut svg {
+  width: 110px;
+  height: 110px;
+  flex: 0 0 110px;
+  transform: rotate(-90deg);
+}
+.donut circle {
+  fill: none;
+  stroke-width: 6;
+}
+.donut .center {
+  display: flex;
+  flex-direction: column;
+}
+.donut .center b {
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.donut .center span {
+  font-size: 12px;
+  color: var(--tx3);
+  font-family: var(--mono);
+}
+.donut .keys {
+  flex-direction: column;
+  gap: var(--s-6);
+  font-size: 12px;
+}
+.donut .keys b {
+  font-family: var(--mono);
+  font-weight: 500;
+  color: var(--tx);
+  margin-left: var(--s-6);
+}
+.spark {
+  width: 96px;
+  height: 30px;
+  flex: 0 0 96px;
+}
+.spark polyline {
+  fill: none;
+  stroke-width: 1.5;
+  stroke: var(--tx2);
+}
+.spark.bad polyline {
+  stroke: var(--err);
+}
+
+/* Palette: levels first, then categorical. Fill for bars, stroke for lines. */
+.k-debug {
+  background: var(--debugbar);
+  --k: var(--debugbar);
+}
+.k-info {
+  background: var(--infobar);
+  --k: var(--infobar);
+}
+.k-warn {
+  background: var(--warn);
+  --k: var(--warn);
+}
+.k-error {
+  background: var(--err);
+  --k: var(--err);
+}
+.k-fatal {
+  background: var(--errtx);
+  --k: var(--errtx);
+}
+.k-c1 {
+  background: var(--c1);
+  --k: var(--c1);
+}
+.k-c2 {
+  background: var(--c2);
+  --k: var(--c2);
+}
+.k-c3 {
+  background: var(--c3);
+  --k: var(--c3);
+}
+.k-c4 {
+  background: var(--c4);
+  --k: var(--c4);
+}
+.k-c5 {
+  background: var(--c5);
+  --k: var(--c5);
+}
+.k-other {
+  background: var(--line2);
+  --k: var(--line2);
+}
+.k-one {
+  background: var(--tx2);
+  --k: var(--tx2);
+}
+polyline[class^="k-"],
+circle[class^="k-"] {
+  background: none;
+  stroke: var(--k);
+}
+
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--scrim);
+  display: flex;
+  justify-content: flex-end;
+  z-index: 40;
+}
+.drawer {
+  width: 420px;
+  max-width: 100%;
+  height: 100%;
+  background: var(--bg);
+  border-left: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+}
+.drawer .dhead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--s-16) var(--s-16);
+  border-bottom: 1px solid var(--line);
+}
+.drawer .dhead h2 {
+  font-size: 15px;
+  font-weight: 600;
+}
+.drawer .dhead button {
+  display: inline-flex;
+  padding: var(--s-4);
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--tx3);
+  cursor: pointer;
+}
+.drawer .dhead button:hover {
+  background: var(--bg3);
+  color: var(--tx);
+}
+.drawer .dbody {
+  padding: var(--s-16) var(--s-16);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-12);
+  overflow-y: auto;
+  flex-grow: 1;
+}
+.drawer .two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-8);
+}
+.drawer .vizs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--s-6);
+}
+.drawer .vizs button {
+  font: inherit;
+  cursor: pointer;
+  text-align: center;
+  font-size: 12px;
+  padding: var(--s-8) 0;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--tx2);
+}
+.drawer .vizs button[aria-pressed="true"] {
+  border-color: var(--pri);
+  background: var(--pri);
+  color: var(--onpri);
+  font-weight: 500;
+}
+.drawer .preview {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: var(--s-16);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-8);
+  background: var(--bg2);
+}
+.drawer .preview > span {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--tx3);
+  text-transform: uppercase;
+}
+.drawer .dfoot {
+  display: flex;
+  gap: var(--s-8);
+  padding: var(--s-16) var(--s-16);
+  border-top: 1px solid var(--line);
+}
+.drawer .dfoot .primary {
+  flex-grow: 1;
+  justify-content: center;
+}
+.empty-board {
+  grid-column: 1 / -1;
+  padding: var(--s-40);
+  text-align: center;
+  color: var(--tx3);
+  border: 1px dashed var(--line2);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-8);
+  align-items: center;
+}
+.vplot .grow {
+  flex-grow: 1;
+  min-width: 0;
+}
+.titlebtn {
+  font: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-6);
+  border: none;
+  background: transparent;
+  color: var(--tx);
+  cursor: pointer;
+  padding: var(--s-4) var(--s-6);
+  margin-left: -6px;
+  border-radius: 6px;
+}
+.titlebtn:hover {
+  background: var(--bg3);
+}
+.titlebtn h1 {
+  font-size: 15px;
+  font-weight: 600;
+}
+.titlebtn svg {
+  color: var(--tx3);
+}
+.freshness {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-4);
+  white-space: nowrap;
+}

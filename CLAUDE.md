@@ -35,36 +35,48 @@ Inside the repo, on a feature branch, you may write code, run tests, and commit 
 - `main` = production. Only release merges from `develop` land here, tagged `vX.Y.Z`.
 - `develop` = integration. **Never commit directly to `develop` or `main`.**
 - Every unit of work: `git switch develop && git pull` → `git switch -c feature/<short-name>` →
-  tests first → implement → all tests green → security review → PR into `develop` → merge → delete branch.
+  implement → `npm run deploy:staging` and check on staging against real Basin →
+  security review → PR into `develop` → merge → delete branch.
 - Fixes: `fix/<short-name>`. Docs only: `docs/<short-name>`. Same flow.
 - Small commits, Conventional Commits style: `feat(ingest): accept batched events`, `test(auth): …`, `fix(ui): …`.
 - One feature branch = one coherent, tested thing. Verify it works before starting the next.
-- CI (GitHub Actions) runs lint + unit + e2e on every PR. Never merge red.
+- Staging is an ordinary install kept in `.open-logs/`. `npm run deploy:staging -- --name <staging install>` deploys
+  the current branch to it. `npm run staging:reset` (only from `develop`) wipes its D1 and redeploys `develop`.
 
-### Test-driven
-- Write the failing test first, then the code, then refactor.
-- Backend: Vitest with `@cloudflare/vitest-pool-workers` (runs inside the real Workers runtime, with a local D1).
-- UI: Playwright against `wrangler dev`, covering every user flow in `docs/PLAN.md`.
+### Testing
+- There are no automated tests and no CI right now. 2026-10-31: all tests, CI and test packages were removed (owner decision). Tests will be rebuilt from scratch, one at a time, with the owner.
+- Until then, changes are checked on a staging install against real Basin.
 - Functionality before polish: a screen must work end to end with the real API before visual refinement.
-- A phase is only done when every box in its checklist is ticked and CI is green.
 
 ### Agents
-This repo defines four subagents in `.claude/agents/`. You (the main session) are the **lead**:
-you own the plan, git, branches, merges, and the API contract. Delegate:
-- `backend`: Worker, API, D1, auth, storage adapters, Basin.
-- `ui-builder`: the dashboard app (static HTML/CSS/JS served by the Worker).
-- `landing-page`: the public landing page, README, install docs.
-- `security-reviewer`: reviews every feature branch diff before merge. **A critical finding blocks the merge.**
+You (the main session) are the **lead**: you own the plan, git, branches, merges, and the API contract.
+Work is delegated to subagents, each with a narrow, explicit brief (branch name, files it owns, tests that
+must pass).
 
-Order of work: backend defines/updates `docs/API.md` first → ui-builder builds against it.
-Landing page can run in parallel any time. Security review runs at the end of every feature branch.
-Give each agent a narrow, explicit brief (branch name, files it owns, tests that must pass).
+Order of work: the backend change updates `docs/API.md` first → the UI builds against it.
+A security review runs at the end of every feature branch. **A critical finding blocks the merge.**
+
+### Release rules
+- Before the first release, migrations may be edited.
+- After the first release, `migrations/0001_init.sql` is frozen. Every schema change is a new migration that
+  only adds: new tables, new nullable or defaulted columns. Never remove or rename a table or column in the
+  same release that stops using it, because the previous Worker version must keep working for rollback.
+- Basin table columns (`basin/stream-schema.json`) are fixed once users have installed it. New log data goes
+  into the `fields` JSON.
+- Every release is tested as an update from the previous release: `npm run setup` from the old tag on a
+  throwaway install → `npm run update` → check. Every release gets release notes.
+- Standing rule, every change: prune obsolete or duplicate tests in the same change.
 
 ### Code style
-- Plain JavaScript (ES modules) with JSDoc types. No TypeScript build step, no frontend framework.
-- UI: vanilla HTML/CSS/JS, no bundler required. Small, readable files.
+- Plain JavaScript (ES modules, JSX in the UI) with JSDoc types. No TypeScript.
+- Backend: Hono on Cloudflare Workers (`src/`). Handlers are small functions; routing lives in `src/routes/index.js`.
+- UI: React + Vite single-page app (`app/`), React Router, plain CSS with the design tokens. No UI kit.
+  Server data goes through React Query (`app/src/lib/queries.js`): load once and keep it; only live
+  data refreshes (live tail, dashboard when new data lands), never while the tab is hidden; changes
+  refresh exactly what they affect. Loading = a small pulsing green dot (`<Loader/>`), first load only.
+  (Owner decision 2026-10-30: moved from vanilla multi-page HTML to React + Hono for instant navigation.)
 - Clear names over clever code. No dead code, no commented-out blocks.
-- Never log secrets or full tokens. Never commit `.dev.vars` or real credentials.
+- Never log secrets or full tokens. Never commit `.dev.vars`, `.open-logs/` or real credentials.
 
 ### Honesty
 - If something can't be done or verified (e.g. a Basin feature that doesn't run locally), say so
@@ -81,10 +93,13 @@ Give each agent a narrow, explicit brief (branch name, files it owns, tests that
 | Project name | Open Logs (`open-logs`) |
 | Local path | `~/Documents/Personal/projects/open-logs` |
 | Runtime | Cloudflare Workers + static assets |
-| App DB | D1 (users, sessions, projects, sources, tokens, views, charts) |
-| Log storage, local | D1 `logs` table (via `LocalStorage` adapter) |
-| Log storage, prod | Basin Pipelines → Iceberg table in R2 → Basin SQL (via `BasinStorage` adapter) |
+| App DB | D1, app data only (users, sessions, invites, projects, sources, views, dashboards, charts, settings) |
+| Log storage | Basin only: Pipelines stream → Iceberg table in R2 (Basin Catalog) → Basin SQL (`BasinStorage`). No local logs. |
+| Plan | Workers Paid ($5/month), needed for Basin |
 | Ingest | `POST /v1/logs` with `Authorization: Bearer <source token>` |
 | Admin bootstrap | `ADMIN_PASSWORD` secret (first sign-in) |
-| Install target | `npx create-open-logs` + "Deploy to Cloudflare" button |
+| Install | `git clone` + `npm run setup` (writes `.open-logs/<name>.jsonc` and `.json`, gitignored) |
+| Maintain | `npm run update`, `npm run rollback`, `npm run uninstall` (each asks the install name, or `-- --name`; Enter = `open-logs`) |
+| Staging | an ordinary install, picked by name; `npm run deploy:staging`, `npm run staging:reset` |
+| Local run | None. `npm run dev` only prints that Open Logs runs on Cloudflare. |
 | Design reference | `docs/design/` and the canvas link in `docs/design/README.md` |
