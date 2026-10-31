@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // npm run uninstall [-- --name my-logs]: removes everything setup created in Cloudflare, logs included.
-//   Worker (and its secrets) → pipeline, sink, stream → Basin Catalog → every file in the bucket → bucket → D1.
+//   Worker (and its secrets) → every pipeline, sink and stream with the install's name → Basin table
+//   → Basin Catalog (deleted, not just disabled) → every file in the bucket → bucket → D1.
 // The API token itself can't be deleted by a script (Cloudflare doesn't allow it): the last step links to it.
 import { rmSync } from 'node:fs';
 import {
@@ -45,6 +46,60 @@ function remove(label, args) {
   results.push([label, outcome]);
   console.log(`  • ${label}… ${outcome}`);
   if (outcome === 'failed') console.error(r.out.trim().split('\n').slice(-3).join('\n'));
+}
+
+/**
+ * Deletes every pipeline, sink or stream with this name. Listing (rather than deleting by name once) also
+ * catches a duplicate left behind when a setup step reported an error but still created the resource.
+ * @param {string} label
+ * @param {'pipelines' | 'sinks' | 'streams'} kind
+ * @param {string} name
+ */
+function removeAllNamed(label, kind, name) {
+  const group = kind === 'pipelines' ? ['pipelines'] : ['pipelines', kind];
+  const listed = wrangler([...group, 'list', '--json', '--per-page', '100'], { quiet: true });
+  /** @type {{ id: string, name: string }[]} */
+  let items = [];
+  try {
+    items = JSON.parse(listed.out.slice(listed.out.indexOf('['))).filter(
+      (/** @type {any} */ i) => i.name === name,
+    );
+  } catch {}
+  if (!listed.ok) {
+    results.push([label, 'failed']);
+    console.log(`  • ${label}… failed`);
+    console.error(listed.out.trim().split('\n').slice(-3).join('\n'));
+    return;
+  }
+  if (!items.length) {
+    results.push([label, 'already gone']);
+    console.log(`  • ${label}… already gone`);
+    return;
+  }
+  for (const item of items)
+    remove(items.length > 1 ? `${label} ${item.id}` : label, [...group, 'delete', item.id, '--force']);
+}
+
+/**
+ * Deletes the catalog itself. `wrangler … catalog disable` only switches it off and leaves it in the account,
+ * so this calls Cloudflare's delete endpoint; force=true also removes its namespaces, tables and views.
+ */
+async function deleteCatalog() {
+  wrangler(['r2', 'bucket', 'catalog', 'disable', state.bucket], { quiet: true });
+  const res = await fetch(
+    `${API}/${state.accountId}/basin-catalog/${encodeURIComponent(state.bucket)}/delete?force=true`,
+    {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}` },
+    },
+  );
+  if (res.ok) return 'removed';
+  if (res.status === 404) return 'already gone';
+  const body = await res.json().catch(() => ({}));
+  console.error(
+    `  Deleting the catalog failed (${res.status}): ${body.errors?.[0]?.message ?? 'unknown error'}`,
+  );
+  return 'failed';
 }
 
 /**
@@ -97,14 +152,17 @@ async function emptyBucket() {
 
 step('Removing');
 remove('Worker and its secrets', ['delete', state.name, '--force']);
-remove('pipeline', ['pipelines', 'delete', state.pipeline, '--force']);
-remove('sink', ['pipelines', 'sinks', 'delete', state.sink, '--force']);
-remove('stream', ['pipelines', 'streams', 'delete', state.stream, '--force']);
+removeAllNamed('pipeline', 'pipelines', state.pipeline);
+removeAllNamed('sink', 'sinks', state.sink);
+removeAllNamed('stream', 'streams', state.stream);
 process.stdout.write('  • Basin table… ');
 const dropped = await dropCatalogTable();
 results.push(['Basin table', dropped]);
 console.log(dropped);
-remove('Basin Catalog', ['r2', 'bucket', 'catalog', 'disable', state.bucket]);
+process.stdout.write('  • Basin Catalog… ');
+const catalogDeleted = await deleteCatalog();
+results.push(['Basin Catalog', catalogDeleted]);
+console.log(catalogDeleted);
 process.stdout.write('  • log files in the bucket… ');
 const emptied = await emptyBucket();
 results.push(['log files in the bucket', emptied]);
