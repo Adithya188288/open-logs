@@ -45,8 +45,9 @@ What `npm run setup` does:
 1. Installs packages and runs `wrangler login` if you are not signed in.
 2. Picks your Cloudflare account (it asks if you have more than one).
 3. Asks for the API token and your email. You sign in with that email.
-4. Creates, in your account: an R2 bucket, a Basin Catalog on it, a Pipelines stream, an Iceberg sink
-   (new files every 60 seconds), a pipeline from the stream to the sink, and a D1 database.
+4. Creates, in your account: an R2 bucket, a Basin Catalog on it (with your token stored as its credential,
+   for Cloudflare's table maintenance), a Pipelines stream, an Iceberg sink (new files every 60 seconds),
+   a pipeline from the stream to the sink, and a D1 database.
 5. Writes the install's config to `.open-logs/<name>.jsonc` and its resource ids to `.open-logs/<name>.json`.
    This folder is gitignored. Keep it: update, rollback and uninstall read it.
 6. Applies the D1 migrations, builds the dashboard and deploys the Worker.
