@@ -7,6 +7,7 @@
 //   values as escaped literals (see sqlLiteral). Values only ever come from a validated Filter.
 // Verified on real Basin (staging, 2026-10-30): responses are `{ result: { schema, rows: [{…}], metrics }, success }`;
 // backslash is an ordinary character inside string literals; LIKE only accepts ESCAPE '\'.
+import { HttpError } from '../http.js';
 import { buildEventsSql, buildHistogramSql, buildOverviewSql } from '../query/sql.js';
 import { runAggregate } from './aggregate.js';
 import { eventsPage, histogramBuckets, overviewShape } from './shape.js';
@@ -17,6 +18,11 @@ const TABLE_NAME = /^[a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*$/;
 // (2026-10-30) events became queryable 1.5–3.5 minutes after ingest, so freshness is reported against 3 min.
 const INGEST_LAG_MS = 180_000;
 const NEWEST_LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
+// Basin SQL now and then never answers a query that normally takes ~1s (2026-11-01, open-logs-test-e2e: 1 in
+// 56 and 1 in 110 parallel queries; the Worker waited 90s on 4ms of CPU; not in Cloudflare's docs). So each
+// attempt gets a time limit, and a stuck one is tried once more before the request fails.
+const ATTEMPT_TIMEOUT_MS = 15_000;
+const ATTEMPTS = 2;
 
 /**
  * Renders a value as a SQL literal. Strings are single-quoted with quotes doubled; NUL is removed;
@@ -95,22 +101,31 @@ export class BasinStorage {
     if (!BASIN_ACCOUNT_ID || !BASIN_BUCKET || !BASIN_SQL_TOKEN) {
       throw new Error('Basin SQL is not configured (BASIN_ACCOUNT_ID, BASIN_BUCKET, BASIN_SQL_TOKEN)');
     }
-    const res = await this.fetcher(
-      `${SQL_API}/${encodeURIComponent(BASIN_ACCOUNT_ID)}/basin-sql/query/${encodeURIComponent(BASIN_BUCKET)}`,
-      {
-        method: 'POST',
-        headers: { authorization: `Bearer ${BASIN_SQL_TOKEN}`, 'content-type': 'application/json' },
-        body: JSON.stringify({ query: q.sql }),
-      },
-    );
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok || body?.success === false) {
-      const message =
-        body?.errors?.map((/** @type {any} */ e) => e.message).join('; ') ||
-        `Basin SQL failed (${res.status})`;
-      throw new Error(message);
+    const url = `${SQL_API}/${encodeURIComponent(BASIN_ACCOUNT_ID)}/basin-sql/query/${encodeURIComponent(BASIN_BUCKET)}`;
+    for (let attempt = 1; ; attempt++) {
+      try {
+        const res = await this.fetcher(url, {
+          method: 'POST',
+          headers: { authorization: `Bearer ${BASIN_SQL_TOKEN}`, 'content-type': 'application/json' },
+          body: JSON.stringify({ query: q.sql }),
+          signal: AbortSignal.timeout(ATTEMPT_TIMEOUT_MS),
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok || body?.success === false) {
+          const message =
+            body?.errors?.map((/** @type {any} */ e) => e.message).join('; ') ||
+            `Basin SQL failed (${res.status})`;
+          throw new Error(message);
+        }
+        return rowsOf(body);
+      } catch (err) {
+        const stuck = err instanceof Error && (err.name === 'TimeoutError' || err.name === 'AbortError');
+        if (!stuck) throw err;
+        if (attempt === ATTEMPTS) {
+          throw new HttpError(504, 'basin_timeout', 'Basin took too long to answer. Try again.');
+        }
+      }
     }
-    return rowsOf(body);
   }
 
   /** @param {import('./index.js').StoredEvent[]} events */

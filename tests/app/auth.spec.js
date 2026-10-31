@@ -21,7 +21,11 @@ test('a wrong password gets a generic error; sign out, then sign back in', async
 });
 
 test('the API refuses requests without a session', async ({ playwright, baseURL }) => {
-  const anonymous = await playwright.request.newContext({ baseURL });
+  // An explicit empty state: otherwise the context picks up the signed-in owner from the project settings.
+  const anonymous = await playwright.request.newContext({
+    baseURL,
+    storageState: { cookies: [], origins: [] },
+  });
   expect((await anonymous.get('/api/projects')).status()).toBe(401);
   expect((await anonymous.get('/api/me')).status()).toBe(401);
   await anonymous.dispose();

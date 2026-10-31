@@ -116,9 +116,11 @@ function loadWorkspace() {
 const projectLoads = new Map();
 
 /**
- * Everything a project's screens show, loaded up front so moving between them never waits:
- * sources, saved views, every dashboard's chart list, the first dashboard's chart data (default range)
- * and the live tail's latest rows (default view). Failures don't block: that part loads on its screen.
+ * Everything a project's screens show, loaded up front so moving between them never waits.
+ * The returned promise covers only app data from D1 (sources, saved views, every dashboard's chart list),
+ * which always answers quickly. Log data from Basin (the first dashboard's chart numbers, the live tail's
+ * latest rows) starts loading too but is not waited for: Basin can be slow, and the app must not sit on its
+ * start-up loader for it. Those screens show their own loader until it lands. Failures don't block either.
  * @param {string} projectId
  * @param {boolean} hasSources  a project without sources can't have logs, so its charts and tail aren't queried
  */
@@ -135,26 +137,28 @@ export function loadProject(projectId, hasSources) {
           dashboards.map((/** @type {any} */ d) => queryClient.fetchQuery(q.charts(d.id))),
         );
         if (hasSources && lists[0]) {
-          await Promise.allSettled(
-            lists[0].map((/** @type {any} */ c) =>
-              queryClient.fetchQuery(chartQuery(projectId, c, DEFAULT_DASHBOARD_RANGE)),
-            ),
-          );
+          for (const c of lists[0]) {
+            queryClient.prefetchQuery(chartQuery(projectId, c, DEFAULT_DASHBOARD_RANGE));
+          }
         }
       })(),
-      (async () => {
-        const key = tailKey(projectId);
-        if (queryClient.getQueryData(key)) return;
-        const to = Date.now() + 1000;
-        queryClient.setQueryData(
-          key,
-          await fetchTail(projectId, [], { from: to - RANGES['15m'], to }, false),
-        );
-      })(),
     ]);
+    if (hasSources) prefetchTail(projectId);
     projectLoads.set(projectId, load);
   }
   return load;
+}
+
+/** The live tail's latest rows (default view), loaded in the background. @param {string} projectId */
+async function prefetchTail(projectId) {
+  const key = tailKey(projectId);
+  if (queryClient.getQueryData(key)) return;
+  const to = Date.now() + 1000;
+  try {
+    queryClient.setQueryData(key, await fetchTail(projectId, [], { from: to - RANGES['15m'], to }, false));
+  } catch {
+    // The live tail screen loads it again, and shows the error if there is one.
+  }
 }
 
 /** @param {string} projectId */
