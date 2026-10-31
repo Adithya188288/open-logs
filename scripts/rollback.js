@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// npm run rollback [-- --name my-logs]: puts the previous Worker version back (Cloudflare keeps them).
+// npm run rollback [my-logs]: puts the previous Worker version back (Cloudflare keeps them).
 // The database is not rolled back: releases only add to it, so the older Worker still works with it.
 import { loadState, step, wrangler } from './lib.js';
 

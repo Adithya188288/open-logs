@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// npm run setup [-- --name my-logs]: installs Open Logs into your own Cloudflare account, in one go.
+// npm run setup [my-logs]: installs Open Logs into your own Cloudflare account, in one go.
 //   sign in → Basin (R2 bucket, catalog, stream, sink, pipeline) → D1 (app data) → build and deploy
 //   → secrets → check the app is up (it does not wait for Basin).
 // Needs the Workers Paid plan (Basin) and one Cloudflare API token (see TOKEN_HELP).
@@ -38,7 +38,7 @@ if (!/^[a-z][a-z0-9-]{2,40}$/.test(name)) {
   process.exit(1);
 }
 if (existsSync(`${INSTALLS_DIR}/${name}.json`)) {
-  console.error(`"${name}" is already installed. To update it: npm run update -- --name ${name}`);
+  console.error(`"${name}" is already installed. To update it: npm run update ${name}`);
   process.exit(1);
 }
 const base = name.replaceAll('-', '_');
@@ -160,8 +160,8 @@ ${up ? '✓ Open Logs is up. Sign in, create a source and send your first log: i
   Recommended: put this URL behind Cloudflare Access (free for up to 50 users) so only your team can
   reach it. Leave /v1/logs outside Access: your apps send logs there with their token. See README → Security.
 
-  Update:     npm run update -- --name ${name}
-  Roll back:  npm run rollback -- --name ${name}
-  Remove:     npm run uninstall -- --name ${name}
+  Update:     npm run update ${name}
+  Roll back:  npm run rollback ${name}
+  Remove:     npm run uninstall ${name}
 `);
 if (!up) process.exit(1);

@@ -59,7 +59,7 @@ again. You can change it in Settings. Sign in, then invite your team from the Te
 
 Options:
 
-- Setup asks for the install name (press Enter for `open-logs`); `npm run setup -- --name my-logs` skips the
+- Setup asks for the install name (press Enter for `open-logs`); `npm run setup my-logs` skips the
   question. Each name is a separate install, and every resource it creates gets that name.
 - `OPEN_LOGS_TOKEN`, `OPEN_LOGS_EMAIL` and `OPEN_LOGS_PASSWORD` make setup non-interactive.
 
@@ -151,7 +151,7 @@ Known Basin behaviour: p95 is approximate (`approx_percentile_cont`), heavy sear
 
 ## Update, roll back, uninstall
 
-Run these from your clone. Each one asks which install (press Enter for `open-logs`); `-- --name <name>` skips
+Run these from your clone. Each one asks which install (press Enter for `open-logs`); `npm run update my-logs` skips
 the question.
 
 ```bash
@@ -160,7 +160,7 @@ npm run rollback    # put the previous Worker version back
 npm run uninstall   # remove everything setup created
 ```
 
-- **Update** checks out the newest release tag (or `-- --to vX.Y.Z`), installs packages, regenerates the
+- **Update** checks out the newest release tag (or a given one: `npm run update my-logs v0.2.0`), installs packages, regenerates the
   config, applies only the new D1 migrations, builds and deploys, then checks that the app is up.
 - **Roll back** uses `wrangler rollback` to put the previous Worker version live. It does not change the
   database. If an update damaged app data, it prints the D1 Time Travel command that restores the database
@@ -187,15 +187,14 @@ Branches:
 
 - `main` is released code. Each release is tagged `vX.Y.Z`.
 - `develop` is where finished work is merged.
-- Work happens on `feature/*` branches from `develop`. Each branch is deployed to the test install with
-  `npm run deploy:staging` and tested there against real Basin, then merged into `develop`.
+- Work happens on `feature/*` branches from `develop`. Each branch is deployed to a test install with
+  `npm run deploy` and tried there against real Basin, then merged into `develop`.
 
-Staging is an ordinary install, kept in `.open-logs/` like any other. Create it once with a name of your choice,
-e.g. `npm run setup -- --name open-logs-staging`. The staging commands ask which install, or take `-- --name`.
+A test install is an ordinary install. Create one once, e.g. `npm run setup open-logs-staging`.
 
 ```bash
-npm run deploy:staging   # deploy the current branch to staging (new D1 migrations, build, deploy)
-npm run staging:reset    # from develop only: wipe staging's D1 and redeploy develop
+npm run deploy open-logs-staging   # put the code you have checked out (any branch) on that install
+npm run reset open-logs-staging    # wipe that install's app data (asks you to type the name), then deploy
 npm run lint
 ```
 
