@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-// Our own test install (a normal install, kept in .open-logs/ like any other), picked with --name.
-//   npm run deploy:staging   deploys the current branch there: new D1 migrations, build, deploy.
-//   npm run staging:reset    wipes its D1 and redeploys `develop`, for when a branch's migration broke it.
+// For developers: put the code you have checked out (any branch, uncommitted changes included) on an install.
+//   npm run deploy <name>   new D1 migrations, build, deploy.
+//   npm run reset <name>    wipes the install's D1 first (users, projects, dashboards), then deploys.
 // Logs in Basin are left alone by both.
-import { spawnSync } from 'node:child_process';
 import {
   applyMigrations,
+  ask,
   buildAndDeploy,
   configPath,
   loadState,
@@ -16,14 +16,12 @@ import {
 
 const state = await loadState();
 process.env.CLOUDFLARE_ACCOUNT_ID = state.accountId;
-const reset = process.argv[2] === 'reset';
+const reset = process.argv.includes('--reset');
 
 if (reset) {
-  const branch = spawnSync('git', ['branch', '--show-current'], { encoding: 'utf8' }).stdout.trim();
-  if (branch !== 'develop') {
-    console.error(
-      `staging:reset rebuilds staging from develop. Switch first: git switch develop (now on ${branch}).`,
-    );
+  console.log(`\nThis deletes all app data in "${state.name}": users, projects, sources, dashboards.`);
+  if ((await ask(`  Type "${state.name}" to confirm: `)) !== state.name) {
+    console.log('  Not confirmed. Nothing changed.');
     process.exit(1);
   }
   step(`Wiping ${state.database} (D1)`);

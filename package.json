@@ -10,9 +10,9 @@
     "update": "node scripts/update.js",
     "rollback": "node scripts/rollback.js",
     "uninstall": "node scripts/uninstall.js",
-    "deploy:staging": "node scripts/staging.js deploy",
-    "staging:reset": "node scripts/staging.js reset",
-    "dev": "node -e \"console.log('Open Logs runs on Cloudflare only: logs live in Basin, which has no local version.\\nInstall it: npm run setup   Test a branch on your test install: npm run deploy:staging')\"",
+    "deploy": "node scripts/deploy.js",
+    "reset": "node scripts/deploy.js --reset",
+    "dev": "node -e \"console.log('Open Logs runs on Cloudflare only: logs live in Basin, which has no local version.\\nInstall it: npm run setup   Developers: npm run deploy <install name>')\"",
     "build": "vite build",
     "lint": "biome check .",
     "format": "biome format --write ."

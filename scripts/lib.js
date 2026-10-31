@@ -98,14 +98,28 @@ export function askHidden(question) {
 }
 
 /** Reads `--name <value>` style flags. @param {string} flag */
-export function flag(flag) {
+function flag(flag) {
   const i = process.argv.indexOf(`--${flag}`);
   return i >= 0 ? process.argv[i + 1] : undefined;
 }
 
-/** The install name from `--name`, or asked for; Enter means "open-logs". */
+const VERSION = /^v\d+\.\d+\.\d+$/;
+
+/** Plain words after the command. `npm run deploy --name x` reaches the script as just `x`, so names come this way too. */
+function words() {
+  const args = process.argv.slice(2);
+  return args.filter((a, i) => !a.startsWith('--') && !['--name', '--to'].includes(args[i - 1]));
+}
+
+/** The install name given on the command line (`--name x` or just `x`), if any. */
+export const givenName = () => flag('name') ?? words().find((w) => !VERSION.test(w));
+
+/** The release to update to (`--to v1.2.3` or just `v1.2.3`), if any. */
+export const givenVersion = () => flag('to') ?? words().find((w) => VERSION.test(w));
+
+/** The install name from the command line, or asked for; Enter means "open-logs". */
 export async function installName() {
-  return flag('name') ?? ((await ask('Install name (press Enter for open-logs): ')) || 'open-logs');
+  return givenName() ?? ((await ask('Install name (press Enter for open-logs): ')) || 'open-logs');
 }
 
 /** @param {string} name */
@@ -138,7 +152,7 @@ export async function loadState() {
     console.error('No Open Logs install found here. Run: npm run setup');
     process.exit(1);
   }
-  if (!flag('name')) console.log(`Your installs: ${names.join(', ')}`);
+  if (!givenName()) console.log(`Your installs: ${names.join(', ')}`);
   const name = await installName();
   if (!names.includes(name)) {
     console.error(`No install called "${name}". Your installs: ${names.join(', ')}`);
