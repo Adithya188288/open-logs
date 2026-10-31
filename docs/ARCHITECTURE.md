@@ -128,9 +128,9 @@ Each install is named (`--name`, or asked for; Enter means `open-logs`) and live
 Scripts (`scripts/`):
 - `setup.js` (`npm run setup`): creates the R2 bucket, Basin Catalog, stream, sink (60s roll), pipeline and D1;
   writes both files; applies migrations; builds and deploys; sets `ADMIN_PASSWORD` and `BASIN_SQL_TOKEN`;
-  sends a test log and waits until Basin can search it (`check.js`).
+  checks the app is up (`check.js`, `/api/health`).
 - `update.js` (`npm run update`): checks out the newest release tag (or `--to`), reinstalls packages,
-  regenerates the config, applies only new D1 migrations, builds and deploys, then runs the log check.
+  regenerates the config, applies only new D1 migrations, builds and deploys, then checks the app is up.
 - `rollback.js` (`npm run rollback`): `wrangler rollback` to the previous Worker version. D1 is not rolled
   back; it prints the D1 Time Travel restore command.
 - `uninstall.js` (`npm run uninstall`): removes the Worker and secrets, pipeline, sink, stream, Basin Catalog,

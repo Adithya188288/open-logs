@@ -76,7 +76,7 @@ Requests made with a regenerated (old) token are counted on that source
 ## Health and config
 
 ### `GET /api/health` (public)
-`200 { "ok": true }`. Used by `npm run update` when the log check is skipped.
+`200 { "ok": true }`. Used by `npm run setup` and `npm run update` to check the app is up.
 
 ### `GET /api/config` (public)
 `200 { "team_name": "Acme" }`: used by the sign-in page.

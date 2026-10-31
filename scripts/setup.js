@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 // npm run setup [-- --name my-logs]: installs Open Logs into your own Cloudflare account, in one go.
 //   sign in → Basin (R2 bucket, catalog, stream, sink, pipeline) → D1 (app data) → build and deploy
-//   → secrets → send a test log and wait until Basin can search it.
+//   → secrets → check the app is up (it does not wait for Basin).
 // Needs the Workers Paid plan (Basin) and one Cloudflare API token (see TOKEN_HELP).
 // Non-interactive: set OPEN_LOGS_TOKEN and OPEN_LOGS_EMAIL (and OPEN_LOGS_PASSWORD to choose the password).
 import { randomBytes } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { checkLogsFlow } from './check.js';
+import { checkUp } from './check.js';
 import {
   applyMigrations,
   ask,
@@ -147,11 +147,11 @@ if (!secrets.ok) {
 }
 console.log('  • ADMIN_PASSWORD and BASIN_SQL_TOKEN… done');
 
-step('Checking that logs reach Basin (this takes about 3 minutes)');
-const flowing = state.url && (await checkLogsFlow(state.url, email, password));
+step('Checking the app is up');
+const up = Boolean(state.url) && (await checkUp(state.url));
 
 console.log(`
-${flowing ? '✓ Open Logs is installed and your logs are flowing.' : '! Open Logs is deployed, but the test log was not found in Basin yet.'}
+${up ? '✓ Open Logs is up. Sign in, create a source and send your first log: it shows up 1–3 minutes later.' : '! Open Logs is deployed, but the app did not answer yet. Open the URL in a minute.'}
 
   URL       ${state.url}
   Email     ${email}
@@ -164,4 +164,4 @@ ${flowing ? '✓ Open Logs is installed and your logs are flowing.' : '! Open Lo
   Roll back:  npm run rollback -- --name ${name}
   Remove:     npm run uninstall -- --name ${name}
 `);
-if (!flowing) process.exit(1);
+if (!up) process.exit(1);

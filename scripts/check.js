@@ -1,77 +1,19 @@
-// Proves an install works end to end: sign in, send a log through a temporary source, and wait until Basin
-// can search it (usually 1.5–3.5 minutes after it arrives). Used by setup and update.
+// Checks that a freshly deployed install answers. A new workers.dev URL can take a few seconds to go live.
+// Used by setup and update. It does not wait for Basin: logs become searchable 1–3 minutes after they arrive.
 import { sleep } from './lib.js';
 
-const WAIT_MS = 6 * 60_000;
-const POLL_MS = 15_000;
+const TRIES = 10;
+const PAUSE_MS = 3_000;
 
 /**
  * @param {string} url  the install's workers.dev URL
- * @param {string} email
- * @param {string} password
  * @returns {Promise<boolean>}
  */
-export async function checkLogsFlow(url, email, password) {
-  const call = async (/** @type {string} */ path, /** @type {RequestInit} */ init = {}, cookie = '') => {
-    const res = await fetch(`${url}${path}`, {
-      ...init,
-      headers: { origin: url, 'content-type': 'application/json', cookie, ...init.headers },
-    });
-    return { res, body: await res.json().catch(() => ({})) };
-  };
-
-  const login = await call('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
-  if (!login.res.ok) {
-    console.error(`  Could not sign in (${login.res.status}).`);
-    return false;
+export async function checkUp(url) {
+  for (let i = 0; i < TRIES; i++) {
+    const res = await fetch(`${url}/api/health`).catch(() => null);
+    if (res?.ok) return true;
+    await sleep(PAUSE_MS);
   }
-  const cookie = String(login.res.headers.get('set-cookie')).split(';')[0];
-  const { body: projects } = await call('/api/projects', {}, cookie);
-  const project = projects.projects?.[0];
-  const created = await call(
-    `/api/projects/${project.id}/sources`,
-    { method: 'POST', body: JSON.stringify({ name: `setup-check-${Date.now()}` }) },
-    cookie,
-  );
-  const marker = `Open Logs setup check ${crypto.randomUUID()}`;
-  const sent = await fetch(`${url}/v1/logs`, {
-    method: 'POST',
-    headers: { authorization: `Bearer ${created.body.token}`, 'content-type': 'application/json' },
-    body: JSON.stringify({ level: 'info', message: marker }),
-  });
-  if (sent.status !== 202) {
-    console.error(`  Sending a test log failed (${sent.status}).`);
-    return false;
-  }
-
-  const started = Date.now();
-  let found = false;
-  let lastError = '';
-  while (!found && Date.now() - started < WAIT_MS) {
-    await sleep(POLL_MS);
-    const { res, body } = await call(
-      '/api/query',
-      {
-        method: 'POST',
-        body: JSON.stringify({
-          project_id: project.id,
-          from: started - 60_000,
-          to: Date.now() + 60_000,
-          where: [{ text: marker }],
-          limit: 1,
-        }),
-      },
-      cookie,
-    );
-    // On a brand-new install Basin's table appears with its first file, so early searches can fail: keep waiting.
-    lastError = res.ok ? '' : `${res.status} ${body.error?.message ?? 'unknown error'}`;
-    found = res.ok && body.events?.length === 1;
-    if (!found) console.log(`  … waiting for Basin (${Math.round((Date.now() - started) / 1000)}s)`);
-  }
-  if (!found)
-    console.error(
-      `  The test log did not appear in Basin within ${WAIT_MS / 60_000} minutes.${lastError ? ` Last search error: ${lastError}` : ''}`,
-    );
-  await call(`/api/sources/${created.body.source.id}`, { method: 'DELETE' }, cookie);
-  return found;
+  return false;
 }

@@ -122,7 +122,7 @@ Match `docs/design/` (layout, tokens, type scale 11/12/13/15/24, radii 6/10, lig
 - [ ] Landing page (static, served at `/` when signed out or as a separate Pages site; decide with owner)
       (built in `site/` as a standalone Pages site; serving it at `/` is still the owner's call)
 - [ ] ~~`npx create-open-logs`~~ → `git clone` + `npm run setup`: `wrangler login` → create Basin + D1 →
-      deploy → set `ADMIN_PASSWORD` and `BASIN_SQL_TOKEN` → test log reaches Basin
+      deploy → set `ADMIN_PASSWORD` and `BASIN_SQL_TOKEN` → app is up
       (2026-10-31: `create-open-logs/` and `scripts/install.js` removed; `scripts/setup.js` replaces them)
 - [ ] `npm run update`, `npm run rollback`, `npm run uninstall` (written 2026-10-31, `scripts/`)
 - [x] ~~"Deploy to Cloudflare" button in README~~ dropped 2026-10-31: it cannot create Basin resources,
@@ -162,7 +162,7 @@ Match `docs/design/` (layout, tokens, type scale 11/12/13/15/24, radii 6/10, lig
     Read & Write) for the sink and `BASIN_SQL_TOKEN`. Each install's config and resource ids go in
     `.open-logs/` (gitignored); `wrangler.jsonc` is now a template with no account ids.
     `create-open-logs/`, `scripts/install.js`, `scripts/setup-basin.js` and the Deploy button are gone.
-  - **Maintain**: `npm run update` (newest release tag, new migrations only, deploy, log check),
+  - **Maintain**: `npm run update` (newest release tag, new migrations only, deploy, app-is-up check),
     `npm run rollback` (previous Worker version; D1 Time Travel explained), `npm run uninstall`
     (removes everything, including the bucket's files; the API token is deleted by hand).
   - **Staging**: an ordinary install, picked by name like every command. `npm run deploy:staging` deploys the current

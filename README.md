@@ -57,7 +57,8 @@ What `npm run setup` does:
    This folder is gitignored. Keep it: update, rollback and uninstall read it.
 6. Applies the D1 migrations, builds the dashboard and deploys the Worker.
 7. Sets two secrets: `ADMIN_PASSWORD` (random, printed once) and `BASIN_SQL_TOKEN`.
-8. Sends a test log and waits until Basin can search it. This takes about 3 minutes.
+8. Checks that the app is up (a few seconds). It does not wait for Basin: your first log shows up 1 to 3
+   minutes after you send it.
 
 At the end it prints your `workers.dev` URL, your email and the password. Save the password: it is not shown
 again. You can change it in Settings. Sign in, then invite your team from the Team page.
@@ -169,8 +170,7 @@ npm run uninstall   # remove everything setup created
 ```
 
 - **Update** checks out the newest release tag (or `-- --to vX.Y.Z`), installs packages, regenerates the
-  config, applies only the new D1 migrations, builds and deploys. Then it asks for the owner password and
-  checks that a test log reaches Basin. Press Enter to skip that and only run a health check.
+  config, applies only the new D1 migrations, builds and deploys, then checks that the app is up.
 - **Roll back** uses `wrangler rollback` to put the previous Worker version live. It does not change the
   database. If an update damaged app data, it prints the D1 Time Travel command that restores the database
   to a minute before the update. Logs in Basin are never changed by an update.
