@@ -500,9 +500,6 @@ export function Tail() {
       setSelected((s) => (s === id ? null : id));
       e.preventDefault();
       return;
-    } else if (e.key === 'Escape' && selected) {
-      setSelected(null);
-      return;
     } else return;
     e.preventDefault();
     setCursor(next);
@@ -523,6 +520,27 @@ export function Tail() {
         : `Data through ${hms(dataThrough)} UTC${lag} · next check ${Math.max(0, Math.ceil((nextCheckAt - Date.now()) / 1000))}s`;
   const bad = sources.find((s) => rejectedRecently(s) && !isDismissed(s));
   const panelEvent = events.find((e) => e.id === selected);
+
+  // The details drawer closes on Escape or a click outside it; clicking another row just switches events.
+  useEffect(() => {
+    if (!selected) return;
+    /** @param {MouseEvent} e */
+    const onDown = (e) => {
+      const at = e.target instanceof Element ? e.target : null;
+      if (at?.closest('.evpanel, [data-testid="event"], [role="menu"], [role="dialog"]')) return;
+      setSelected(null);
+    };
+    /** @param {KeyboardEvent} e */
+    const onKey = (e) => {
+      if (e.key === 'Escape') setSelected(null);
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [selected]);
   void dismissed;
 
   return (
@@ -750,7 +768,7 @@ export function Tail() {
         />
       </div>
 
-      <div className={`tail-body${panelEvent ? ' with-panel' : ''}`}>
+      <div className="tail-body">
         <div className={`table${dated ? ' dated' : ''}`}>
           <div className="thead">
             <button

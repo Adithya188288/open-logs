@@ -497,13 +497,22 @@ kbd {
   height: 100vh;
   overflow-y: auto;
 }
+.nav .brandrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--s-16);
+}
+.nav .brandrow .close,
+.mobilebar {
+  display: none;
+}
 .nav .brand {
   display: flex;
   align-items: center;
   gap: var(--s-8);
   padding: var(--s-6) var(--s-8);
   border-radius: 6px;
-  margin-bottom: var(--s-16);
   text-decoration: none;
   font-weight: 600;
   font-size: 15px;
@@ -1009,4 +1018,61 @@ kbd {
 }
 .menu {
   position: absolute;
+}
+
+/* Narrow windows: there's no room for the sidebar beside the page, so it becomes a drawer behind a slim top bar. */
+@media (max-width: 789px) {
+  .app {
+    flex-direction: column;
+    flex-wrap: nowrap;
+  }
+  .main {
+    flex: 1 1 auto;
+  }
+  .mobilebar {
+    display: flex;
+    align-items: center;
+    gap: var(--s-8);
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    padding: var(--s-8) var(--s-12);
+    background: var(--bg2);
+    border-bottom: 1px solid var(--line);
+  }
+  .mobilebar .team {
+    font-weight: 600;
+  }
+  .mobilebar .project {
+    margin-left: auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    height: auto;
+    width: 260px;
+    max-width: 85vw;
+    z-index: 45;
+    visibility: hidden;
+    transform: translateX(-100%);
+  }
+  .nav.open {
+    visibility: visible;
+    transform: none;
+    box-shadow: var(--shadow);
+  }
+  .nav .brandrow .close {
+    display: inline-flex;
+  }
+  .scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 44;
+    background: rgba(0, 0, 0, 0.35);
+  }
 }

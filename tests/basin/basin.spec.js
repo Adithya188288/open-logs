@@ -147,13 +147,41 @@ test("while a new filter loads, live tail shows the loader, never the old filter
   await expect(page.getByTestId('event').filter({ hasText: 'WARN' })).toHaveCount(0);
 });
 
-test('in a narrow window the event details open where they can be seen', async ({ page }) => {
+test('event details open in a drawer over the page; the list keeps its width', async ({ page }) => {
   const { projectId } = seed();
-  await page.setViewportSize({ width: 800, height: 700 });
+  await page.setViewportSize({ width: 1400, height: 800 });
   await page.goto(`/tail?project=${projectId}`);
-  await expect(page.getByTestId('event')).toHaveCount(50);
-  await page.getByTestId('event').first().getByRole('button').first().click();
-  await expect(page.getByRole('complementary', { name: 'Event details' })).toBeInViewport();
+  const rows = page.getByTestId('event');
+  await expect(rows).toHaveCount(50);
+  const drawer = page.getByRole('complementary', { name: 'Event details' });
+  const listWidth = async () => (await page.locator('.tail-body .table').boundingBox())?.width;
+  const before = await listWidth();
+
+  await rows.nth(0).getByRole('button').first().click();
+  await expect(drawer).toBeInViewport({ ratio: 1 });
+  expect(await listWidth()).toBe(before);
+
+  // Another row switches the drawer; so does j on the list.
+  await rows.nth(3).getByRole('button').first().click();
+  await expect(drawer.locator('.panelmsg')).toHaveText(
+    String(await rows.nth(3).locator('.msg').textContent()),
+  );
+  await page.keyboard.press('j');
+  await expect(drawer.locator('.panelmsg')).toHaveText(
+    String(await rows.nth(4).locator('.msg').textContent()),
+  );
+
+  await page.keyboard.press('Escape');
+  await expect(drawer).toHaveCount(0);
+  await rows.nth(0).getByRole('button').first().click();
+  await expect(drawer).toBeVisible();
+  await page.getByRole('heading', { name: 'Live tail' }).click();
+  await expect(drawer).toHaveCount(0);
+
+  // A narrow window gets the same drawer, fully on screen.
+  await page.setViewportSize({ width: 760, height: 700 });
+  await rows.nth(0).getByRole('button').first().click();
+  await expect(drawer).toBeInViewport({ ratio: 1 });
 });
 
 // Regression check for the source_id fix: logs belong to the source's id, not its name.
