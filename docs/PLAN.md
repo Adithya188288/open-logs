@@ -1,9 +1,10 @@
 # Open Logs: build plan
 
 Each phase is one or more feature branches off `develop` (see Git Flow in `CLAUDE.md`).
-Tick boxes as they're done. A phase is done only when every box is ticked and CI is green.
+Tick boxes as they're done. A phase is done only when every box is ticked.
 Phases 0–4 were first built to run locally. Since 2026-10-31 logs live only in Basin (see Progress notes),
-so running Open Logs needs the owner's Cloudflare account on the Workers Paid plan. Only `npm test` runs locally.
+so running Open Logs needs the owner's Cloudflare account on the Workers Paid plan.
+2026-10-31: all tests, CI and test packages were removed (owner decision). Tests will be rebuilt from scratch, one at a time, with the owner.
 
 ---
 
@@ -13,7 +14,7 @@ so running Open Logs needs the owner's Cloudflare account on the Workers Paid pl
 - [x] Confirm `gh auth status` and `wrangler whoami` work (owner logs in if not)
 - [x] `git init`, initial commit on `main`, create `develop` from `main`
 - [ ] Create public GitHub repo `open-logs`, push `main` and `develop`, set default branch `develop`
-- [ ] Protect `main` and `develop` (PRs only, CI must pass) if the owner agrees
+- [ ] Protect `main` and `develop` (PRs only) if the owner agrees
 - [x] `package.json`, `wrangler.jsonc`, `.gitignore` (incl. `.dev.vars`, `.wrangler/`, `node_modules/`)
 - [x] Vitest + `@cloudflare/vitest-pool-workers` set up, one passing smoke test
       (that package is now published as `@cloudflare/vitest-plugin`, same project renamed; we use it)
@@ -22,8 +23,8 @@ so running Open Logs needs the owner's Cloudflare account on the Workers Paid pl
 - [x] `README.md` stub, `LICENSE` (MIT), `docs/API.md` stub
 
 **Done means:** `npm test` and `npm run test:e2e` pass locally and in CI; `npm run dev` serves a hello page.
-(Since 2026-10-31 there is no local server: `npm run dev` only prints that Open Logs runs on Cloudflare,
-and `npm run test:e2e` is being moved to the staging install.)
+(Since 2026-10-31 there is no local server: `npm run dev` only prints that Open Logs runs on Cloudflare.
+Vitest, Playwright and the CI workflow were removed the same day; tests will be rebuilt later.)
 
 ## Phase 1: Backend core
 **Agent:** backend. Branches: `feature/db-schema`, `feature/auth`, `feature/projects-sources`, `feature/ingest`, `feature/query-api`.
@@ -72,7 +73,7 @@ Match `docs/design/` (layout, tokens, type scale 11/12/13/15/24, radii 6/10, lig
 - [x] Theme toggle remembered across pages
 
 **Done means:** Playwright covers every bullet above against real `wrangler dev`, in both themes.
-(Being moved: the e2e suite will run against the staging install with real Basin.)
+(2026-10-31: the Playwright suite was removed; browser tests will be rebuilt later.)
 
 ## Phase 4: Charts and dashboards
 **Agents:** backend (API) then ui-builder. Branch: `feature/charts`.
@@ -167,8 +168,7 @@ Match `docs/design/` (layout, tokens, type scale 11/12/13/15/24, radii 6/10, lig
     (removes everything, including the bucket's files; the API token is deleted by hand).
   - **Staging**: an ordinary install, picked by name like every command. `npm run deploy:staging` deploys the current
     branch; `npm run staging:reset` (from `develop` only) wipes its D1 and redeploys `develop`.
-  - **Tests**: `npm test` covers app data and Basin SQL building. The e2e suite is being moved to staging
-    (real Basin, ~3 min wait per run). Test counts are not recorded while the suites are being restructured.
+  - **Tests**: all tests, CI and test packages removed (owner decision). To be rebuilt one at a time.
   - Release rules added to `CLAUDE.md` (additive migrations after the first release, fixed Basin columns,
     every release tested as an update from the previous one).
   - Still to verify on a throwaway install: setup, update, rollback and uninstall each end to end.
@@ -180,8 +180,7 @@ Match `docs/design/` (layout, tokens, type scale 11/12/13/15/24, radii 6/10, lig
 - Basin Pipelines needs the Workers Paid plan ($5/month minimum).
 - Iceberg sink roll interval minimum is 60s, so prod data is ~60s+ behind. The live tail is "near real time".
 - Basin SQL is read-only and can time out on heavy queries: always time-bound, select columns, use LIMIT.
-- Basin has no local version, so Open Logs has no local run. `npm test` covers app data and SQL building
-  only; real searches are tested on staging.
+- Basin has no local version, so Open Logs has no local run. Changes are checked on staging.
 - **Basin SQL has no bound parameters** (the HTTP API takes one `query` string). The Basin dialect inlines
   values as SQL literals (`'…'` with quotes doubled, NUL stripped, numbers must be finite). Values only ever
   come from a validated filter; table names are checked against `^[a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*$`.

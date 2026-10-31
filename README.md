@@ -205,15 +205,10 @@ e.g. `npm run setup -- --name open-logs-staging`. The staging commands ask which
 ```bash
 npm run deploy:staging   # deploy the current branch to staging (new D1 migrations, build, deploy)
 npm run staging:reset    # from develop only: wipe staging's D1 and redeploy develop
-npm test                 # Vitest, local: app-data features and the Basin SQL builder
-npm run test:e2e         # Playwright against staging with real Basin
 npm run lint
 ```
 
-- `npm test` covers auth, projects, sources, settings, dashboard CRUD, filter and SQL building for Basin,
-  and event normalising. It runs locally in the Workers runtime with a local D1.
-- `npm run test:e2e` sends logs to staging, waits about 3 minutes for Basin, then checks search, live tail
-  and dashboards. The e2e suite is being moved to staging in this branch.
+There are no automated tests or CI yet; they will be added later. Changes are checked on staging.
 
 Worker: Hono on Cloudflare Workers (`src/`). UI: React + Vite (`app/`), built to `dist/` and served by the Worker.
 Plain JavaScript with JSDoc. See [CLAUDE.md](CLAUDE.md) and [docs/PLAN.md](docs/PLAN.md).

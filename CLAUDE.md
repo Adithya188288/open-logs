@@ -35,25 +35,18 @@ Inside the repo, on a feature branch, you may write code, run tests, and commit 
 - `main` = production. Only release merges from `develop` land here, tagged `vX.Y.Z`.
 - `develop` = integration. **Never commit directly to `develop` or `main`.**
 - Every unit of work: `git switch develop && git pull` → `git switch -c feature/<short-name>` →
-  tests first → implement → all tests green → `npm run deploy:staging` and test on staging against real Basin →
+  implement → `npm run deploy:staging` and check on staging against real Basin →
   security review → PR into `develop` → merge → delete branch.
 - Fixes: `fix/<short-name>`. Docs only: `docs/<short-name>`. Same flow.
 - Small commits, Conventional Commits style: `feat(ingest): accept batched events`, `test(auth): …`, `fix(ui): …`.
 - One feature branch = one coherent, tested thing. Verify it works before starting the next.
-- CI (GitHub Actions) runs lint + unit tests on every PR. Never merge red.
 - Staging is an ordinary install kept in `.open-logs/`. `npm run deploy:staging -- --name <staging install>` deploys
   the current branch to it. `npm run staging:reset` (only from `develop`) wipes its D1 and redeploys `develop`.
 
-### Test-driven
-- Write the failing test first, then the code, then refactor.
-- `npm test`: Vitest with `@cloudflare/vitest-plugin` (the renamed `vitest-pool-workers`), inside the Workers
-  runtime with a local D1. It covers app-data features (auth, projects, sources, settings, dashboards CRUD),
-  filter and SQL building for Basin, and normalising. Logs have no local storage, so it cannot run real searches.
-- `npm run test:e2e`: Playwright against the staging install with real Basin, covering every user flow in
-  `docs/PLAN.md`. It sends logs, waits about 3 minutes, then checks search, live tail and dashboards.
-  (The suite is being moved from `wrangler dev` to staging on `feature/basin-only`.)
+### Testing
+- There are no automated tests and no CI right now. 2026-10-31: all tests, CI and test packages were removed (owner decision). Tests will be rebuilt from scratch, one at a time, with the owner.
+- Until then, changes are checked on a staging install against real Basin.
 - Functionality before polish: a screen must work end to end with the real API before visual refinement.
-- A phase is only done when every box in its checklist is ticked and CI is green.
 
 ### Agents
 You (the main session) are the **lead**: you own the plan, git, branches, merges, and the API contract.

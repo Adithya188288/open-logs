@@ -26,8 +26,7 @@ Logs live only in Basin. D1 holds only app data. There is no local mode and no D
 Basin has no local version, so Open Logs runs only on Cloudflare (Workers Paid plan).
 
 ## Stack and dependencies
-Allowed without asking: `wrangler`, `vitest`, `@cloudflare/vitest-plugin` (the renamed `vitest-pool-workers`),
-`@playwright/test`, `@biomejs/biome`, and (owner-approved 2026-10-30) `hono` for the Worker and `react`,
+Allowed without asking: `wrangler`, `@biomejs/biome`, and (owner-approved 2026-10-30) `hono` for the Worker and `react`,
 `react-dom`, `react-router`, `@tanstack/react-query`, `vite`, `@vitejs/plugin-react` for the UI. Anything else: ask first.
 Prefer Web Crypto and platform APIs over libraries.
 
