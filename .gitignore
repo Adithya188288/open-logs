@@ -12,3 +12,6 @@ e2e/.auth/
 dist/
 .claude/skills/impeccable/scripts/bin/
 docs/design-passes/
+.claude/
+# Each install's generated wrangler config and resource ids (account-specific)
+.open-logs/
