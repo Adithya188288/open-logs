@@ -49,6 +49,23 @@ function remove(label, args) {
 }
 
 /**
+ * Reads `{ id, name }` from a wrangler `list --json` output. `pipelines sinks list --json` prints a JavaScript
+ * object (`id: '…'`) rather than JSON, so when JSON fails it reads the top-level id/name pairs directly.
+ * @param {string} out
+ * @returns {{ id: string, name: string }[]}
+ */
+function listedItems(out) {
+  try {
+    return JSON.parse(out.slice(out.indexOf('[')));
+  } catch {
+    return [...out.matchAll(/\bid: '([0-9a-f]{32})',\s*name: '([^']+)'/g)].map(([, id, name]) => ({
+      id,
+      name,
+    }));
+  }
+}
+
+/**
  * Deletes every pipeline, sink or stream with this name. Listing (rather than deleting by name once) also
  * catches a duplicate left behind when a setup step reported an error but still created the resource.
  * @param {string} label
@@ -58,13 +75,7 @@ function remove(label, args) {
 function removeAllNamed(label, kind, name) {
   const group = kind === 'pipelines' ? ['pipelines'] : ['pipelines', kind];
   const listed = wrangler([...group, 'list', '--json', '--per-page', '100'], { quiet: true });
-  /** @type {{ id: string, name: string }[]} */
-  let items = [];
-  try {
-    items = JSON.parse(listed.out.slice(listed.out.indexOf('['))).filter(
-      (/** @type {any} */ i) => i.name === name,
-    );
-  } catch {}
+  const items = listedItems(listed.out).filter((i) => i.name === name);
   if (!listed.ok) {
     results.push([label, 'failed']);
     console.log(`  • ${label}… failed`);
