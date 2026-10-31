@@ -46,6 +46,7 @@ export async function checkLogsFlow(url, email, password) {
 
   const started = Date.now();
   let found = false;
+  let lastError = '';
   while (!found && Date.now() - started < WAIT_MS) {
     await sleep(POLL_MS);
     const { res, body } = await call(
@@ -62,15 +63,15 @@ export async function checkLogsFlow(url, email, password) {
       },
       cookie,
     );
-    if (!res.ok) {
-      console.error(`  Searching Basin failed (${res.status}): ${body.error?.message ?? 'unknown error'}`);
-      return false;
-    }
-    found = body.events?.length === 1;
-    process.stdout.write(
-      found ? '' : `  … waiting for Basin (${Math.round((Date.now() - started) / 1000)}s)\n`,
-    );
+    // On a brand-new install Basin's table appears with its first file, so early searches can fail: keep waiting.
+    lastError = res.ok ? '' : `${res.status} ${body.error?.message ?? 'unknown error'}`;
+    found = res.ok && body.events?.length === 1;
+    if (!found) console.log(`  … waiting for Basin (${Math.round((Date.now() - started) / 1000)}s)`);
   }
+  if (!found)
+    console.error(
+      `  The test log did not appear in Basin within ${WAIT_MS / 60_000} minutes.${lastError ? ` Last search error: ${lastError}` : ''}`,
+    );
   await call(`/api/sources/${created.body.source.id}`, { method: 'DELETE' }, cookie);
   return found;
 }
