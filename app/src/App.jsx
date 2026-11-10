@@ -2,6 +2,8 @@
 import { useLayoutEffect } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
 import { Layout, PageLoader, projectHome, useApp } from './components/Layout.jsx';
+import { Alert } from './pages/Alert.jsx';
+import { Alerts } from './pages/Alerts.jsx';
 import { Dashboard } from './pages/Dashboard.jsx';
 import { Invite } from './pages/Invite.jsx';
 import { Login } from './pages/Login.jsx';
@@ -103,6 +105,26 @@ export function App() {
               <Titled title="Live tail">
                 <NeedsProject>
                   <Tail />
+                </NeedsProject>
+              </Titled>
+            }
+          />
+          <Route
+            path="/alerts"
+            element={
+              <Titled title="Alerts">
+                <NeedsProject>
+                  <Alerts />
+                </NeedsProject>
+              </Titled>
+            }
+          />
+          <Route
+            path="/alert"
+            element={
+              <Titled title="Alert">
+                <NeedsProject>
+                  <Alert />
                 </NeedsProject>
               </Titled>
             }

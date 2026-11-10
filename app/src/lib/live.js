@@ -8,7 +8,7 @@ export const DEFAULT_DASHBOARD_RANGE = '1h';
 export const TAIL_PAGE = 100;
 
 /** @typedef {keyof typeof RANGES} Range */
-/** @typedef {import('../components/Charts.jsx').ChartDef & { id: string, size: string }} ChartRow */
+/** @typedef {import('../components/Charts.jsx').ChartDef & { id: string, size: string, alert?: { id: string, paused: boolean, open: boolean } | null }} ChartRow */
 
 /** @param {Range} range */
 export function windowFor(range) {

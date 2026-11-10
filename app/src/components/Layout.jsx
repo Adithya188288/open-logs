@@ -12,7 +12,7 @@ import { Loader } from './Loader.jsx';
 import { MenuButton } from './Menu.jsx';
 
 const PROJECT_KEY = 'ol-project';
-const PROJECT_PAGES = new Set(['/dashboard', '/tail', '/sources', '/source']);
+const PROJECT_PAGES = new Set(['/dashboard', '/tail', '/alerts', '/alert', '/sources', '/source']);
 
 /**
  * @typedef {{ id: string, email: string, name: string, role: 'owner' | 'admin' | 'member' }} Me
@@ -204,11 +204,15 @@ function Sidebar({ open, onClose }) {
   const [themeLabel, setThemeLabel] = useState(currentTheme() === 'dark' ? 'Light mode' : 'Dark mode');
   const page =
     PROJECT_PAGES.has(location.pathname) && location.pathname !== '/source'
-      ? location.pathname
+      ? location.pathname === '/alert'
+        ? '/alerts'
+        : location.pathname
       : '/dashboard';
   const q = project ? `?project=${encodeURIComponent(project.id)}` : '';
   const isOn = (/** @type {string} */ path) =>
-    location.pathname === path || (path === '/sources' && location.pathname === '/source');
+    location.pathname === path ||
+    (path === '/sources' && location.pathname === '/source') ||
+    (path === '/alerts' && location.pathname === '/alert');
 
   /** @param {string} to @param {Parameters<typeof Icon>[0]['name']} icon @param {string} label @param {unknown} [count] */
   const item = (to, icon, label, count) => (
@@ -266,6 +270,7 @@ function Sidebar({ open, onClose }) {
         <>
           {item(`/dashboard${q}`, 'chart', 'Dashboard')}
           {item(`/tail${q}`, 'tail', 'Live tail')}
+          <AlertsItem projectId={project.id} to={`/alerts${q}`} on={isOn('/alerts')} />
           {item(`/sources${q}`, 'plug', 'Sources', project.sources.length)}
         </>
       )}
@@ -302,6 +307,25 @@ function Sidebar({ open, onClose }) {
         </button>
       </div>
     </nav>
+  );
+}
+
+/**
+ * Sidebar link to Alerts, with the number of open incidents (checked every minute) when there are any.
+ * @param {{ projectId: string, to: string, on: boolean }} props
+ */
+function AlertsItem({ projectId, to, on }) {
+  const { data: open = 0 } = useQuery(q.openIncidents(projectId));
+  return (
+    <Link className="item" to={to} aria-current={on ? 'page' : undefined}>
+      <Icon name="bell" />
+      Alerts
+      {open > 0 && (
+        <span className="count open" title={`${open} open incident${open === 1 ? '' : 's'}`}>
+          {open}
+        </span>
+      )}
+    </Link>
   );
 }
 

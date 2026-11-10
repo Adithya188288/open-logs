@@ -491,3 +491,84 @@ circle[class^="k-"] {
   gap: var(--s-4);
   white-space: nowrap;
 }
+
+/* Chart alerts: the bell on a chart, the alert drawer's rows, and incidents on the alert page. */
+.tile .bell {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-4);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  padding: var(--s-2) var(--s-6);
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--bg2);
+  color: var(--tx3);
+  cursor: pointer;
+}
+.tile .bell.open {
+  border-color: var(--errln);
+  background: var(--errbg);
+  color: var(--errtx);
+}
+.tile .bell.paused {
+  opacity: 0.6;
+}
+.drawer .alertsrc {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  padding: var(--s-12);
+  border-radius: 10px;
+  background: var(--bg2);
+  border: 1px solid var(--line);
+  font-size: 12px;
+}
+.alertrow {
+  display: flex;
+  align-items: center;
+  gap: var(--s-8);
+}
+.alertrow .input {
+  flex: 1;
+  min-width: 0;
+}
+.alertrow .input.num {
+  flex: 0 0 96px;
+}
+.alertchart {
+  height: 180px;
+}
+.incident {
+  display: flex;
+  align-items: center;
+  gap: var(--s-12);
+  padding: var(--s-8) 0;
+  border-top: 1px solid var(--line);
+  color: var(--oktx);
+}
+.incident.open {
+  color: var(--errtx);
+}
+.incident .what {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  color: var(--tx);
+  font-size: 13px;
+}
+.card.panel.stale > .incident {
+  opacity: 0.55;
+}
+.nav .item .count.open {
+  color: var(--errtx);
+  font-weight: 600;
+}
+.ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
