@@ -90,3 +90,38 @@ CREATE TABLE charts (
   size TEXT NOT NULL DEFAULT 'md' CHECK (size IN ('sm', 'md', 'lg')),
   created_at INTEGER NOT NULL
 );
+
+-- One alert per chart: it watches the chart's filter and measure. quiet_until holds back a new incident for
+-- quiet_minutes after the last one resolved.
+CREATE TABLE alerts (
+  id TEXT PRIMARY KEY,
+  chart_id TEXT NOT NULL UNIQUE REFERENCES charts(id) ON DELETE CASCADE,
+  project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  kind TEXT NOT NULL CHECK (kind IN ('above', 'increase')),
+  threshold REAL NOT NULL,
+  window_minutes INTEGER NOT NULL CHECK (window_minutes IN (5, 15, 30, 45, 60)),
+  quiet_minutes INTEGER NOT NULL DEFAULT 5,
+  webhook_url TEXT NOT NULL,
+  paused INTEGER NOT NULL DEFAULT 0,
+  quiet_until INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX alerts_project ON alerts(project_id, created_at);
+
+-- Each time an alert triggers. At most one open incident (resolved_at IS NULL) per alert.
+-- opened_webhook / resolved_webhook hold the webhook's result, e.g. '200' or 'failed: timeout'.
+CREATE TABLE incidents (
+  id TEXT PRIMARY KEY,
+  alert_id TEXT NOT NULL REFERENCES alerts(id) ON DELETE CASCADE,
+  started_at INTEGER NOT NULL,
+  value REAL NOT NULL,
+  previous REAL,
+  resolved_at INTEGER,
+  resolved_by TEXT CHECK (resolved_by IN ('auto', 'manual', 'paused')),
+  opened_webhook TEXT,
+  resolved_webhook TEXT
+);
+CREATE UNIQUE INDEX incidents_one_open ON incidents(alert_id) WHERE resolved_at IS NULL;
+CREATE INDEX incidents_alert ON incidents(alert_id, started_at);

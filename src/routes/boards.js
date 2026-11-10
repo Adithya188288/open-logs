@@ -1,4 +1,5 @@
 // Saved views, dashboards and charts. Filters are stored as validated `where` clauses.
+import { closeBeforeDelete } from '../alerts/alerts.js';
 import { randomId } from '../crypto.js';
 import { asObject, HttpError, json, readJson, requireString } from '../http.js';
 import { parseField, parseFilter } from '../query/filter.js';
@@ -9,6 +10,12 @@ const MEASURES = new Set(['count', 'count_over_time', 'avg', 'p95']);
 const VIZ = new Set(['bar', 'pie', 'line', 'number']);
 const SIZES = new Set(['sm', 'md', 'lg']);
 const CHART_COLUMNS = 'id, dashboard_id, title, filter_json, field, measure, viz, position, size, created_at';
+/** Charts with their alert, if any: `alert_open` says whether it has an open incident. */
+const CHART_SELECT = `SELECT ${CHART_COLUMNS.split(', ')
+  .map((col) => `c.${col}`)
+  .join(', ')}, a.id AS alert_id, a.paused AS alert_paused,
+  EXISTS (SELECT 1 FROM incidents i WHERE i.alert_id = a.id AND i.resolved_at IS NULL) AS alert_open
+  FROM charts c LEFT JOIN alerts a ON a.chart_id = c.id`;
 
 const ERRORS = [{ field: 'level', op: 'in', value: ['error', 'fatal'] }];
 /** Charts every new project's Overview dashboard starts with. */
@@ -48,8 +55,13 @@ function parseStoredFilter(raw, allowRange) {
 
 /** @param {Record<string, unknown>} row */
 function chartOut(row) {
-  const { filter_json, ...rest } = row;
-  return { ...rest, filter: JSON.parse(String(filter_json)) };
+  const { filter_json, alert_id, alert_paused, alert_open, ...rest } = row;
+  const out = { ...rest, filter: JSON.parse(String(filter_json)) };
+  if (alert_id === undefined) return out;
+  return {
+    ...out,
+    alert: alert_id ? { id: alert_id, paused: Boolean(alert_paused), open: Boolean(alert_open) } : null,
+  };
 }
 
 /**
@@ -95,7 +107,7 @@ async function findDashboard(env, id) {
  * @param {string} id
  */
 async function findChart(env, id) {
-  const c = await env.DB.prepare(`SELECT ${CHART_COLUMNS} FROM charts WHERE id = ?`).bind(id).first();
+  const c = await env.DB.prepare(`${CHART_SELECT} WHERE c.id = ?`).bind(id).first();
   if (!c) throw new HttpError(404, 'not_found', 'Chart not found');
   return chartOut(c);
 }
@@ -218,7 +230,7 @@ export async function createDashboard({ request, env, params }) {
 export async function getDashboard({ env, params }) {
   const dashboard = await findDashboard(env, params.id);
   const { results } = await env.DB.prepare(
-    `SELECT ${CHART_COLUMNS} FROM charts WHERE dashboard_id = ? ORDER BY position, created_at`,
+    `${CHART_SELECT} WHERE c.dashboard_id = ? ORDER BY c.position, c.created_at`,
   )
     .bind(dashboard.id)
     .all();
@@ -234,9 +246,11 @@ export async function renameDashboard({ request, env, params }) {
 }
 
 /** @param {import('../types.js').RouteContext} c */
-export async function deleteDashboard({ env, params }) {
+export async function deleteDashboard({ env, ctx, params }) {
   const dashboard = await findDashboard(env, params.id);
+  const send = await closeBeforeDelete(env, 'c.dashboard_id', String(dashboard.id));
   await env.DB.prepare('DELETE FROM dashboards WHERE id = ?').bind(dashboard.id).run();
+  ctx.waitUntil(send());
   return json({ ok: true });
 }
 
@@ -271,8 +285,10 @@ export async function duplicateChart({ env, params }) {
 }
 
 /** @param {import('../types.js').RouteContext} c */
-export async function deleteChart({ env, params }) {
+export async function deleteChart({ env, ctx, params }) {
+  const send = await closeBeforeDelete(env, 'a.chart_id', params.id);
   const res = await env.DB.prepare('DELETE FROM charts WHERE id = ?').bind(params.id).run();
   if (!res.meta.changes) throw new HttpError(404, 'not_found', 'Chart not found');
+  ctx.waitUntil(send());
   return json({ ok: true });
 }

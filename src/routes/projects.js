@@ -1,4 +1,5 @@
 // Projects and their sources (one ingest token per source).
+import { closeBeforeDelete } from '../alerts/alerts.js';
 import { requireRole } from '../auth.js';
 import { newSourceToken, randomId, sha256Hex } from '../crypto.js';
 import { asObject, HttpError, json, readJson, requireString } from '../http.js';
@@ -124,10 +125,12 @@ export async function renameProject({ request, env, params }) {
 }
 
 /** @param {import('../types.js').RouteContext} c */
-export async function deleteProject({ env, params, user }) {
+export async function deleteProject({ env, ctx, params, user }) {
   requireRole(user, 'admin');
   const project = await findProject(env, params.id);
+  const send = await closeBeforeDelete(env, 'a.project_id', String(project.id));
   await env.DB.prepare('DELETE FROM projects WHERE id = ?').bind(project.id).run();
+  ctx.waitUntil(send());
   await getStorage(env).deleteProject(project.id);
   return json({ ok: true });
 }
