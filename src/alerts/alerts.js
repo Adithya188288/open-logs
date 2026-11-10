@@ -41,7 +41,8 @@ function measured(a) {
 /** "More than 50 logs in 5 min", "Average duration_ms above 800 in 15 min", "Logs up 50% on the 15 min before". */
 export function conditionText(/** @type {AlertRow} */ a) {
   const what = measured(a);
-  const What = what[0].toUpperCase() + what.slice(1);
+  // Sentence case, except "p95", which is always written in lowercase.
+  const What = what.startsWith('p95') ? what : what[0].toUpperCase() + what.slice(1);
   if (a.kind === 'increase') return `${What} up ${a.threshold}% on the ${a.window_minutes} min before`;
   if (what === 'logs') return `More than ${a.threshold} logs in ${a.window_minutes} min`;
   return `${What} above ${a.threshold} in ${a.window_minutes} min`;
