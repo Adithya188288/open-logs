@@ -6,6 +6,8 @@ export const RUN = /** @type {string} */ (process.env.E2E_RUN);
 export const OWNER_EMAIL = /** @type {string} */ (process.env.OPEN_LOGS_EMAIL);
 export const OWNER_PASSWORD = /** @type {string} */ (process.env.OPEN_LOGS_PASSWORD);
 export const SEED_FILE = 'tests/.state/seed.json';
+/** Where alert tests send webhooks (a request catcher). Set per run, never committed. */
+export const TEST_WEBHOOK = process.env.OPEN_LOGS_TEST_WEBHOOK ?? '';
 
 /** A name that belongs to this run. @param {string} what */
 export const named = (what) => `e2e-${RUN}-${what}`;
@@ -53,6 +55,10 @@ export const test = base.extend({
       post: (path, data) => call('POST', path, data ?? {}),
       /** @param {string} path @param {unknown} [data] */
       patch: (path, data) => call('PATCH', path, data ?? {}),
+      /** @param {string} path @param {unknown} [data] */
+      put: (path, data) => call('PUT', path, data ?? {}),
+      /** @param {string} path */
+      del: (path) => call('DELETE', path),
       /** Logs matching `where` in the last hour of a project (newest first). */
       query: (/** @type {string} */ projectId, /** @type {object[]} */ where) =>
         call('POST', '/api/query', {
