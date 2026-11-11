@@ -47,9 +47,11 @@ test('the projects table shows 12 per page with name, sources and created date',
   await app.post(`/api/projects/${project.id}/sources`, { name: 'worker' });
 
   await page.goto('/projects');
-  // Finding is done in the browser: typing sends nothing to the server.
+  await expect(page.getByTestId('project-row').first()).toBeVisible();
+  // Finding and paging happen in the browser: from here on, nothing asks the server for projects.
+  /** @type {string[]} */
   const asked = [];
-  page.on('request', (r) => r.url().includes('/api/projects') && asked.push(r.url()));
+  page.on('request', (r) => new URL(r.url()).pathname === '/api/projects' && asked.push(r.url()));
   await page.getByLabel('Find a project').fill(prefix);
   await expect(page.getByRole('columnheader')).toHaveText(['Name', 'Sources', 'Created', '']);
   await expect(page.getByTestId('project-row')).toHaveCount(12);
