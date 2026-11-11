@@ -1,4 +1,4 @@
-/* Dashboards and chart builder. Layout from docs/design/screens/Dashboard. */
+/* Dashboards: chart tiles, the chart builder drawer and the alert drawer. */
 .tiles {
   padding: var(--s-24) var(--s-24) var(--s-32);
   display: grid;

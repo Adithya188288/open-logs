@@ -164,9 +164,6 @@ ${up ? '✓ Open Logs is up. Sign in, create a source and send your first log: i
   Email     ${email}
   Password  ${process.env.OPEN_LOGS_PASSWORD ? '(the one you set in OPEN_LOGS_PASSWORD)' : `${password}\n            Save it now: it is not shown again. You can change it in Settings.`}
 
-  Recommended: put this URL behind Cloudflare Access (free for up to 50 users) so only your team can
-  reach it. Leave /v1/logs outside Access: your apps send logs there with their token. See README → Security.
-
   Update:     npm run update ${name}
   Roll back:  npm run rollback ${name}
   Remove:     npm run uninstall ${name}
