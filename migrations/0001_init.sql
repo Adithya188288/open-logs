@@ -93,7 +93,8 @@ CREATE TABLE charts (
 
 -- One alert per chart: it watches the chart's filter and measure. quiet_until holds back a new incident for
 -- quiet_minutes after the last one resolved. An average or p95 has no value while no logs match; after
--- no_data_minutes of that, an open incident resolves on its own.
+-- no_data_minutes of that, an open incident resolves on its own. checked_until is the end of the latest period a
+-- check has claimed the alert for: a check acts only while its claim is still the latest (src/alerts/check.js).
 CREATE TABLE alerts (
   id TEXT PRIMARY KEY,
   chart_id TEXT NOT NULL UNIQUE REFERENCES charts(id) ON DELETE CASCADE,
@@ -107,6 +108,7 @@ CREATE TABLE alerts (
   webhook_url TEXT NOT NULL,
   paused INTEGER NOT NULL DEFAULT 0,
   quiet_until INTEGER NOT NULL DEFAULT 0,
+  checked_until INTEGER NOT NULL DEFAULT 0,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL
 );

@@ -300,3 +300,59 @@ export async function setUpTableMaintenance(accountId, bucket, token) {
     },
   });
 }
+
+/**
+ * Creates the install's Iceberg sink (stream → Basin table) through Cloudflare's Pipelines API. The catalog token
+ * the sink writes with travels inside the HTTPS request, not on a command line. The request itself is authorized
+ * with wrangler's own sign-in (`wrangler auth token`), because the R2 token cannot call the Pipelines API.
+ * @param {{ accountId: string, name: string, bucket: string, namespace: string, table: string, token: string,
+ *   rollSeconds: number }} sink
+ */
+export async function createSink(sink) {
+  const auth = wrangler(['auth', 'token', '--json'], { quiet: true });
+  // The output mixes the JSON with wrangler's notices (e.g. "update available"), so read just the JSON object.
+  const json = auth.ok ? auth.out.match(/\{[^{}]*"token"[^{}]*\}/)?.[0] : undefined;
+  const login = json ? /** @type {{ token?: string }} */ (JSON.parse(json)).token : undefined;
+  if (!login) {
+    console.log('  • Iceberg sink… failed');
+    console.error('  Could not read the wrangler sign-in. Run: npx wrangler login');
+    process.exit(1);
+  }
+  hideInOutput(login);
+  const body = {
+    name: sink.name,
+    type: 'r2_data_catalog',
+    format: { type: 'parquet', compression: 'zstd' },
+    config: {
+      account_id: sink.accountId,
+      bucket: sink.bucket,
+      namespace: sink.namespace,
+      table_name: sink.table,
+      token: sink.token,
+      rolling_policy: { interval_seconds: sink.rollSeconds },
+    },
+  };
+  for (let attempt = 1; ; attempt++) {
+    const res = await fetch(
+      `https://api.cloudflare.com/client/v4/accounts/${sink.accountId}/pipelines/v1/sinks`,
+      {
+        method: 'POST',
+        headers: { authorization: `Bearer ${login}`, 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      },
+    ).catch(() => null);
+    const answer = res ? await res.json().catch(() => ({})) : {};
+    if (res?.ok && answer.success !== false) {
+      console.log(`  • Iceberg sink (files every ${sink.rollSeconds}s)… done`);
+      return;
+    }
+    // Cloudflare's control plane answers 5xx now and then; a fresh attempt usually works.
+    if ((!res || res.status >= 500) && attempt < 3) {
+      await sleep(3000);
+      continue;
+    }
+    console.log(`  • Iceberg sink (files every ${sink.rollSeconds}s)… failed`);
+    console.error(`  ${res ? res.status : 'no answer'} ${answer.errors?.[0]?.message ?? ''}`.trimEnd());
+    process.exit(1);
+  }
+}

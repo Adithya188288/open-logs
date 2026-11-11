@@ -16,6 +16,7 @@ import {
   BASIN_TABLE,
   buildAndDeploy,
   configPath,
+  createSink,
   hideInOutput,
   INSTALLS_DIR,
   installName,
@@ -91,12 +92,15 @@ if (!streamId) {
   console.error('Could not read the stream id. Check: npx wrangler pipelines streams list');
   process.exit(1);
 }
-// biome-ignore format: one flag/value pair per line reads better here
-mustWrangler('Iceberg sink (files every 60s)', [
-  'pipelines', 'sinks', 'create', `${base}_sink`,
-  '--type', 'r2-data-catalog', '--bucket', name, '--namespace', BASIN_NAMESPACE, '--table', BASIN_TABLE,
-  '--roll-interval', '60', '--compression', 'zstd', '--catalog-token', token,
-]);
+await createSink({
+  accountId: account.id,
+  name: `${base}_sink`,
+  bucket: name,
+  namespace: BASIN_NAMESPACE,
+  table: BASIN_TABLE,
+  token,
+  rollSeconds: 60,
+});
 mustWrangler('pipeline', [
   'pipelines',
   'create',

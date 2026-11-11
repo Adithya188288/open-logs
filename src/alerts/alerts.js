@@ -22,7 +22,7 @@ export const ALERT_SELECT = `SELECT a.*, c.title AS chart_title, c.filter_json, 
 
 /**
  * @typedef {{ id: string, chart_id: string, project_id: string, name: string, kind: 'above' | 'increase',
- *   threshold: number, window_minutes: number, quiet_minutes: number, no_data_minutes: number,
+ *   threshold: number, window_minutes: number, quiet_minutes: number, no_data_minutes: number, checked_until: number,
  *   webhook_url: string, paused: number,
  *   quiet_until: number, created_at: number, updated_at: number, chart_title: string, filter_json: string,
  *   field: string | null, measure: string, dashboard_id: string, project_name: string }} AlertRow
@@ -136,9 +136,10 @@ export function holds(a, value, previous) {
 /**
  * Opens an incident unless one is already open (the unique index allows only one). Returns it, or null.
  * @param {Env} env @param {AlertRow} a @param {number} value @param {number | null} previous
+ * @param {number} claim  the period end this check claimed the alert for (see check.js)
  * @returns {Promise<Incident | null>}
  */
-export async function openIncident(env, a, value, previous) {
+export async function openIncident(env, a, value, previous, claim) {
   /** @type {Incident} */
   const incident = {
     id: randomId('inc'),
@@ -154,11 +155,12 @@ export async function openIncident(env, a, value, previous) {
   };
   try {
     // Decided on the alert as it is now, not as the check read it a few seconds ago: it still exists, isn't
-    // paused, and its quiet time is over (a Resolve during the check sets a new quiet time).
+    // paused, its quiet time is over (a Resolve during the check sets a new quiet time), and no newer check has
+    // claimed it since (checked_until still equals this check's period end).
     const res = await env.DB.prepare(
       `INSERT INTO incidents (id, alert_id, started_at, value, previous, last_data_at)
        SELECT ?, ?, ?, ?, ?, ?
-       WHERE EXISTS (SELECT 1 FROM alerts WHERE id = ? AND paused = 0 AND quiet_until <= ?)`,
+       WHERE EXISTS (SELECT 1 FROM alerts WHERE id = ? AND paused = 0 AND quiet_until <= ? AND checked_until = ?)`,
     )
       .bind(
         incident.id,
@@ -169,6 +171,7 @@ export async function openIncident(env, a, value, previous) {
         incident.started_at,
         a.id,
         incident.started_at,
+        claim,
       )
       .run();
     if (!res.meta.changes) return null;
@@ -183,14 +186,18 @@ export async function openIncident(env, a, value, previous) {
  * Resolves an open incident and starts the alert's quiet time. Returns the resolved incident, or null when it
  * was already resolved (by another check or another click).
  * @param {Env} env @param {AlertRow} a @param {Incident} incident @param {'auto' | 'no_data' | 'manual' | 'paused'} by
+ * @param {number} [claim]  for a check: the period end it claimed the alert for
  * @returns {Promise<Incident | null>}
  */
-export async function resolveIncident(env, a, incident, by) {
+export async function resolveIncident(env, a, incident, by, claim) {
   const now = Date.now();
+  // A check (claim given) may only resolve while its claim on the alert is still the latest: a slower, older
+  // check must not undo what a newer one decided. Resolving by hand, pausing and deleting pass no claim.
   const res = await env.DB.prepare(
-    'UPDATE incidents SET resolved_at = ?, resolved_by = ? WHERE id = ? AND resolved_at IS NULL',
+    `UPDATE incidents SET resolved_at = ?, resolved_by = ? WHERE id = ? AND resolved_at IS NULL
+     AND (? IS NULL OR EXISTS (SELECT 1 FROM alerts WHERE id = ? AND checked_until = ?))`,
   )
-    .bind(now, by, incident.id)
+    .bind(now, by, incident.id, claim ?? null, a.id, claim ?? null)
     .run();
   if (!res.meta.changes) return null;
   await env.DB.prepare('UPDATE alerts SET quiet_until = ? WHERE id = ?')
