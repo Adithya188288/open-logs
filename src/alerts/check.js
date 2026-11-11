@@ -80,11 +80,23 @@ async function checkOne(env, a, end, namesOf) {
   const names = await namesOf(a.project_id);
   const span = a.window_minutes * MINUTE;
   const value = await chartValue(env, names, a, end - span, end);
-  if (value === null) return;
+  if (value === null) {
+    // No logs to measure (an average or p95): resolve an open incident once that has lasted no_data_minutes.
+    const open = await openIncidentOf(env, a.id);
+    if (open && Date.now() - open.last_data_at >= a.no_data_minutes * MINUTE) {
+      const resolved = await resolveIncident(env, a, open, 'no_data');
+      if (resolved) await notify(env, a, resolved, 'incident.resolved');
+    }
+    return;
+  }
   const previous = a.kind === 'increase' ? await chartValue(env, names, a, end - 2 * span, end - span) : null;
   const firing = holds(a, value, previous);
   const open = await openIncidentOf(env, a.id);
-  if (open && !firing) {
+  if (open && firing) {
+    await env.DB.prepare('UPDATE incidents SET last_data_at = ? WHERE id = ?')
+      .bind(Date.now(), open.id)
+      .run();
+  } else if (open && !firing) {
     const resolved = await resolveIncident(env, a, open, 'auto');
     if (resolved) await notify(env, a, resolved, 'incident.resolved');
   } else if (!open && firing && Date.now() >= a.quiet_until) {

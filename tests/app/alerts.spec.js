@@ -102,6 +102,7 @@ test('any chart can have an alert, and the API refuses bad settings', async ({ p
   const { alert } = await app.put(`/api/charts/${chart.id}/alert`, good);
   expect(alert.condition).toBe('p95 duration_ms above 800 in the last 15 min');
   expect(alert.quiet_minutes).toBe(5);
+  expect(alert.no_data_minutes).toBe(60);
 
   const put = (/** @type {object} */ body) =>
     page.request.put(`/api/charts/${chart.id}/alert`, {
@@ -113,13 +114,15 @@ test('any chart can have an alert, and the API refuses bad settings', async ({ p
     { window_minutes: 90 },
     { quiet_minutes: 90 },
     { quiet_minutes: 1500 },
+    { no_data_minutes: 30 },
+    { no_data_minutes: 1500 },
     { threshold: 0 },
     { kind: 'below' },
     { webhook_url: 'http://example.com/hook' },
   ]) {
     expect((await put(bad)).status(), JSON.stringify(bad)).toBe(400);
   }
-  expect((await put({ quiet_minutes: 1440 })).status()).toBe(200);
+  expect((await put({ quiet_minutes: 1440, no_data_minutes: 1440 })).status()).toBe(200);
 
   // The chart carries its alert, and deleting the chart deletes the alert.
   const { charts } = await app.get(`/api/dashboards/${dashboard.id}`);
@@ -134,6 +137,7 @@ test('any chart can have an alert, and the API refuses bad settings', async ({ p
 
 test('the Alerts page shows 12 per page and filters by status', async ({ page, app }) => {
   const { project, dashboard } = await projectWithCharts(app, 'alert-pages');
+  let first = { id: '' };
   for (let i = 1; i <= 13; i++) {
     const n = String(i).padStart(2, '0');
     const { chart } = await app.post(`/api/dashboards/${dashboard.id}/charts`, {
@@ -142,14 +146,16 @@ test('the Alerts page shows 12 per page and filters by status', async ({ page, a
       measure: 'count',
       viz: 'number',
     });
-    await app.put(`/api/charts/${chart.id}/alert`, {
+    const { alert } = await app.put(`/api/charts/${chart.id}/alert`, {
       name: `alert-${n}`,
       kind: 'above',
       threshold: 1_000_000,
       window_minutes: 5,
       webhook_url: TEST_WEBHOOK,
     });
+    if (i === 1) first = alert;
   }
+  await app.post(`/api/alerts/${first.id}/pause`);
   await page.goto(`/alerts?project=${project.id}`);
   await expect(page.getByTestId('alert-row')).toHaveCount(12);
   await expect(page.getByTestId('alert-row').first()).toContainText('alert-13');
@@ -158,6 +164,13 @@ test('the Alerts page shows 12 per page and filters by status', async ({ page, a
   await expect(page.getByTestId('alert-row')).toContainText('alert-01');
   await page.getByLabel('Status').selectOption('open');
   await expect(page.getByText('No alerts match this status.')).toBeVisible();
+  // "All good" lists only alerts that are being checked; the paused one has its own filter.
   await page.getByLabel('Status').selectOption('ok');
   await expect(page.getByTestId('alert-row')).toHaveCount(12);
+  await expect(page.getByTestId('alert-row').filter({ hasText: 'alert-01' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Next' })).toHaveCount(0);
+  await page.getByLabel('Status').selectOption('paused');
+  await expect(page.getByTestId('alert-row')).toHaveCount(1);
+  await expect(page.getByTestId('alert-row')).toContainText('alert-01');
+  await expect(page.getByTestId('alert-row')).toContainText('Paused');
 });

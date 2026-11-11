@@ -8,6 +8,9 @@ export const WINDOWS = [5, 15, 30, 45, 60];
 /** 5 or 15 minutes, or whole hours up to 24. */
 export const QUIET_MINUTES = [5, 15, ...Array.from({ length: 24 }, (_, i) => (i + 1) * 60)];
 export const DEFAULT_QUIET_MINUTES = 5;
+/** With no logs to measure (average, p95), an open incident resolves after 1 to 24 hours. */
+export const NO_DATA_MINUTES = Array.from({ length: 24 }, (_, i) => (i + 1) * 60);
+export const DEFAULT_NO_DATA_MINUTES = 60;
 // Logs reach Basin 1.5–3.5 minutes after they're sent, so each check looks at a period that ended 5 minutes ago.
 export const SETTLE_MS = 5 * MINUTE;
 const WEBHOOK_TIMEOUT_MS = 10_000;
@@ -19,10 +22,12 @@ export const ALERT_SELECT = `SELECT a.*, c.title AS chart_title, c.filter_json, 
 
 /**
  * @typedef {{ id: string, chart_id: string, project_id: string, name: string, kind: 'above' | 'increase',
- *   threshold: number, window_minutes: number, quiet_minutes: number, webhook_url: string, paused: number,
+ *   threshold: number, window_minutes: number, quiet_minutes: number, no_data_minutes: number,
+ *   webhook_url: string, paused: number,
  *   quiet_until: number, created_at: number, updated_at: number, chart_title: string, filter_json: string,
  *   field: string | null, measure: string, dashboard_id: string, project_name: string }} AlertRow
  * @typedef {{ id: string, alert_id: string, started_at: number, value: number, previous: number | null,
+ *   last_data_at: number,
  *   resolved_at: number | null, resolved_by: string | null, opened_webhook: string | null,
  *   resolved_webhook: string | null }} Incident
  */
@@ -81,6 +86,7 @@ export function alertOut(a, open = null) {
     threshold: a.threshold,
     window_minutes: a.window_minutes,
     quiet_minutes: a.quiet_minutes,
+    no_data_minutes: a.no_data_minutes,
     webhook_url: a.webhook_url,
     paused: Boolean(a.paused),
     quiet_until: a.quiet_until,
@@ -140,6 +146,7 @@ export async function openIncident(env, a, value, previous) {
     started_at: Date.now(),
     value: round(value),
     previous: previous === null ? null : round(previous),
+    last_data_at: Date.now(),
     resolved_at: null,
     resolved_by: null,
     opened_webhook: null,
@@ -148,10 +155,18 @@ export async function openIncident(env, a, value, previous) {
   try {
     // Only while the alert still exists and isn't paused (it may have changed since the check read it).
     const res = await env.DB.prepare(
-      `INSERT INTO incidents (id, alert_id, started_at, value, previous)
-       SELECT ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM alerts WHERE id = ? AND paused = 0)`,
+      `INSERT INTO incidents (id, alert_id, started_at, value, previous, last_data_at)
+       SELECT ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM alerts WHERE id = ? AND paused = 0)`,
     )
-      .bind(incident.id, a.id, incident.started_at, incident.value, incident.previous, a.id)
+      .bind(
+        incident.id,
+        a.id,
+        incident.started_at,
+        incident.value,
+        incident.previous,
+        incident.started_at,
+        a.id,
+      )
       .run();
     if (!res.meta.changes) return null;
   } catch (err) {
@@ -164,7 +179,7 @@ export async function openIncident(env, a, value, previous) {
 /**
  * Resolves an open incident and starts the alert's quiet time. Returns the resolved incident, or null when it
  * was already resolved (by another check or another click).
- * @param {Env} env @param {AlertRow} a @param {Incident} incident @param {'auto' | 'manual' | 'paused'} by
+ * @param {Env} env @param {AlertRow} a @param {Incident} incident @param {'auto' | 'no_data' | 'manual' | 'paused'} by
  * @returns {Promise<Incident | null>}
  */
 export async function resolveIncident(env, a, incident, by) {

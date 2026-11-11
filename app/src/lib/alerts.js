@@ -4,6 +4,8 @@ import { clauseToSearch } from './search.js';
 export const WINDOWS = [5, 15, 30, 45, 60];
 /** Quiet time after an incident resolves: 5 or 15 minutes, or 1 to 24 hours. */
 export const QUIET = [5, 15, ...Array.from({ length: 24 }, (_, i) => (i + 1) * 60)];
+/** No logs to measure for this long resolves an open incident (average and p95 alerts): 1 to 24 hours. */
+export const NO_DATA = Array.from({ length: 24 }, (_, i) => (i + 1) * 60);
 
 /** @param {number} minutes */
 export function quietLabel(minutes) {
@@ -26,6 +28,7 @@ export function filterText(where) {
 
 export const RESOLVED_BY = /** @type {Record<string, string>} */ ({
   auto: 'automatically',
+  no_data: 'automatically (no logs came in)',
   manual: 'by hand',
   paused: 'when the alert was paused',
 });

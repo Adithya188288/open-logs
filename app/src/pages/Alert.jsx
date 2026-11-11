@@ -123,6 +123,12 @@ export function Alert() {
             <span className="tiny muted">Quiet time after resolving</span>
             <span>{quietLabel(alert.quiet_minutes)}</span>
           </div>
+          {(chart.measure === 'avg' || chart.measure === 'p95') && (
+            <div className="stat">
+              <span className="tiny muted">Resolves with no logs after</span>
+              <span>{quietLabel(alert.no_data_minutes)}</span>
+            </div>
+          )}
           <div className="stat">
             <span className="tiny muted">Webhook</span>
             <span className="mono small ellipsis" title={alert.webhook_url}>

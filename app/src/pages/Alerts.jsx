@@ -11,6 +11,7 @@ const STATUSES = [
   ['all', 'Any status'],
   ['open', 'Incident open'],
   ['ok', 'All good'],
+  ['paused', 'Paused'],
 ];
 
 /** @param {{ alert: any }} props */

@@ -488,7 +488,8 @@
 /* Toolbar: source picker, views menu, search help */
 .tail-tools .tools-row > .select {
   font-size: 12px;
-  padding: var(--s-6) var(--s-8);
+  padding: var(--s-6) 28px var(--s-6) var(--s-8);
+  background-position: right 8px center;
   max-width: 180px;
 }
 .query .iconbtn {

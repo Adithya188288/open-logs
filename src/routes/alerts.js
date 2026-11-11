@@ -3,7 +3,9 @@ import {
   ALERT_SELECT,
   alertOut,
   closeBeforeDelete,
+  DEFAULT_NO_DATA_MINUTES,
   DEFAULT_QUIET_MINUTES,
+  NO_DATA_MINUTES,
   notify,
   openIncidentOf,
   postWebhook,
@@ -50,7 +52,11 @@ function parseAlert(body) {
   if (!QUIET_MINUTES.includes(quiet)) {
     throw invalid('quiet_minutes', 'quiet_minutes must be 5, 15, or whole hours from 60 to 1440');
   }
-  return { name, kind, threshold, window, quiet, webhook: parseWebhookUrl(body.webhook_url) };
+  const noData = body.no_data_minutes === undefined ? DEFAULT_NO_DATA_MINUTES : Number(body.no_data_minutes);
+  if (!NO_DATA_MINUTES.includes(noData)) {
+    throw invalid('no_data_minutes', 'no_data_minutes must be whole hours from 60 to 1440');
+  }
+  return { name, kind, threshold, window, quiet, noData, webhook: parseWebhookUrl(body.webhook_url) };
 }
 
 /** @param {Env} env @param {string} chartId */
@@ -92,11 +98,12 @@ export async function putChartAlert({ request, env, params, url }) {
   await env.DB.batch([
     env.DB.prepare(
       `INSERT INTO alerts (id, chart_id, project_id, name, kind, threshold, window_minutes, quiet_minutes,
-         webhook_url, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         no_data_minutes, webhook_url, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(chart_id) DO UPDATE SET name = excluded.name, kind = excluded.kind,
          threshold = excluded.threshold, window_minutes = excluded.window_minutes,
-         quiet_minutes = excluded.quiet_minutes, webhook_url = excluded.webhook_url,
+         quiet_minutes = excluded.quiet_minutes, no_data_minutes = excluded.no_data_minutes,
+         webhook_url = excluded.webhook_url,
          updated_at = excluded.updated_at`,
     ).bind(
       randomId('alr'),
@@ -107,6 +114,7 @@ export async function putChartAlert({ request, env, params, url }) {
       v.threshold,
       v.window,
       v.quiet,
+      v.noData,
       v.webhook,
       now,
       now,
@@ -155,10 +163,16 @@ export async function listAlerts({ env, params, url }) {
   const project = await findProject(env, params.id);
   const page = pageOf(url);
   const status = url.searchParams.get('status') ?? 'all';
-  if (!['all', 'open', 'ok'].includes(status)) {
-    throw new HttpError(400, 'invalid_field', 'status must be all, open or ok');
-  }
-  const where = `a.project_id = ?${status === 'open' ? ` AND ${OPEN}` : status === 'ok' ? ` AND NOT ${OPEN}` : ''}`;
+  /** @type {Record<string, string>} */
+  const STATUS = {
+    all: '',
+    open: ` AND ${OPEN}`,
+    ok: ` AND a.paused = 0 AND NOT ${OPEN}`,
+    paused: ' AND a.paused = 1',
+  };
+  if (!(status in STATUS))
+    throw new HttpError(400, 'invalid_field', 'status must be all, open, ok or paused');
+  const where = `a.project_id = ?${STATUS[status]}`;
   const [rows, total, open] = await env.DB.batch([
     env.DB.prepare(`${ALERT_SELECT} WHERE ${where} ORDER BY a.created_at DESC, a.id LIMIT ? OFFSET ?`).bind(
       project.id,

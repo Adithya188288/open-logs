@@ -3,7 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { ApiError, api } from '../lib/api.js';
-import { filterText, measureLabel, QUIET, quietLabel, WINDOWS } from '../lib/alerts.js';
+import { filterText, measureLabel, NO_DATA, QUIET, quietLabel, WINDOWS } from '../lib/alerts.js';
 import { q } from '../lib/queries.js';
 import { confirmDelete } from './Dialogs.jsx';
 import { Icon } from './Icon.jsx';
@@ -24,6 +24,7 @@ export function AlertDrawer({ chart, onClose, onSaved }) {
     threshold: '',
     window: 5,
     quiet: 5,
+    noData: 60,
     webhook: '',
   });
   const [errors, setErrors] = useState(/** @type {Record<string, string>} */ ({}));
@@ -38,6 +39,7 @@ export function AlertDrawer({ chart, onClose, onSaved }) {
       threshold: String(existing.threshold),
       window: existing.window_minutes,
       quiet: existing.quiet_minutes,
+      noData: existing.no_data_minutes,
       webhook: existing.webhook_url,
     });
   }, [existing]);
@@ -85,6 +87,7 @@ export function AlertDrawer({ chart, onClose, onSaved }) {
           threshold: Number(form.threshold),
           window_minutes: form.window,
           quiet_minutes: form.quiet,
+          no_data_minutes: form.noData,
           webhook_url: form.webhook.trim(),
         },
       });
@@ -240,6 +243,28 @@ export function AlertDrawer({ chart, onClose, onSaved }) {
                   ))}
                 </select>
               </div>
+              {!counting && (
+                <div className="field">
+                  <label className="label" htmlFor="al-nodata">
+                    If no logs come in, resolve an open incident after
+                  </label>
+                  <select
+                    id="al-nodata"
+                    className="select"
+                    value={form.noData}
+                    onChange={(e) => set('noData', Number(e.target.value))}
+                  >
+                    {NO_DATA.map((m) => (
+                      <option key={m} value={m}>
+                        {quietLabel(m)}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="small muted">
+                    With no logs there is nothing to measure, so the incident can’t resolve the usual way.
+                  </span>
+                </div>
+              )}
               <div className="field">
                 <label className="label" htmlFor="al-hook">
                   Webhook URL
