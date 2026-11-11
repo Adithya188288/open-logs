@@ -1,15 +1,6 @@
 // The signed-in frame: sidebar (project switcher under the logo) stays mounted while screens change.
 import { useQuery } from '@tanstack/react-query';
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { ApiError, api } from '../lib/api.js';
 import { initials } from '../lib/format.js';
@@ -312,16 +303,12 @@ function Sidebar({ open, onClose }) {
 
 /**
  * The switcher's project list: a fixed height that scrolls, so New project and All projects below it stay in
- * reach however many projects there are. Opens scrolled to the current project.
+ * reach however many projects there are. The menu focuses the current project, which scrolls it into view.
  * @param {{ projects: { id: string, name: string }[], currentId?: string, page: string }} props
  */
 function ProjectList({ projects, currentId, page }) {
-  const list = useRef(/** @type {HTMLDivElement | null} */ (null));
-  useLayoutEffect(() => {
-    list.current?.querySelector('[aria-current="true"]')?.scrollIntoView({ block: 'nearest' });
-  }, []);
   return (
-    <div ref={list} className="menu-scroll" data-testid="project-list">
+    <div className="menu-scroll" data-testid="project-list">
       {projects.map((x) => (
         <Link
           key={x.id}
