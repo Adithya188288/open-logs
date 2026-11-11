@@ -18,7 +18,7 @@ import { BasinStorage } from './basin.js';
  * @property {(filter: import('../query/filter.js').Filter) => Promise<{ events: EventOut[], next_cursor: string | null }>} query
  * @property {(filter: import('../query/filter.js').Filter, interval: number) => Promise<{ interval_ms: number, buckets: Bucket[] }>} histogram
  * @property {(filter: import('../query/filter.js').Filter, spec: AggregateSpec) => Promise<AggregateResult>} aggregate
- * @property {(projectId: string) => Promise<number | null>} newest
+ * @property {(projectId: string, lookbackMs?: number) => Promise<number | null>} newest
  * @property {(projectId: string) => Promise<void>} deleteProject
  */
 

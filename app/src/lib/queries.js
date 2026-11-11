@@ -113,7 +113,9 @@ export const q = {
   newest: (projectId, everyMs) =>
     queryOptions({
       queryKey: ['project', projectId, 'newest'],
-      queryFn: async () => (await api(`/api/status?project_id=${enc(projectId)}`)).newest_event_at ?? 0,
+      // Only notices new arrivals, which are always recent: the server looks at the last 15 minutes, not 7 days.
+      queryFn: async () =>
+        (await api(`/api/status?project_id=${enc(projectId)}&recent=1`)).newest_event_at ?? 0,
       refetchInterval: everyMs,
       refetchOnWindowFocus: true,
       // Coming back to the dashboard (or the tab) re-checks only if the last check is 30s+ old.

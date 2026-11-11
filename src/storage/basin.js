@@ -17,6 +17,9 @@ const TABLE_NAME = /^[a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*$/;
 // The Iceberg sink rolls files every 60s (its minimum) and then commits them to the catalog. On staging
 // (2026-10-30) events became queryable 1.5–3.5 minutes after ingest, so freshness is reported against 3 min.
 const INGEST_LAG_MS = 180_000;
+// How far back "newest event" looks. The dashboard asks every 30 s only to notice new arrivals, which are always
+// recent, so it looks at 15 minutes; live tail asks once per view for its "newest event arrived …" message.
+export const NEWEST_RECENT_MS = 15 * 60 * 1000;
 const NEWEST_LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
 // Basin SQL now and then never answers a query that normally takes ~1s (2026-11-01, open-logs-test-e2e: 1 in
 // 56 and 1 in 110 parallel queries; the Worker waited 90s on 4ms of CPU; not in Cloudflare's docs). So each
@@ -164,9 +167,9 @@ export class BasinStorage {
     return runAggregate((q) => this.all(q), this.dialect, filter, spec);
   }
 
-  /** @param {string} projectId */
-  async newest(projectId) {
-    const since = Date.now() - NEWEST_LOOKBACK_MS;
+  /** @param {string} projectId @param {number} [lookbackMs] */
+  async newest(projectId, lookbackMs = NEWEST_LOOKBACK_MS) {
+    const since = Date.now() - lookbackMs;
     const rows = await this.all({
       sql:
         `SELECT MAX(ts) AS ts FROM ${this.dialect.table} WHERE project_id = ${sqlLiteral(projectId)}` +
