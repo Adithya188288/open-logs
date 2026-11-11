@@ -3,3 +3,5 @@
 OPEN_LOGS_TOKEN=your-cloudflare-r2-admin-read-write-token
 OPEN_LOGS_EMAIL=you@example.com
 OPEN_LOGS_PASSWORD=a-long-password-for-test-installs
+# npm run verify: alert tests send their webhooks here (a request catcher such as webhook.site).
+OPEN_LOGS_TEST_WEBHOOK=https://webhook.site/your-id

@@ -30,7 +30,9 @@ export function MenuButton({ className = 'btn', label, title, testId, children, 
     };
     document.addEventListener('mousedown', off);
     document.addEventListener('keydown', off);
-    menu.current?.querySelector(/** @type {'button'} */ ('button, a'))?.focus();
+    // Focus the current item when there is one (a long list then opens scrolled to it), else the first.
+    const current = menu.current?.querySelector(/** @type {'a'} */ ('[aria-current="true"]'));
+    (current ?? menu.current?.querySelector(/** @type {'button'} */ ('button, a')))?.focus();
     return () => {
       document.removeEventListener('mousedown', off);
       document.removeEventListener('keydown', off);

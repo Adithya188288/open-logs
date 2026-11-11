@@ -152,8 +152,8 @@ export async function createInvite({ request, user, env, url }) {
   // The token sits in the URL fragment so it isn't sent on page load or in Referer headers. The invite page
   // does send it in /api/invites/:token requests; it is single-use and expires in 7 days.
   const inviteUrl = `${url.origin}/invite#${token}`;
-  const emailStatus = await sendInviteEmail(env, { to: email, url: inviteUrl, from: me });
-  return json({ invite, invite_url: inviteUrl, email: emailStatus }, 201);
+  // The inviter shares the link themselves (shown once, with a copy button).
+  return json({ invite, invite_url: inviteUrl }, 201);
 }
 
 /**
@@ -213,28 +213,4 @@ export async function acceptInvite({ request, env, params }) {
   const setCookie = await createSession(env, id);
   const user = { id, email: invite.email, name, role: invite.role, created_at: now, last_active_at: now };
   return json({ user }, 200, { 'set-cookie': setCookie });
-}
-
-/**
- * Emails the invite link when Cloudflare Email Service is configured (EMAIL binding + EMAIL_FROM).
- * The link is always returned to the inviter too, so a failed or unconfigured send never blocks an invite.
- * @param {Env} env
- * @param {{ to: string, url: string, from: { name: string } }} o
- * @returns {Promise<{ sent: boolean, reason?: string }>}
- */
-async function sendInviteEmail(env, o) {
-  if (!env.EMAIL || !env.EMAIL_FROM) return { sent: false, reason: 'not_configured' };
-  const team = await teamName(env);
-  try {
-    await env.EMAIL.send({
-      from: env.EMAIL_FROM,
-      to: o.to,
-      subject: `${o.from.name} invited you to ${team} on Open Logs`,
-      text: `${o.from.name} invited you to join ${team} on Open Logs.\n\nAccept the invite (valid for 7 days):\n${o.url}\n`,
-    });
-    return { sent: true };
-  } catch (err) {
-    console.error('invite email failed', err instanceof Error ? err.message : err);
-    return { sent: false, reason: 'send_failed' };
-  }
 }

@@ -8,7 +8,7 @@
 // Verified on real Basin (staging, 2026-10-30): responses are `{ result: { schema, rows: [{…}], metrics }, success }`;
 // backslash is an ordinary character inside string literals; LIKE only accepts ESCAPE '\'.
 import { HttpError } from '../http.js';
-import { buildEventsSql, buildHistogramSql } from '../query/sql.js';
+import { buildEventsSql, buildHistogramSql, INGEST_MARGIN_MS, ingestTs } from '../query/sql.js';
 import { runAggregate } from './aggregate.js';
 import { eventsPage, histogramBuckets } from './shape.js';
 
@@ -17,6 +17,9 @@ const TABLE_NAME = /^[a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*$/;
 // The Iceberg sink rolls files every 60s (its minimum) and then commits them to the catalog. On staging
 // (2026-10-30) events became queryable 1.5–3.5 minutes after ingest, so freshness is reported against 3 min.
 const INGEST_LAG_MS = 180_000;
+// How far back "newest event" looks. The dashboard asks every 30 s only to notice new arrivals, which are always
+// recent, so it looks at 15 minutes; live tail asks once per view for its "newest event arrived …" message.
+export const NEWEST_RECENT_MS = 15 * 60 * 1000;
 const NEWEST_LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
 // Basin SQL now and then never answers a query that normally takes ~1s (2026-11-01, open-logs-test-e2e: 1 in
 // 56 and 1 in 110 parallel queries; the Worker waited 90s on 4ms of CPU; not in Cloudflare's docs). So each
@@ -67,34 +70,20 @@ export function basinDialect(table) {
   };
 }
 
-/**
- * Normalises a Basin SQL response to an array of row objects.
- * Accepts `result.rows` as objects, or `{ columns, rows }` with array rows.
- * @param {any} body
- * @returns {Record<string, unknown>[]}
- */
+/** Basin SQL answers `{ result: { rows: [{…}], metrics }, success }` (verified on real Basin, 2026-10-30). @param {any} body */
 function rowsOf(body) {
-  const result = body?.result ?? body;
-  const rows = result?.rows ?? result?.data ?? [];
-  if (!Array.isArray(rows)) return [];
-  const columns = result?.columns ?? result?.schema?.map((/** @type {any} */ c) => c.name);
-  return rows.map((r) =>
-    Array.isArray(r) && Array.isArray(columns) ? Object.fromEntries(columns.map((c, i) => [c, r[i]])) : r,
-  );
+  const rows = body?.result?.rows;
+  return Array.isArray(rows) ? rows : [];
 }
 
 /** @implements {import('./index.js').LogStorage} */
 export class BasinStorage {
   /**
    * @param {Env} env
-   * @param {typeof fetch} [fetcher]  injectable for tests
    */
-  constructor(env, fetcher = (input, init) => fetch(input, init)) {
+  constructor(env) {
     this.env = env;
-    this.fetcher = fetcher;
     this.dialect = basinDialect(String(env.BASIN_TABLE ?? 'open_logs.events'));
-    /** @type {'basin'} */
-    this.mode = 'basin';
     this.lagMs = INGEST_LAG_MS;
   }
 
@@ -107,7 +96,7 @@ export class BasinStorage {
     const url = `${SQL_API}/${encodeURIComponent(BASIN_ACCOUNT_ID)}/basin-sql/query/${encodeURIComponent(BASIN_BUCKET)}`;
     for (let attempt = 1; ; attempt++) {
       try {
-        const res = await this.fetcher(url, {
+        const res = await fetch(url, {
           method: 'POST',
           headers: { authorization: `Bearer ${BASIN_SQL_TOKEN}`, 'content-type': 'application/json' },
           body: JSON.stringify({ query: q.sql }),
@@ -164,11 +153,13 @@ export class BasinStorage {
     return runAggregate((q) => this.all(q), this.dialect, filter, spec);
   }
 
-  /** @param {string} projectId */
-  async newest(projectId) {
-    const since = Date.now() - NEWEST_LOOKBACK_MS;
+  /** @param {string} projectId @param {number} [lookbackMs] */
+  async newest(projectId, lookbackMs = NEWEST_LOOKBACK_MS) {
+    const since = Date.now() - lookbackMs;
     const rows = await this.all({
-      sql: `SELECT MAX(ts) AS ts FROM ${this.dialect.table} WHERE project_id = ${sqlLiteral(projectId)} AND ts >= ${since}`,
+      sql:
+        `SELECT MAX(ts) AS ts FROM ${this.dialect.table} WHERE project_id = ${sqlLiteral(projectId)}` +
+        ` AND __ingest_ts >= ${sqlLiteral(ingestTs(since - INGEST_MARGIN_MS))} AND ts >= ${since}`,
     });
     const ts = rows[0]?.ts;
     return ts === null || ts === undefined ? null : Number(ts);

@@ -20,3 +20,7 @@ PRODUCT.md
 tests/report/
 tests/.state/
 test-results/
+
+# Agent skills installed with `npx skills add` (Cloudflare security-audit, workers-best-practices…): local only.
+.agents/
+skills-lock.json

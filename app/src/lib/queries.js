@@ -26,15 +26,6 @@ export const q = {
   /** Every project with its sources' ids and names (sidebar, switcher, start-up). From D1 only. */
   projects: () =>
     queryOptions({ queryKey: ['projects'], queryFn: async () => (await api('/api/projects')).projects }),
-  /**
-   * One page of the Projects table (12 rows, newest first), with each project's source count.
-   * @param {number} page @param {string} find
-   */
-  projectsPage: (page, find) =>
-    queryOptions({
-      queryKey: ['projects', 'page', page, find],
-      queryFn: () => api(`/api/projects?page=${page}&find=${encodeURIComponent(find)}`),
-    }),
   team: () => queryOptions({ queryKey: ['team'], queryFn: () => api('/api/users') }),
   settings: () =>
     queryOptions({ queryKey: ['settings'], queryFn: async () => (await api('/api/settings')).settings }),
@@ -80,6 +71,41 @@ export const q = {
       queryFn: async () => (await api(`/api/projects/${enc(projectId)}/views`)).views,
     }),
   /**
+   * One page of the Alerts table. Alert states change on their own, so it refreshes every minute while shown.
+   * @param {string} projectId @param {number} page @param {string} status  all, open or ok
+   */
+  alertsPage: (projectId, page, status) =>
+    queryOptions({
+      queryKey: ['project', projectId, 'alerts', 'page', page, status],
+      queryFn: () => api(`/api/projects/${enc(projectId)}/alerts?page=${page}&status=${status}`),
+      refetchInterval: 60_000,
+      staleTime: 30_000,
+    }),
+  /** Open incidents in a project, for the sidebar. Refreshes every minute. @param {string} projectId */
+  openIncidents: (projectId) =>
+    queryOptions({
+      queryKey: ['project', projectId, 'alerts', 'open'],
+      queryFn: async () =>
+        (await api(`/api/projects/${enc(projectId)}/alerts?page=1&status=open`)).open_count,
+      refetchInterval: 60_000,
+      staleTime: 30_000,
+    }),
+  /** An alert with its incidents (one page of resolved ones). @param {string} id @param {number} page */
+  alert: (id, page) =>
+    queryOptions({
+      queryKey: ['alert', id, page],
+      queryFn: () => api(`/api/alerts/${enc(id)}?page=${page}`),
+      refetchInterval: 60_000,
+      staleTime: 30_000,
+    }),
+  /** @param {string} chartId */
+  chartAlert: (chartId) =>
+    queryOptions({
+      queryKey: ['chart', chartId, 'alert'],
+      queryFn: async () => (await api(`/api/charts/${enc(chartId)}/alert`)).alert,
+      staleTime: 0,
+    }),
+  /**
    * Time of the newest event in a project: the cheap "has new data landed?" check behind dashboard refresh.
    * @param {string} projectId
    * @param {number} everyMs
@@ -87,7 +113,9 @@ export const q = {
   newest: (projectId, everyMs) =>
     queryOptions({
       queryKey: ['project', projectId, 'newest'],
-      queryFn: async () => (await api(`/api/status?project_id=${enc(projectId)}`)).newest_event_at ?? 0,
+      // Only notices new arrivals, which are always recent: the server looks at the last 15 minutes, not 7 days.
+      queryFn: async () =>
+        (await api(`/api/status?project_id=${enc(projectId)}&recent=1`)).newest_event_at ?? 0,
       refetchInterval: everyMs,
       refetchOnWindowFocus: true,
       // Coming back to the dashboard (or the tab) re-checks only if the last check is 30s+ old.
@@ -113,6 +141,14 @@ export const refresh = {
   charts: (dashboardId) => queryClient.invalidateQueries({ queryKey: ['dashboard', dashboardId, 'charts'] }),
   /** @param {string} projectId */
   views: (projectId) => queryClient.invalidateQueries({ queryKey: ['project', projectId, 'views'] }),
+  /** An alert or incident changed: the Alerts pages, the sidebar count and the charts' bells. @param {string} projectId */
+  alerts: (projectId) =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['project', projectId, 'alerts'] }),
+      queryClient.invalidateQueries({ queryKey: ['alert'] }),
+      queryClient.invalidateQueries({ queryKey: ['chart'] }),
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
+    ]),
 };
 
 /** Workspace-wide data: loaded once at start-up, not again when switching project. */
