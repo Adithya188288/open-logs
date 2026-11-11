@@ -34,7 +34,7 @@ Open Logs runs only on Cloudflare. There is no local mode: Basin has no local ve
 ## Install
 
 ```bash
-git clone <repository URL> open-logs
+git clone https://github.com/Adithya188288/open-logs.git open-logs
 cd open-logs
 npm run setup
 ```
