@@ -9,7 +9,7 @@ import { overviewStatements } from './boards.js';
 const PROJECT_NAME = /^[A-Za-z0-9][A-Za-z0-9 _.-]{0,63}$/;
 const SOURCE_NAME = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$/;
 const SOURCE_COLUMNS = 'id, project_id, name, token_prefix, created_at, first_event_at, last_rejected_at';
-/** Rows per page on the Projects and Sources tables. */
+/** Rows per page on the Sources table (and the Alerts table). */
 export const PAGE_SIZE = 12;
 
 /**
@@ -51,26 +51,11 @@ async function runUnique(stmt, message) {
 }
 
 /**
- * Projects, from D1 only. Without `?page` (sidebar, switcher, start-up): every project with its sources'
- * ids and names. With `?page=N` (the Projects table): 12 projects with their source counts, and the total.
+ * Every project with its sources' ids and names, from D1 only. The sidebar, the switcher and the Projects table
+ * all use this one list; the table finds, sorts and pages it in the browser.
  * @param {import('../types.js').RouteContext} c
  */
-export async function listProjects({ env, url }) {
-  const page = pageOf(url);
-  if (page !== null) {
-    // `?find=` narrows the table by name (a substring, any case).
-    const find = `%${(url.searchParams.get('find') ?? '').replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
-    const [rows, total] = await env.DB.batch([
-      env.DB.prepare(
-        `SELECT p.id, p.name, p.created_at, COUNT(s.id) AS source_count
-         FROM projects p LEFT JOIN sources s ON s.project_id = p.id
-         WHERE p.name LIKE ? ESCAPE '\\'
-         GROUP BY p.id ORDER BY p.created_at DESC LIMIT ? OFFSET ?`,
-      ).bind(find, PAGE_SIZE, (page - 1) * PAGE_SIZE),
-      env.DB.prepare(`SELECT COUNT(*) AS n FROM projects WHERE name LIKE ? ESCAPE '\\'`).bind(find),
-    ]);
-    return json({ projects: rows.results, total: total.results[0].n, page, page_size: PAGE_SIZE });
-  }
+export async function listProjects({ env }) {
   const [projects, sources] = await env.DB.batch([
     env.DB.prepare('SELECT id, name, created_at FROM projects ORDER BY created_at'),
     env.DB.prepare('SELECT id, project_id, name FROM sources ORDER BY created_at'),

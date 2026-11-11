@@ -47,6 +47,9 @@ test('the projects table shows 12 per page with name, sources and created date',
   await app.post(`/api/projects/${project.id}/sources`, { name: 'worker' });
 
   await page.goto('/projects');
+  // Finding is done in the browser: typing sends nothing to the server.
+  const asked = [];
+  page.on('request', (r) => r.url().includes('/api/projects') && asked.push(r.url()));
   await page.getByLabel('Find a project').fill(prefix);
   await expect(page.getByRole('columnheader')).toHaveText(['Name', 'Sources', 'Created', '']);
   await expect(page.getByTestId('project-row')).toHaveCount(12);
@@ -54,20 +57,17 @@ test('the projects table shows 12 per page with name, sources and created date',
   const withSources = page.getByTestId('project-row').filter({ hasText: `${prefix}-with-sources` });
   await expect(withSources.locator('td').nth(1)).toHaveText('2');
   await expect(page.getByText('Page 1 of 2')).toBeVisible();
-
-  // While page 2 loads, the pager keeps describing the rows on screen and can't be clicked again.
-  await page.route('**/api/projects?page=2*', async (route) => {
-    await new Promise((r) => setTimeout(r, 2000));
-    await route.continue();
-  });
   await page.getByRole('button', { name: 'Next' }).click();
-  await expect(page.getByText('Page 1 of 2')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Next' })).toBeDisabled();
   await expect(page.getByTestId('project-row')).toHaveCount(2);
   await expect(page.getByText('Page 2 of 2')).toBeVisible();
   await expect(page).toHaveURL(/page=2/);
   await page.getByRole('button', { name: 'Previous' }).click();
   await expect(page.getByTestId('project-row')).toHaveCount(12);
+  await page.getByLabel('Find a project').fill(`${prefix}-WITH`);
+  await expect(page.getByTestId('project-row')).toHaveCount(1);
+  await page.getByLabel('Find a project').fill(`${prefix}-nothing`);
+  await expect(page.getByText('No projects match.')).toBeVisible();
+  expect(asked).toEqual([]);
 });
 
 test('the project switcher list has a fixed height and scrolls; its actions stay in reach', async ({

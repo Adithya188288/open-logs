@@ -26,15 +26,6 @@ export const q = {
   /** Every project with its sources' ids and names (sidebar, switcher, start-up). From D1 only. */
   projects: () =>
     queryOptions({ queryKey: ['projects'], queryFn: async () => (await api('/api/projects')).projects }),
-  /**
-   * One page of the Projects table (12 rows, newest first), with each project's source count.
-   * @param {number} page @param {string} find
-   */
-  projectsPage: (page, find) =>
-    queryOptions({
-      queryKey: ['projects', 'page', page, find],
-      queryFn: () => api(`/api/projects?page=${page}&find=${encodeURIComponent(find)}`),
-    }),
   team: () => queryOptions({ queryKey: ['team'], queryFn: () => api('/api/users') }),
   settings: () =>
     queryOptions({ queryKey: ['settings'], queryFn: async () => (await api('/api/settings')).settings }),

@@ -133,7 +133,7 @@ export function AlertDrawer({ chart, onClose, onSaved }) {
     // biome-ignore lint/a11y/noStaticElementInteractions: clicking the dimmed backdrop closes the drawer; Escape does too
     <div className="drawer-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <aside
-        className="drawer"
+        className="drawer alertdrawer"
         role="dialog"
         aria-modal="true"
         aria-label={editing ? 'Edit alert' : 'Add alert'}

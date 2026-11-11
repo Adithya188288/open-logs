@@ -525,10 +525,30 @@ circle[class^="k-"] {
   border: 1px solid var(--line);
   font-size: 12px;
 }
+/* The alert panel: more room between its sections than the chart builder, so each question reads on its own. */
+.alertdrawer .dbody {
+  gap: var(--s-24);
+  padding: var(--s-24) var(--s-24);
+}
+.alertdrawer .dhead,
+.alertdrawer .dfoot {
+  padding-left: var(--s-24);
+  padding-right: var(--s-24);
+}
+.alertdrawer .field {
+  gap: var(--s-8);
+}
+.alertdrawer .alertsrc {
+  padding: var(--s-16);
+  gap: var(--s-8);
+}
 .alertrow {
   display: flex;
   align-items: center;
   gap: var(--s-8);
+}
+.alertdrawer .alertrow + .alertrow {
+  margin-top: var(--s-4);
 }
 .alertrow .input {
   flex: 1;
@@ -551,7 +571,7 @@ circle[class^="k-"] {
   display: flex;
   align-items: center;
   gap: var(--s-12);
-  padding: var(--s-8) 0;
+  padding: var(--s-12) 0;
   border-top: 1px solid var(--line);
   color: var(--oktx);
 }
