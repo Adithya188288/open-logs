@@ -294,7 +294,8 @@ export async function notify(env, a, incident, type, resolvedBy, store = true) {
 
 /**
  * Before alerts are deleted with their chart, dashboard or project: sends "resolved" for their open incidents.
- * Returns the sending as a promise for `waitUntil`; the incidents themselves go with the delete.
+ * Returns a function that sends them, to call after the delete (inside `waitUntil`); the incidents themselves go
+ * with the delete.
  * @param {Env} env @param {'a.chart_id' | 'c.dashboard_id' | 'a.project_id'} column @param {string} id
  */
 export async function closeBeforeDelete(env, column, id) {

@@ -12,7 +12,6 @@ import { BasinStorage } from './basin.js';
  * @typedef {{ value: number | null, groups: { key: string, value: number }[], series: Point[], series_by_group: { key: string, series: Point[] }[], interval_ms: number }} AggregateResult
  *
  * @typedef {object} LogStorage
- * @property {'basin'} mode
  * @property {number} lagMs  typical delay between ingest and queryability
  * @property {(events: StoredEvent[]) => Promise<void>} write
  * @property {(filter: import('../query/filter.js').Filter) => Promise<{ events: EventOut[], next_cursor: string | null }>} query

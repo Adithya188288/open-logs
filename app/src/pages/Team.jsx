@@ -59,11 +59,7 @@ export function Team() {
   const showInvite = (result) =>
     openDialog((close) => (
       <Modal title="Invite created" onClose={close}>
-        <p className="small" data-testid="invite-email-status">
-          {result.email.sent
-            ? `We emailed the invite to ${result.invite.email}. You can also share this link yourself:`
-            : `Email sending isn’t set up, so share this link with ${result.invite.email} yourself:`}
-        </p>
+        <p className="small">{`Share this link with ${result.invite.email}:`}</p>
         <code className="invite-url" data-testid="invite-url">
           {result.invite_url}
         </code>

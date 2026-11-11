@@ -70,34 +70,20 @@ export function basinDialect(table) {
   };
 }
 
-/**
- * Normalises a Basin SQL response to an array of row objects.
- * Accepts `result.rows` as objects, or `{ columns, rows }` with array rows.
- * @param {any} body
- * @returns {Record<string, unknown>[]}
- */
+/** Basin SQL answers `{ result: { rows: [{…}], metrics }, success }` (verified on real Basin, 2026-10-30). @param {any} body */
 function rowsOf(body) {
-  const result = body?.result ?? body;
-  const rows = result?.rows ?? result?.data ?? [];
-  if (!Array.isArray(rows)) return [];
-  const columns = result?.columns ?? result?.schema?.map((/** @type {any} */ c) => c.name);
-  return rows.map((r) =>
-    Array.isArray(r) && Array.isArray(columns) ? Object.fromEntries(columns.map((c, i) => [c, r[i]])) : r,
-  );
+  const rows = body?.result?.rows;
+  return Array.isArray(rows) ? rows : [];
 }
 
 /** @implements {import('./index.js').LogStorage} */
 export class BasinStorage {
   /**
    * @param {Env} env
-   * @param {typeof fetch} [fetcher]  injectable for tests
    */
-  constructor(env, fetcher = (input, init) => fetch(input, init)) {
+  constructor(env) {
     this.env = env;
-    this.fetcher = fetcher;
     this.dialect = basinDialect(String(env.BASIN_TABLE ?? 'open_logs.events'));
-    /** @type {'basin'} */
-    this.mode = 'basin';
     this.lagMs = INGEST_LAG_MS;
   }
 
@@ -110,7 +96,7 @@ export class BasinStorage {
     const url = `${SQL_API}/${encodeURIComponent(BASIN_ACCOUNT_ID)}/basin-sql/query/${encodeURIComponent(BASIN_BUCKET)}`;
     for (let attempt = 1; ; attempt++) {
       try {
-        const res = await this.fetcher(url, {
+        const res = await fetch(url, {
           method: 'POST',
           headers: { authorization: `Bearer ${BASIN_SQL_TOKEN}`, 'content-type': 'application/json' },
           body: JSON.stringify({ query: q.sql }),

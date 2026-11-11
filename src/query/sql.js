@@ -23,8 +23,6 @@ export class Builder {
   /** @param {Dialect} dialect */
   constructor(dialect) {
     this.d = dialect;
-    /** @type {unknown[]} */
-    this.params = [];
   }
 
   /** @param {unknown} value */
@@ -41,7 +39,7 @@ function escapeLike(s) {
   return [...s].map((ch) => (ch === '%' || ch === '_' || ch === '\\' ? `\\${ch}` : ch)).join('');
 }
 
-/** Booleans compare as SQLite/JSON text would render them. @param {unknown} v */
+/** Booleans compare as their JSON text form. @param {unknown} v */
 function asText(v) {
   if (v === true) return '1';
   if (v === false) return '0';
@@ -133,7 +131,7 @@ export function buildEventsSql(f, dialect) {
   const sql =
     `SELECT id, ts, source_id, source, level, message, ${b.d.fieldsColumn} AS fields FROM ${b.d.table} ` +
     `WHERE ${where} ORDER BY ts DESC, id DESC LIMIT ${b.param(f.limit + 1)}`;
-  return { sql, params: b.params };
+  return { sql };
 }
 
 /**
@@ -145,7 +143,7 @@ export function buildHistogramSql(f, interval, dialect) {
   const b = new Builder(dialect);
   const bucket = b.d.bucket(b, interval);
   const sql = `SELECT ${bucket} AS t, level, COUNT(*) AS n FROM ${b.d.table} WHERE ${whereSql(b, f)} GROUP BY t, level ORDER BY t`;
-  return { sql, params: b.params };
+  return { sql };
 }
 
 /**
@@ -170,7 +168,6 @@ export function buildAggregateSql(f, spec, dialect) {
     if (bucket) keys.push(`${b.d.bucket(b, spec.interval)} AS t`);
     const names = keys.map((k) => k.slice(-1));
     const select = keys.map((k) => `${k}, `).join('');
-    // Params bind positionally, so build in SQL text order: SELECT keys, value, then WHERE.
     const path = counting ? '' : d.path(/** @type {string} */ (spec.field).slice(7));
     const num = counting ? '' : d.fieldNumber(b.param(path));
     let where = whereSql(b, f);
@@ -188,7 +185,6 @@ export function buildAggregateSql(f, spec, dialect) {
           : /** @type {(x: string) => string} */ (d.percentile)(num);
       return {
         sql: `SELECT ${select}${agg} AS v FROM ${d.table} WHERE ${where}${groupBy}${order}`,
-        params: b.params,
       };
     }
     const over = names.length ? `PARTITION BY ${names.join(', ')}` : '';
@@ -196,7 +192,7 @@ export function buildAggregateSql(f, spec, dialect) {
       `WITH s AS (SELECT ${select}${num} AS x FROM ${d.table} WHERE ${where}), ` +
       `r AS (SELECT *, ROW_NUMBER() OVER (${over} ORDER BY x) AS rn, COUNT(*) OVER (${over}) AS c FROM s) ` +
       `SELECT ${names.map((n) => `${n}, `).join('')}MIN(x) AS v FROM r WHERE rn >= 0.95 * c${groupBy}${order}`;
-    return { sql, params: b.params };
+    return { sql };
   };
 
   return {

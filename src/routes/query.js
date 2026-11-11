@@ -108,5 +108,5 @@ export async function status({ env, url }) {
   // `recent=1` (the dashboard's 30 s check for new arrivals) only looks at the last 15 minutes.
   const lookback = url.searchParams.get('recent') === '1' ? NEWEST_RECENT_MS : undefined;
   const newest = projectId ? await storage.newest((await findProject(env, projectId)).id, lookback) : null;
-  return json({ storage: storage.mode, lag_ms: storage.lagMs, now: Date.now(), newest_event_at: newest });
+  return json({ lag_ms: storage.lagMs, now: Date.now(), newest_event_at: newest });
 }
