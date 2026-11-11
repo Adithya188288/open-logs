@@ -69,3 +69,23 @@ test('the projects table shows 12 per page with name, sources and created date',
   await page.getByRole('button', { name: 'Previous' }).click();
   await expect(page.getByTestId('project-row')).toHaveCount(12);
 });
+
+test('the project switcher list has a fixed height and scrolls; its actions stay in reach', async ({
+  page,
+  app,
+}) => {
+  const prefix = named('switch');
+  for (let i = 1; i <= 10; i++)
+    await app.post('/api/projects', { name: `${prefix}-${String(i).padStart(2, '0')}` });
+  const { project } = await app.post('/api/projects', { name: `${prefix}-current` });
+  await page.goto(`/dashboard?project=${project.id}`);
+  await page.getByTestId('project-switcher').click();
+  const list = page.getByTestId('project-list');
+  const size = await list.evaluate((el) => ({ shown: el.clientHeight, all: el.scrollHeight }));
+  expect(size.shown).toBeLessThanOrEqual(272);
+  expect(size.all).toBeGreaterThan(size.shown);
+  // The current project is scrolled into view, and the actions below the list are on screen.
+  await expect(list.getByRole('menuitem', { name: `${prefix}-current` })).toBeInViewport();
+  await expect(page.getByRole('menuitem', { name: 'New project' })).toBeInViewport();
+  await expect(page.getByRole('menuitem', { name: 'All projects' })).toBeInViewport();
+});

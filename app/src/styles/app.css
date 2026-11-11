@@ -897,6 +897,20 @@ kbd {
 .btn.danger-fill:disabled {
   opacity: 0.45;
 }
+/* A long list inside a menu (the project switcher): about 8 rows, then it scrolls. */
+.menu-scroll {
+  display: flex;
+  flex-direction: column;
+  max-height: 272px;
+  overflow-y: auto;
+}
+.menu-scroll a {
+  flex-shrink: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 280px;
+}
 .menu hr {
   border: none;
   border-top: 1px solid var(--line);
