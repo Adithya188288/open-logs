@@ -106,8 +106,9 @@ h2 { font-size: 30px; line-height: 1.15; letter-spacing: -0.02em; font-weight: 6
 /* Why + install */
 .story { display: grid; grid-template-columns: 1fr 1fr; gap: 72px; padding: 96px 0; }
 .story p { margin: 0 0 16px; }
-.story .muted { color: var(--muted); }
-.quote { font-size: 22px; line-height: 1.4; letter-spacing: -0.01em; font-weight: 500; margin: 26px 0 0; }
+.story > div:first-child p { color: var(--muted); }
+.story .flow { color: var(--ink); font-size: 14px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 8px; margin-top: 22px; }
+.install .ask { color: var(--ink); font-size: 17px; font-weight: 500; margin-top: 22px; }
 .install pre { background: var(--code-bg); color: var(--code-ink); border-radius: 12px; padding: 20px 22px; font-size: 14px; line-height: 1.8; overflow-x: auto; margin: 0 0 18px; border: 1px solid var(--line); }
 .install .c { color: var(--code-muted); }
 .install p { color: var(--muted); font-size: 15px; }
@@ -253,10 +254,12 @@ curl https://logs.acme.dev/v1/logs \
 
   <section class="story">
     <div>
-      <h2>Why I built it</h2>
-      <p>When Cloudflare launched Basin, I saw a great place to keep logs: serverless, affordable storage you can query with SQL. What it didn't have was a product on top. No way for an app to send logs safely, no log viewer, no charts, no team sign-in.</p>
-      <p class="muted">So I built a simple version and made it open source, as a way to give back to the community.</p>
-      <p class="quote">We just built this. You can fork it and build whatever you want.</p>
+      <h2>How it works</h2>
+      <p>Your app sends logs to a Cloudflare Worker. The Worker checks the source token and writes the batch to a Pipelines stream.</p>
+      <p>The stream writes logs to an Iceberg table in your own R2 bucket, partitioned by day. Basin compacts the files as they build up.</p>
+      <p>Search, live tail and charts turn your filters into SQL and run it on Basin SQL. Each query reads only the days it needs.</p>
+      <p>Users, projects, dashboards and alerts live in D1. A cron trigger checks alerts every minute.</p>
+      <p class="flow mono">App → Worker → Pipelines → R2 (Iceberg) → Basin SQL → UI</p>
     </div>
     <div class="install" id="install">
       <h2>Install</h2>
@@ -265,6 +268,7 @@ git clone https://github.com/Adithya188288/open-logs.git open-logs
 cd open-logs
 npm run setup</pre>
       <p>Setup creates everything in your account, deploys the app and prints the address to sign in. The <a href="https://github.com/Adithya188288/open-logs#readme">README</a> covers sending logs, limits and updates.</p>
+      <p class="ask">Free and open source. Fork it, tell me what you think, and star it on GitHub if it helps.</p>
     </div>
   </section>
 </div>
