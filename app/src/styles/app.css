@@ -1,4 +1,4 @@
-/* Open Logs dashboard. Tokens from docs/design (type 11/12/13/15/24, radii 6/10/999). */
+/* Open Logs: design tokens (type 11/12/13/15/24, radii 6/10/999), layout and shared components. */
 :root {
   --bg: #ffffff;
   --bg2: #fafafa;

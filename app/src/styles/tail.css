@@ -1,4 +1,4 @@
-/* Live tail. Layout from docs/design/screens/LiveTail. */
+/* Live tail: toolbar, histogram, event list and the event details drawer. */
 .tail-tools {
   padding: var(--s-16) var(--s-24) 0;
   display: flex;

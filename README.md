@@ -1,20 +1,28 @@
 # Open Logs
 
-**Open-source, self-hosted log management for your own Cloudflare account.**
-Live tail, search, filters, charts and dashboards for your team. It runs on Cloudflare Workers, keeps app data
-in D1 and stores logs in Cloudflare Basin. Your logs never leave your account.
+Keep your app's logs in your own Cloudflare account, affordably and for as long as you want,
+with live tail, search, dashboards and alerts on top.
 
-## What it is
+## How it works
 
-Cloudflare Basin (Pipelines + Catalog + SQL) is cheap, serverless log storage. It has no product on top:
-no per-app ingest auth, no log viewer, no charts without SQL, no team login. Open Logs is that layer.
+```mermaid
+flowchart LR
+  App[Your apps] -->|POST /v1/logs + source token| W[Cloudflare Worker]
+  W -->|logs| P[Basin Pipelines]
+  P -->|every minute| T[(Iceberg table in R2)]
+  W -->|users, projects, charts, alerts| D[(D1)]
+  UI[Web app] --> W
+  W -->|Basin SQL: search, charts| T
+  C[Cron, every minute] --> W
+  W -->|incident opened / resolved| H[Your webhook]
+```
 
-- Your apps send logs over HTTP to `POST /v1/logs`, each with its own source token.
-- The Worker writes them to a Basin Pipelines stream. Basin turns them into an Iceberg table in R2.
-- The dashboard searches and charts them with Basin SQL.
-- D1 holds only app data: users, sessions, projects, sources, tokens, views, dashboards, charts, settings.
-
-Logs become searchable about 1 to 3 minutes after they arrive. That is how often Basin writes new files.
+- **Worker** (Hono): checks each app's token, writes logs to Basin, serves the web app and its API.
+- **Basin** stores the logs as an Iceberg table in R2 and answers searches with Basin SQL. Affordable to keep
+  for a long time; logs become searchable 1.5–3.5 minutes after they're sent.
+- **D1** holds only app data: users, projects, sources, dashboards, alerts.
+- **Alerts**: every minute a check runs each alert's chart query and sends a webhook when an incident opens
+  or resolves.
 
 ## Requirements
 
@@ -64,35 +72,44 @@ Options:
   question. Each name is a separate install, and every resource it creates gets that name.
 - `OPEN_LOGS_TOKEN`, `OPEN_LOGS_EMAIL` and `OPEN_LOGS_PASSWORD` make setup non-interactive.
 
-## Security
+## Send logs (API)
 
-**Open Logs is self-hosted. Put its URL behind Cloudflare Access, free for up to 50 users, so only your
-team can reach it.**
+Create a project, add a source, and copy its token (shown once). There is no SDK to install: sending logs is
+one HTTP request.
 
-1. Cloudflare dashboard → **Zero Trust** → **Access** → **Applications** → **Add an application**.
-2. Choose **Self-hosted**. Set the domain to your Worker's `workers.dev` hostname
-   (for example `open-logs.your-subdomain.workers.dev`).
-3. Add a policy with action **Allow** that includes your team's emails (or your email domain).
-4. **Important:** add a second self-hosted application for the same hostname with the path `/v1/logs`,
-   and give it a policy with action **Bypass** for **Everyone**. Your apps send logs to `/v1/logs` with their
-   source token. They cannot pass a sign-in page, so without this bypass ingest stops working.
+```
+POST https://YOUR-WORKER.workers.dev/v1/logs
+Authorization: Bearer <source token>
+Content-Type: application/json
+```
 
-The app's own sign-in stays on as a second layer. Access keeps strangers away from the sign-in page; the
-app still checks every user's password and role.
+**Body:** one log as a JSON object, or many logs as a JSON array (up to 10,000 logs or 5 MB per request).
+Sending logs in batches is faster and uses fewer requests than sending them one by one.
 
-To report a vulnerability, see [SECURITY.md](SECURITY.md).
+| Key | Meaning |
+|---|---|
+| `message` (or `msg`) | The log line. |
+| `level` (or `severity`) | `debug`, `info`, `warn`, `error` or `fatal`. Common names like `warning`, `err`, `critical` are understood. Default `info`. |
+| `ts` (or `timestamp`) | When it happened: Unix milliseconds or seconds, or an ISO date. Default: when it arrives. |
+| anything else | Kept as a field you can search and chart, e.g. `order_id`, `status`, `user.plan`. |
 
-## Send logs
+**Answers:**
 
-Create a project, add a source, and copy its token (shown once). No SDK: it's one HTTP POST of a JSON
-object or an array of them. Every key besides `level`, `message`, `ts` becomes a filterable field.
+| Status | Meaning |
+|---|---|
+| `202 { "accepted": 3 }` | Saved. Searchable 1.5–3.5 minutes later. |
+| `400` | The body isn't a JSON object or array of objects, or the array is empty. |
+| `401` | Missing or wrong token. |
+| `413` | Over 10,000 logs or 5 MB per request, or one log over 256 KB. |
+| `429` | Over 1,200 requests a minute for this source. Send fewer, bigger batches. |
 
 **curl**
 ```bash
 curl -X POST https://YOUR-WORKER.workers.dev/v1/logs \
   -H "Authorization: Bearer $LOGS_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"level":"error","message":"payment failed","order_id":4821}'
+  -d '[{"level":"error","message":"payment failed","order_id":4821},
+       {"level":"info","message":"order shipped","order_id":4822}]'
 ```
 
 **JavaScript** (Node 18+, Bun, Deno)
@@ -100,29 +117,41 @@ curl -X POST https://YOUR-WORKER.workers.dev/v1/logs \
 await fetch("https://YOUR-WORKER.workers.dev/v1/logs", {
   method: "POST",
   headers: { Authorization: `Bearer ${process.env.LOGS_TOKEN}`, "Content-Type": "application/json" },
-  body: JSON.stringify({ level: "error", message: "payment failed", order_id: 4821 }),
+  body: JSON.stringify([
+    { level: "error", message: "payment failed", order_id: 4821 },
+    { level: "info", message: "order shipped", order_id: 4822 },
+  ]),
 });
 ```
 
 **Python** (standard library)
 ```python
 import json, os, urllib.request
+
+logs = [
+    {"level": "error", "message": "payment failed", "order_id": 4821},
+    {"level": "info", "message": "order shipped", "order_id": 4822},
+]
 req = urllib.request.Request("https://YOUR-WORKER.workers.dev/v1/logs", method="POST",
-    data=json.dumps({"level": "error", "message": "payment failed", "order_id": 4821}).encode(),
+    data=json.dumps(logs).encode(),
     headers={"Authorization": "Bearer " + os.environ["LOGS_TOKEN"], "Content-Type": "application/json"})
 urllib.request.urlopen(req, timeout=5)
 ```
 
 **Go**
 ```go
-body, _ := json.Marshal(map[string]any{"level": "error", "message": "payment failed", "order_id": 4821})
+logs := []map[string]any{
+    {"level": "error", "message": "payment failed", "order_id": 4821},
+    {"level": "info", "message": "order shipped", "order_id": 4822},
+}
+body, _ := json.Marshal(logs)
 req, _ := http.NewRequest("POST", "https://YOUR-WORKER.workers.dev/v1/logs", bytes.NewReader(body))
 req.Header.Set("Authorization", "Bearer "+os.Getenv("LOGS_TOKEN"))
 req.Header.Set("Content-Type", "application/json")
 http.DefaultClient.Do(req)
 ```
 
-The connect page generates these with your URL filled in.
+When you add a source, the app shows these snippets with your URL filled in.
 
 ## Use it
 
@@ -133,6 +162,7 @@ The connect page generates these with your URL filled in.
   duplicate, remove, export CSV.
 - **Sources** can be renamed. Their history stays with them, because every log records the source's
   permanent id. A new source that reuses a deleted source's name starts empty.
+- **Alerts**: on any chart, add an alert (above a number or up by a %), a quiet time, and a webhook URL.
 - **Saved views** in the sidebar, **team** invites with owner / admin / member roles, **settings** for the
   team name and your password, light and dark themes.
 
@@ -143,7 +173,7 @@ The connect page generates these with your URL filled in.
 | Request | 5 MB, 10,000 events |
 | Event | 256 KB |
 | Ingest rate | 1,200 requests/min per token (batch your events) |
-| Freshness | logs are searchable about 1 to 3 minutes after they arrive |
+| Freshness | logs are searchable 1.5 to 3.5 minutes after they arrive |
 | Query range | 7 days, 500 rows per page; free-text search over more than 24h needs a field filter |
 | Timestamps | client `ts` within ±24h of server time is kept, otherwise server time is used |
 
@@ -182,29 +212,23 @@ D1 holds only app data, so it stays small.
 
 ## Development
 
-Open Logs only runs on Cloudflare, so there is no local server. `npm run dev` only prints a reminder.
-
-Branches: `main` is released code (tagged `vX.Y.Z`), `develop` is where finished work is merged. Work happens
-on branches off `develop`: `feature/`, `bugfix/`, `test/`, `chore/`, `docs/`.
-
-Every working branch gets its own install, named after it (`feature/integrations` →
-`open-logs-feature-integrations`), so branches never share data. Copy `.dev.vars.example` to `.dev.vars` first.
+Open Logs runs only on Cloudflare (Basin has no local version), so there is no local server.
 
 ```bash
-npm run deploy     # put the code you have checked out on this branch's install (created the first time)
-npm run verify     # Playwright against that install: sends logs, checks the screens, then checks Basin
-npm run destroy    # remove this branch's install
+npm run deploy my-logs   # put the code you have checked out on an install
 npm run lint
 ```
 
-`npm run verify` sends logs first, runs everything that needs no log data while Basin catches up (about
-2 minutes), then checks search, live tail and the dashboard against the real logs. The report, with a video of
-each test, is in `tests/report/` (`npx playwright show-report tests/report`).
+**Tests:** Playwright runs against a real install. Copy `.dev.vars.example` to `.dev.vars`, then:
 
-`npm run deploy <name>` and `npm run reset <name>` work on any named install (reset wipes its app data first).
+```bash
+npm run deploy   # creates this branch's own install the first time
+npm run verify   # sends logs, checks the screens, then checks search, live tail, charts and alerts
+npm run destroy  # removes that install
+```
 
-Worker: Hono on Cloudflare Workers (`src/`). UI: React + Vite (`app/`), built to `dist/` and served by the Worker.
-Plain JavaScript with JSDoc.
+Worker: Hono on Cloudflare Workers (`src/`). UI: React + Vite (`app/`), served by the Worker. Plain JavaScript
+with JSDoc.
 
 ## License
 
