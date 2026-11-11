@@ -24,6 +24,8 @@ const LEGEND = /** @type {const} */ ([
 const LEVEL_ORDER = ['fatal', 'error', 'warn', 'info', 'debug'];
 /** Most events one live check fetches; more than this means the list restarts from the newest page. */
 const POLL_LIMIT = 200;
+// New logs reach Basin about once a minute, so checking every 30 s shows them as soon as they can be read.
+const POLL_MS = 30_000;
 /** Each check re-reads this far back, so late arrivals (retries, buffered senders, Basin's ingest lag) still show. */
 const LATE_ARRIVAL_MS = 5 * 60_000;
 
@@ -162,7 +164,6 @@ export function Tail() {
   const polls = useRef(0);
 
   const live = !paused && !zoom && range !== 'custom';
-  const pollMs = status && status.lag_ms > 0 ? 30_000 : 3000;
 
   const windowRange = useCallback(() => {
     if (zoom) return zoom;
@@ -197,8 +198,6 @@ export function Tail() {
   const [loadedKey, setLoadedKey] = useState('');
   // Until data for the current query arrives, show the loader rather than the previous query's rows.
   const phase = loadedKey === queryKey ? loadPhase : 'loading';
-  const pollRef = useRef(pollMs);
-  pollRef.current = pollMs;
 
   // Full load whenever what we're looking at changes (reloadKey: the Retry button).
   // biome-ignore lint/correctness/useExhaustiveDependencies: reloadKey is a deliberate trigger
@@ -245,13 +244,13 @@ export function Tail() {
           setLoadedKey(queryKey);
         }
       }
-      setNextCheckAt(Date.now() + pollRef.current);
+      setNextCheckAt(Date.now() + POLL_MS);
     })();
   }, [project.id, where, windowRange, filtered, reloadKey]);
 
   // Latest values for the poller, without restarting its timer on every change.
-  const latest = useRef({ events, cursor, where, hist, status, phase, live, windowRange, pollMs });
-  latest.current = { events, cursor, where, hist, status, phase, live, windowRange, pollMs };
+  const latest = useRef({ events, cursor, where, hist, status, phase, live, windowRange });
+  latest.current = { events, cursor, where, hist, status, phase, live, windowRange };
 
   /**
    * Fetches what arrived since the last check and merges it in, always (it's a live tail).
@@ -306,17 +305,17 @@ export function Tail() {
         }
         if (current.status) setDataThrough(Date.now() - current.status.lag_ms);
       } catch {}
-      setNextCheckAt(Date.now() + current.pollMs);
+      setNextCheckAt(Date.now() + POLL_MS);
     };
     pollNow.current = poll;
-    const pollTimer = setInterval(poll, pollMs);
+    const pollTimer = setInterval(poll, POLL_MS);
     const onVisible = () => document.visibilityState === 'visible' && poll();
     document.addEventListener('visibilitychange', onVisible);
     return () => {
       clearInterval(pollTimer);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [pollMs, project.id]);
+  }, [project.id]);
 
   // Keep the kept rows current as new events stream in, so coming back shows them too.
   // biome-ignore lint/correctness/useExhaustiveDependencies: cacheKey is derived from queryKey

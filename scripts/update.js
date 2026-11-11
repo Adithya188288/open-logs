@@ -1,10 +1,22 @@
 #!/usr/bin/env node
 // npm run update [my-logs] [v0.2.0]: moves an install to the newest release.
-//   newest release tag → packages → new D1 migrations only (D1 remembers which ran) → build and deploy → check.
+//   newest release tag → packages → new D1 migrations only (D1 remembers which ran) → build and deploy
+//   → Basin table maintenance (compaction, snapshot clean-up; needs the API token) → check.
 // Releases only add to the database (new tables and columns, never removals), so the running Worker keeps working while this runs.
 import { spawnSync } from 'node:child_process';
 import { checkUp } from './check.js';
-import { applyMigrations, buildAndDeploy, givenVersion, loadState, run, step, writeConfig } from './lib.js';
+import {
+  applyMigrations,
+  askHidden,
+  buildAndDeploy,
+  givenVersion,
+  hideInOutput,
+  loadState,
+  run,
+  setUpTableMaintenance,
+  step,
+  writeConfig,
+} from './lib.js';
 
 /** @param {string[]} args */
 const git = (args) => spawnSync('git', args, { encoding: 'utf8' }).stdout.trim();
@@ -38,6 +50,16 @@ step('Deploying');
 writeConfig(state);
 applyMigrations(state.name);
 buildAndDeploy(state.name);
+
+step('Basin table maintenance (compaction, snapshot clean-up)');
+const token =
+  process.env.OPEN_LOGS_TOKEN || (await askHidden('  Paste the Cloudflare API token used at setup: '));
+if (token) {
+  hideInOutput(token);
+  await setUpTableMaintenance(state.accountId, state.bucket, token);
+} else {
+  console.log('  • skipped: no token. Run the update again with the token to turn it on.');
+}
 
 step('Checking the app is up');
 const up = await checkUp(state.url);

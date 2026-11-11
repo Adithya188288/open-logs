@@ -4,6 +4,7 @@ import { Hono } from 'hono';
 import { checkOrigin, getSessionUser } from '../auth.js';
 import { errorResponse, HttpError, json } from '../http.js';
 import { teamName } from '../settings.js';
+import * as alerts from './alerts.js';
 import * as auth from './auth.js';
 import * as boards from './boards.js';
 import * as projects from './projects.js';
@@ -33,7 +34,7 @@ api.use('*', async (c, next) => {
 });
 
 /**
- * @param {'GET' | 'POST' | 'PATCH' | 'DELETE'} method
+ * @param {'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'} method
  * @param {string} path
  * @param {import('../types.js').Handler} handler
  * @param {{ public?: boolean }} [opts]
@@ -94,6 +95,15 @@ route('POST', '/api/dashboards/:id/charts', boards.createChart);
 route('PATCH', '/api/charts/:id', boards.updateChart);
 route('POST', '/api/charts/:id/duplicate', boards.duplicateChart);
 route('DELETE', '/api/charts/:id', boards.deleteChart);
+route('GET', '/api/charts/:id/alert', alerts.getChartAlert);
+route('PUT', '/api/charts/:id/alert', alerts.putChartAlert);
+route('DELETE', '/api/charts/:id/alert', alerts.deleteChartAlert);
+route('GET', '/api/projects/:id/alerts', alerts.listAlerts);
+route('GET', '/api/alerts/:id', alerts.getAlert);
+route('POST', '/api/alerts/:id/pause', alerts.pauseAlert);
+route('POST', '/api/alerts/:id/resume', alerts.resumeAlert);
+route('POST', '/api/incidents/:id/resolve', alerts.resolveIncidentByHand);
+route('POST', '/api/webhooks/test', alerts.testWebhook);
 
 /**
  * Unknown /api paths: don't reveal which endpoints exist to signed-out callers.

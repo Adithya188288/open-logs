@@ -491,3 +491,111 @@ circle[class^="k-"] {
   gap: var(--s-4);
   white-space: nowrap;
 }
+
+/* Chart alerts: the bell on a chart, the alert drawer's rows, and incidents on the alert page. */
+.tile .bell {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-4);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  padding: var(--s-2) var(--s-6);
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--bg2);
+  color: var(--tx3);
+  cursor: pointer;
+}
+.tile .bell.open {
+  border-color: var(--errln);
+  background: var(--errbg);
+  color: var(--errtx);
+}
+.tile .bell.paused {
+  opacity: 0.6;
+}
+.drawer .alertsrc {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  padding: var(--s-12);
+  border-radius: 10px;
+  background: var(--bg2);
+  border: 1px solid var(--line);
+  font-size: 12px;
+}
+/* The alert panel: more room between its sections than the chart builder, so each question reads on its own. */
+.alertdrawer .dbody {
+  gap: var(--s-24);
+  padding: var(--s-24) var(--s-24);
+}
+.alertdrawer .dhead,
+.alertdrawer .dfoot {
+  padding-left: var(--s-24);
+  padding-right: var(--s-24);
+}
+.alertdrawer .field {
+  gap: var(--s-8);
+}
+.alertdrawer .alertsrc {
+  padding: var(--s-16);
+  gap: var(--s-8);
+}
+.alertrow {
+  display: flex;
+  align-items: center;
+  gap: var(--s-8);
+}
+.alertdrawer .alertrow + .alertrow {
+  margin-top: var(--s-4);
+}
+.alertrow .input {
+  flex: 1;
+  min-width: 0;
+}
+.alertrow .input.num {
+  flex: 0 0 96px;
+}
+.input[aria-invalid="true"] {
+  border-color: var(--err);
+}
+.alertchart {
+  height: 180px;
+}
+/* A number chart is a value and a small trend line: it gets only the height it needs. */
+.alertchart.number {
+  height: auto;
+}
+.incident {
+  display: flex;
+  align-items: center;
+  gap: var(--s-12);
+  padding: var(--s-12) 0;
+  border-top: 1px solid var(--line);
+  color: var(--oktx);
+}
+.incident.open {
+  color: var(--errtx);
+}
+.incident .what {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  color: var(--tx);
+  font-size: 13px;
+}
+.card.panel.stale > .incident {
+  opacity: 0.55;
+}
+.nav .item .count.open {
+  color: var(--errtx);
+  font-weight: 600;
+}
+.ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

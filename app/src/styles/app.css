@@ -60,8 +60,11 @@
   --code-tx: #e5e5e5;
   --code-tx2: #a3a3a3;
   color-scheme: light;
+  /* The dropdown arrow, the same chevron as the project switcher's, in --tx3. */
+  --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23646464' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8 10l4 4 4-4'/%3E%3C/svg%3E");
 }
 :root[data-theme="dark"] {
+  --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239a9aa2' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8 10l4 4 4-4'/%3E%3C/svg%3E");
   --bg: #0b0b0c;
   --bg2: #111113;
   --bg3: #1c1c1f;
@@ -242,6 +245,16 @@ p {
 }
 .input.mono {
   font-family: var(--mono);
+}
+/* Every dropdown gets the switcher's chevron, centred vertically, instead of the browser's own arrow. */
+.select {
+  appearance: none;
+  background-image: var(--chevron);
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 14px 14px;
+  padding-right: 32px;
+  cursor: pointer;
 }
 .input:focus,
 .select:focus {
@@ -883,6 +896,20 @@ kbd {
 }
 .btn.danger-fill:disabled {
   opacity: 0.45;
+}
+/* A long list inside a menu (the project switcher): about 8 rows, then it scrolls. */
+.menu-scroll {
+  display: flex;
+  flex-direction: column;
+  max-height: 272px;
+  overflow-y: auto;
+}
+.menu-scroll a {
+  flex-shrink: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 280px;
 }
 .menu hr {
   border: none;

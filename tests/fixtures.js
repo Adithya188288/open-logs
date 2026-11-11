@@ -6,6 +6,27 @@ export const RUN = /** @type {string} */ (process.env.E2E_RUN);
 export const OWNER_EMAIL = /** @type {string} */ (process.env.OPEN_LOGS_EMAIL);
 export const OWNER_PASSWORD = /** @type {string} */ (process.env.OPEN_LOGS_PASSWORD);
 export const SEED_FILE = 'tests/.state/seed.json';
+/** Where alert tests send webhooks (a request catcher). Set per run, never committed. */
+export const TEST_WEBHOOK = process.env.OPEN_LOGS_TEST_WEBHOOK ?? '';
+
+/**
+ * The JSON bodies TEST_WEBHOOK received, newest first, when it is a webhook.site URL (its request list is
+ * readable without an account). Null for other request catchers.
+ * @param {import('@playwright/test').APIRequestContext} request
+ */
+export async function webhookBodies(request) {
+  const m = TEST_WEBHOOK.match(/^https:\/\/webhook\.site\/([0-9a-f-]{36})$/);
+  if (!m) return null;
+  const res = await request.get(`https://webhook.site/token/${m[1]}/requests?sorting=newest&per_page=50`);
+  const { data } = await res.json();
+  return data.map((/** @type {any} */ r) => {
+    try {
+      return JSON.parse(r.content);
+    } catch {
+      return null;
+    }
+  });
+}
 
 /** A name that belongs to this run. @param {string} what */
 export const named = (what) => `e2e-${RUN}-${what}`;
@@ -53,6 +74,10 @@ export const test = base.extend({
       post: (path, data) => call('POST', path, data ?? {}),
       /** @param {string} path @param {unknown} [data] */
       patch: (path, data) => call('PATCH', path, data ?? {}),
+      /** @param {string} path @param {unknown} [data] */
+      put: (path, data) => call('PUT', path, data ?? {}),
+      /** @param {string} path */
+      del: (path) => call('DELETE', path),
       /** Logs matching `where` in the last hour of a project (newest first). */
       query: (/** @type {string} */ projectId, /** @type {object[]} */ where) =>
         call('POST', '/api/query', {

@@ -37,7 +37,8 @@
 }
 .team .invite .select {
   font-size: 12px;
-  padding: var(--s-6) var(--s-8);
+  padding: var(--s-6) 28px var(--s-6) var(--s-8);
+  background-position: right 8px center;
 }
 .invite-link {
   display: flex;

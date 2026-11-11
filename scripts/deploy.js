@@ -52,7 +52,7 @@ if (reset) {
       '-c',
       configPath(state.name),
       '--command',
-      "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%'",
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%' ORDER BY rowid",
     ],
     { quiet: true },
   );
@@ -61,9 +61,13 @@ if (reset) {
     process.exit(1);
   }
   const tables = JSON.parse(listed.out)[0].results.map((/** @type {{ name: string }} */ r) => r.name);
-  const drop = ['PRAGMA defer_foreign_keys = on', ...tables.map((t) => `DROP TABLE IF EXISTS "${t}"`)].join(
-    '; ',
-  );
+  // Newest table first: sqlite_master lists tables in the order they were created, so children (sources,
+  // charts, incidents…) go before the parents they point at. D1 doesn't apply a batch that starts with
+  // `PRAGMA defer_foreign_keys`, so the order is what keeps foreign keys happy.
+  const drop = tables
+    .toReversed()
+    .map((t) => `DROP TABLE IF EXISTS "${t}"`)
+    .join('; ');
   if (
     tables.length &&
     !wrangler(['d1', 'execute', 'DB', '--remote', '-c', configPath(state.name), '--command', drop], {

@@ -3,6 +3,12 @@
 	"name": "open-logs",
 	"main": "src/index.js",
 	"compatibility_date": "2026-10-01",
+	// The once-a-minute alert check.
+	"triggers": {
+		"crons": [
+			"* * * * *"
+		]
+	},
 	"compatibility_flags": [
 		"nodejs_compat"
 	],

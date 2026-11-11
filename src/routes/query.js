@@ -3,6 +3,7 @@ import { HttpError, json, readJson } from '../http.js';
 import { parseField, parseFilter, pickInterval } from '../query/filter.js';
 import { bySourceId, nameOf, sourceNames } from '../query/sources.js';
 import { AGGREGATE_PARTS } from '../storage/aggregate.js';
+import { NEWEST_RECENT_MS } from '../storage/basin.js';
 import { getStorage } from '../storage/index.js';
 import { findProject } from './projects.js';
 
@@ -104,6 +105,8 @@ export async function aggregate({ request, env }) {
 export async function status({ env, url }) {
   const storage = getStorage(env);
   const projectId = url.searchParams.get('project_id');
-  const newest = projectId ? await storage.newest((await findProject(env, projectId)).id) : null;
-  return json({ storage: storage.mode, lag_ms: storage.lagMs, now: Date.now(), newest_event_at: newest });
+  // `recent=1` (the dashboard's 30 s check for new arrivals) only looks at the last 15 minutes.
+  const lookback = url.searchParams.get('recent') === '1' ? NEWEST_RECENT_MS : undefined;
+  const newest = projectId ? await storage.newest((await findProject(env, projectId)).id, lookback) : null;
+  return json({ lag_ms: storage.lagMs, now: Date.now(), newest_event_at: newest });
 }

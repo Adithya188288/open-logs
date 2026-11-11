@@ -5,7 +5,7 @@ import { aggregateShape } from './shape.js';
 export const AGGREGATE_PARTS = ['value', 'groups', 'series', 'series_by_group'];
 
 /**
- * @param {(q: { sql: string, params: unknown[] }) => Promise<Record<string, unknown>[]>} all
+ * @param {(q: { sql: string }) => Promise<Record<string, unknown>[]>} all
  * @param {import('../query/sql.js').Dialect} dialect
  * @param {import('../query/filter.js').Filter} filter
  * @param {import('./index.js').AggregateSpec} spec

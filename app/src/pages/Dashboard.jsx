@@ -2,6 +2,7 @@
 import { useIsFetching, useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
+import { AlertDrawer } from '../components/AlertDrawer.jsx';
 import { Chart, csvRows, formatValue, Legend } from '../components/Charts.jsx';
 import { confirmDelete, FormDialog, openDialog, toast } from '../components/Dialogs.jsx';
 import { Icon } from '../components/Icon.jsx';
@@ -48,6 +49,8 @@ export function Dashboard() {
   const setCharts = (fn) =>
     queryClient.setQueryData(['dashboard', dashboardId, 'charts'], (cs = []) => fn(cs));
   const reloadDashboards = useCallback(() => refresh.dashboards(project.id), [project.id]);
+  const [alertFor, setAlertFor] = useState(/** @type {ChartRow | null} */ (null));
+  const closeAlert = useCallback(() => setAlertFor(null), []);
 
   // Refresh when new data lands: one cheap check of the newest event time every 30 seconds
   // (only while this tab is visible, and once when you come back to it).
@@ -269,6 +272,7 @@ export function Dashboard() {
               projectId={project.id}
               range={range}
               onEdit={() => setDrawer({ existing: c })}
+              onAlert={() => setAlertFor(c)}
               onDuplicate={async () => {
                 const { chart } = await api(`/api/charts/${c.id}/duplicate`, { method: 'POST' });
                 setCharts((cs) => [...cs, chart]);
@@ -294,6 +298,21 @@ export function Dashboard() {
           ))
         )}
       </div>
+      {alertFor && (
+        <AlertDrawer
+          chart={alertFor}
+          onClose={closeAlert}
+          onSaved={(alert) => {
+            const summary = alert
+              ? { id: alert.id, paused: alert.paused, open: Boolean(alert.open_incident) }
+              : null;
+            setCharts((cs) => cs.map((x) => (x.id === alertFor.id ? { ...x, alert: summary } : x)));
+            refresh.alerts(project.id);
+            setAlertFor(null);
+            toast(alert ? 'Alert saved' : 'Alert removed');
+          }}
+        />
+      )}
       {drawer && (
         <ChartDrawer
           projectId={project.id}
@@ -335,9 +354,9 @@ function lastRowFill(charts) {
 }
 
 /**
- * @param {{ c: ChartRow, projectId: string, range: Range, fill: number, onEdit: () => void, onDuplicate: () => void, onRemove: () => void }} props
+ * @param {{ c: ChartRow, projectId: string, range: Range, fill: number, onEdit: () => void, onAlert: () => void, onDuplicate: () => void, onRemove: () => void }} props
  */
-function Tile({ c, projectId, range, fill, onEdit, onDuplicate, onRemove }) {
+function Tile({ c, projectId, range, fill, onEdit, onAlert, onDuplicate, onRemove }) {
   const { data: result, error } = useQuery(chartQuery(projectId, c, range));
   const state = error
     ? { error: error instanceof ApiError ? error.message : 'Could not load this chart' }
@@ -362,6 +381,19 @@ function Tile({ c, projectId, range, fill, onEdit, onDuplicate, onRemove }) {
         <h2>{c.title}</h2>
         <div className="headr">
           {state.data && <Legend c={c} data={state.data} />}
+          {c.alert && (
+            <button
+              className={`bell${c.alert.open ? ' open' : ''}${c.alert.paused ? ' paused' : ''}`}
+              type="button"
+              data-testid="chart-alert"
+              title={c.alert.paused ? 'Alert paused' : c.alert.open ? 'Incident open' : 'Alert on'}
+              aria-label={`Alert on ${c.title}: ${c.alert.paused ? 'paused' : c.alert.open ? 'incident open' : 'all good'}`}
+              onClick={onAlert}
+            >
+              <Icon name="bell" size={13} />
+              {c.alert.open && !c.alert.paused ? 'Open' : ''}
+            </button>
+          )}
           <MenuButton
             className="more"
             label={`Chart options for ${c.title}`}
@@ -369,6 +401,9 @@ function Tile({ c, projectId, range, fill, onEdit, onDuplicate, onRemove }) {
               <>
                 <button type="button" role="menuitem" onClick={onEdit}>
                   Edit
+                </button>
+                <button type="button" role="menuitem" onClick={onAlert}>
+                  {c.alert ? 'Edit alert' : 'Add alert'}
                 </button>
                 <button type="button" role="menuitem" onClick={onDuplicate}>
                   Duplicate

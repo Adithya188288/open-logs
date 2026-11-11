@@ -10,6 +10,7 @@ test('every screen opens without errors', async ({ page, app }) => {
     [`/sources?project=${project.id}`, 'Sources'],
     [`/dashboard?project=${project.id}`, null],
     [`/tail?project=${project.id}`, null],
+    [`/alerts?project=${project.id}`, 'Alerts'],
     ['/team', 'Team'],
     ['/settings', 'Settings'],
   ]) {
