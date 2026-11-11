@@ -168,17 +168,36 @@ When you add a source, the app shows these snippets with your URL filled in.
 
 ## Limits
 
-| | |
-|---|---|
-| Request | 5 MB, 10,000 events |
-| Event | 256 KB |
-| Ingest rate | 1,200 requests/min per token (batch your events) |
-| Freshness | logs are searchable 1.5 to 3.5 minutes after they arrive |
-| Query range | 7 days, 500 rows per page; free-text search over more than 24h needs a field filter |
-| Timestamps | client `ts` within ±24h of server time is kept, otherwise server time is used |
+**Sending logs**
 
-Known Basin behaviour: p95 is approximate (`approx_percentile_cont`), heavy searches can time out and show
-"query too large", and deleting a project does not delete its log files in R2 (Basin SQL is read-only).
+- **5 MB per request.** One `POST /v1/logs` request can carry at most 5 MB of data. This is the most
+  Cloudflare Basin accepts in one write.
+- **10,000 logs per request.** One request can carry an array of up to 10,000 logs.
+- **256 KB per log.** A single log (its message plus its fields) can be at most 256 KB. This keeps one huge
+  log, like a pasted file, from slowing down search for everyone.
+- **1,200 requests per minute per source.** Each source (each app's token) can send up to 1,200 requests a
+  minute, about 20 a second. If it sends more, the extra requests get `429 Too Many Requests` and those logs
+  are not saved. This protects your account if a token leaks or an app gets stuck in a loop. You rarely need
+  more: send logs in batches (one request can carry thousands of logs) instead of one request per log.
+- **Log times within 24 hours.** Your app can send its own time for each log (`ts`). If that time is within
+  24 hours of when the log arrives, it's kept. If it's further off (for example, a server with a wrong clock
+  says 2019), the arrival time is used instead, so the log still shows up where you'd look for it.
+
+**Searching**
+
+- **Logs appear 1.5 to 3.5 minutes after they're sent.** That's how often Basin writes new log files.
+- **Up to 7 days at a time.** Live tail, search and charts let you pick 15 minutes, 1 hour, 24 hours or 7 days.
+  7 days is the longest, so a single search never reads months of logs at once.
+- **500 logs per page.** The log list shows 500 logs at a time; "Load older" shows the next 500.
+- **Word search over more than 24 hours needs a filter.** Searching for a plain word (like `timeout`) reads
+  the text of every log. Over more than 24 hours, add a filter as well, such as `level:error` or
+  `source:api`, so the search reads fewer logs and stays fast.
+
+**Good to know**
+
+- p95 values on charts are close estimates, not exact.
+- A very heavy search can time out. Narrow the time range or add a filter and try again.
+- Deleting a project removes it from the app, but its old log files stay in your R2 bucket.
 
 ## Update, roll back, uninstall
 
