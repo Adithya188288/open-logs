@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Open Logs</title>
+<meta name="description" content="Open-source, self-hosted log management on your own Cloudflare account. Live tail, search, dashboards and alerts.">
+<meta property="og:title" content="Open Logs">
+<meta property="og:description" content="Open-source, self-hosted log management on your own Cloudflare account.">
+<meta property="og:image" content="https://adithya188288.github.io/open-logs/assets/dashboard-light.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230a0a0a'/%3E%3Ccircle cx='16' cy='16' r='6' fill='%233ddc97'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #ffffff;
+  --page: #fafafa;
+  --ink: #0a0a0a;
+  --muted: #646464;
+  --line: #e7e7e7;
+  --code-bg: #0a0a0a;
+  --code-ink: #ededed;
+  --code-muted: #8a8a8a;
+  --signal: #3ddc97;
+  --error: #e5484d;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0a0a0a;
+    --page: #111111;
+    --ink: #ededed;
+    --muted: #9a9a9a;
+    --line: #262626;
+    --code-bg: #161616;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 400 17px/1.6 Geist, ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: inherit; }
+a:focus-visible, .btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+img { display: block; max-width: 100%; height: auto; }
+code, pre, .mono { font-family: "Geist Mono", ui-monospace, monospace; }
+
+.wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+
+/* Top bar */
+.top { display: flex; align-items: center; justify-content: space-between; padding: 22px 0; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 600; text-decoration: none; }
+.mark { width: 24px; height: 24px; border-radius: 6px; background: var(--ink); display: grid; place-items: center; }
+.mark i { width: 9px; height: 9px; border-radius: 50%; background: var(--signal); }
+.top nav { display: flex; gap: 22px; font-size: 15px; color: var(--muted); }
+.top nav a { text-decoration: none; }
+.top nav a:hover { color: var(--ink); }
+
+/* Hero */
+.hero { display: grid; grid-template-columns: 1.05fr 1fr; gap: 56px; align-items: center; padding: 64px 0 72px; }
+h1 { font-size: clamp(40px, 6vw, 64px); line-height: 1.02; letter-spacing: -0.035em; font-weight: 600; margin: 0 0 22px; }
+.lede { font-size: 19px; color: var(--muted); max-width: 30em; margin: 0 0 32px; }
+.actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.btn { display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 18px; border-radius: 8px; font-size: 15px; font-weight: 500; text-decoration: none; border: 1px solid var(--line); }
+.btn.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.btn:hover { border-color: var(--ink); }
+.btn svg { width: 18px; height: 18px; }
+
+.term { background: var(--code-bg); color: var(--code-ink); border-radius: 12px; padding: 20px 22px; font-size: 13.5px; line-height: 1.7; overflow-x: auto; border: 1px solid var(--line); }
+.term pre { margin: 0; white-space: pre; }
+.term .c { color: var(--code-muted); }
+.term .out { margin-top: 16px; padding-top: 14px; border-top: 1px solid #2a2a2a; display: flex; gap: 12px; align-items: baseline; white-space: nowrap; opacity: 0; animation: land .5s ease-out 1.4s forwards; }
+.term .live { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--signal); box-shadow: 0 0 0 0 rgba(61,220,151,.6); animation: pulse 2s ease-out 1.9s infinite; flex: none; align-self: center; }
+.term .lvl { color: var(--error); font-weight: 500; }
+@keyframes land { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(61,220,151,.55); } 70% { box-shadow: 0 0 0 8px rgba(61,220,151,0); } 100% { box-shadow: 0 0 0 0 rgba(61,220,151,0); } }
+
+/* Big screenshot */
+.shot { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--page); }
+.showcase { padding-bottom: 96px; }
+.caption { color: var(--muted); font-size: 15px; margin: 14px 2px 0; }
+
+/* Feature rows */
+.features { border-top: 1px solid var(--line); }
+.row { display: grid; grid-template-columns: 1fr 1.6fr; gap: 56px; align-items: center; padding: 88px 0; border-bottom: 1px solid var(--line); }
+.row.flip { grid-template-columns: 1.6fr 1fr; }
+.row.flip .text { order: 2; }
+h2 { font-size: 30px; line-height: 1.15; letter-spacing: -0.02em; font-weight: 600; margin: 0 0 14px; }
+.text p { color: var(--muted); margin: 0 0 14px; }
+.text ul { margin: 18px 0 0; padding: 0; list-style: none; font-size: 15px; }
+.text li { padding: 8px 0; border-top: 1px solid var(--line); }
+
+/* Rest */
+.rest { display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px 48px; padding: 88px 0; border-bottom: 1px solid var(--line); }
+.rest h3 { font-size: 16px; font-weight: 600; margin: 0 0 6px; }
+.rest p { color: var(--muted); font-size: 15px; margin: 0; }
+.rest .intro { grid-column: 1 / -1; }
+.rest .intro h2 { margin: 0; }
+
+/* Why + install */
+.story { display: grid; grid-template-columns: 1fr 1fr; gap: 72px; padding: 96px 0; }
+.story p { margin: 0 0 16px; }
+.story .muted { color: var(--muted); }
+.quote { font-size: 22px; line-height: 1.4; letter-spacing: -0.01em; font-weight: 500; margin: 26px 0 0; }
+.install pre { background: var(--code-bg); color: var(--code-ink); border-radius: 12px; padding: 20px 22px; font-size: 14px; line-height: 1.8; overflow-x: auto; margin: 0 0 18px; border: 1px solid var(--line); }
+.install .c { color: var(--code-muted); }
+.install p { color: var(--muted); font-size: 15px; }
+
+footer { border-top: 1px solid var(--line); padding: 28px 0 40px; color: var(--muted); font-size: 14px; }
+footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: space-between; }
+footer a { text-decoration: none; }
+footer a:hover { color: var(--ink); }
+
+@media (max-width: 880px) {
+  .hero, .row, .row.flip, .story { grid-template-columns: 1fr; gap: 32px; }
+  .row.flip .text { order: 0; }
+  .hero { padding: 32px 0 56px; }
+  .row { padding: 56px 0; }
+  .rest { grid-template-columns: 1fr; gap: 28px; padding: 56px 0; }
+  .story { padding: 64px 0; gap: 48px; }
+  .showcase { padding-bottom: 64px; }
+  .top nav a.hide-sm { display: none; }
+}
+@media (max-width: 480px) {
+  .wrap { padding: 0 16px; }
+  .term { font-size: 12px; padding: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .term .out { animation: none; opacity: 1; }
+  .term .live { animation: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="./"><span class="mark"><i></i></span>Open Logs</a>
+    <nav>
+      <a class="hide-sm" href="#features">Features</a>
+      <a class="hide-sm" href="#install">Install</a>
+      <a href="https://github.com/Adithya188288/open-logs">GitHub</a>
+    </nav>
+  </header>
+
+  <section class="hero">
+    <div>
+      <h1>Your logs, on your own Cloudflare account.</h1>
+      <p class="lede">Open Logs is a free, open-source log viewer you install with one command. Send logs over HTTP, then tail, search, chart and alert on them. Storage runs on Cloudflare Basin, so it stays affordable as you grow.</p>
+      <div class="actions">
+        <a class="btn primary" href="https://github.com/Adithya188288/open-logs">
+          <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+          View on GitHub</a>
+        <a class="btn" href="#install">Get started</a>
+      </div>
+    </div>
+    <div class="term" aria-label="Example: send one log with curl, then see it in Open Logs">
+<pre><span class="c"># send a log from any app</span>
+curl https://logs.acme.dev/v1/logs \
+  -H "Authorization: Bearer $SOURCE_TOKEN" \
+  -d '{"level":"error",
+       "message":"payment failed: gateway_timeout",
+       "order_id":46346}'</pre>
+      <div class="out"><span class="live"></span><span class="c">13:50:55</span><span class="lvl">ERROR</span><span>checkout</span><span>payment failed: gateway_timeout</span></div>
+    </div>
+  </section>
+
+  <section class="showcase">
+    <div class="shot">
+      <picture>
+        <source srcset="assets/dashboard-dark.png" media="(prefers-color-scheme: dark)">
+        <img src="assets/dashboard-light.png" width="2880" height="1800" alt="The Open Logs dashboard: event, error and warning counts, events by level over 24 hours, events by source, and top errors.">
+      </picture>
+    </div>
+    <p class="caption">Every project gets an overview dashboard out of the box.</p>
+  </section>
+</div>
+
+<section class="features" id="features">
+  <div class="wrap">
+    <div class="row">
+      <div class="text">
+        <h2>Live tail and search</h2>
+        <p>Watch logs arrive, filter by source, level or any field, and open an event to see everything it carried.</p>
+        <ul>
+          <li><code>level = error</code>, <code>code:gateway_timeout</code>, or plain text</li>
+          <li>A histogram of the selected range above the list</li>
+          <li>Copy an event as JSON, link to it, or see what happened around it</li>
+        </ul>
+      </div>
+      <div class="shot">
+        <picture>
+          <source srcset="assets/tail-event-dark.png" media="(prefers-color-scheme: dark)">
+          <img src="assets/tail-event-light.png" width="2880" height="1800" loading="lazy" alt="Live tail filtered to errors, with one checkout error open showing its fields.">
+        </picture>
+      </div>
+    </div>
+
+    <div class="row flip">
+      <div class="text">
+        <h2>Dashboards without SQL</h2>
+        <p>Pick a filter, a measure and a chart type. Counts, averages and p95, as numbers, bars, lines or pies.</p>
+        <ul>
+          <li>Each number compares itself with the previous period</li>
+          <li>15 minutes, 1 hour, 24 hours or 7 days</li>
+          <li>As many dashboards per project as you need</li>
+        </ul>
+      </div>
+      <div class="shot">
+        <picture>
+          <source srcset="assets/checkout-dark.png" media="(prefers-color-scheme: dark)">
+          <img src="assets/checkout-light.png" width="2880" height="1800" loading="lazy" alt="A Checkout dashboard with checkout errors, orders placed, average order value, payment failures by code and API latency p95.">
+        </picture>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="text">
+        <h2>Alerts on any chart</h2>
+        <p>Put an alert on a chart: when logs go above a number, or rise by a percentage, Open Logs opens an incident and calls your webhook.</p>
+        <ul>
+          <li>Windows from 5 to 60 minutes</li>
+          <li>Quiet time after resolving, so you aren't paged twice</li>
+          <li>Incidents resolve themselves when things recover</li>
+        </ul>
+      </div>
+      <div class="shot">
+        <picture>
+          <source srcset="assets/alert-dark.png" media="(prefers-color-scheme: dark)">
+          <img src="assets/alert-light.png" width="2880" height="1800" loading="lazy" alt="An alert called Checkout errors spike: opens an incident when logs are above 20 in the last 15 minutes.">
+        </picture>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="wrap">
+  <section class="rest">
+    <div class="intro"><h2>Also included</h2></div>
+    <div><h3>Projects and sources</h3><p>One project per product, one source per app, each with its own ingest token.</p></div>
+    <div><h3>Team sign-in</h3><p>Invite teammates with a link. Owner, admin and member roles, no extra service to run.</p></div>
+    <div><h3>Simple HTTP ingest</h3><p>Send one log or a batch of up to 10,000 from curl, JavaScript, Python, Go or anything else.</p></div>
+    <div><h3>Saved views</h3><p>Save a search to the sidebar and come back to it in one click.</p></div>
+    <div><h3>Update and roll back</h3><p><code>npm run update</code> and <code>npm run rollback</code> keep your install current.</p></div>
+    <div><h3>Your account, your data</h3><p>Everything runs in your Cloudflare account. Nothing leaves it.</p></div>
+  </section>
+
+  <section class="story">
+    <div>
+      <h2>Why I built it</h2>
+      <p>When Cloudflare launched Basin, I saw a great place to keep logs: serverless, affordable storage you can query with SQL. What it didn't have was a product on top. No way for an app to send logs safely, no log viewer, no charts, no team sign-in.</p>
+      <p class="muted">So I built a simple version and made it open source, as a way to give back to the community.</p>
+      <p class="quote">We just built this. You can fork it and build whatever you want.</p>
+    </div>
+    <div class="install" id="install">
+      <h2>Install</h2>
+<pre><span class="c"># needs a Cloudflare account on Workers Paid</span>
+git clone https://github.com/Adithya188288/open-logs.git open-logs
+cd open-logs
+npm run setup</pre>
+      <p>Setup creates everything in your account, deploys the app and prints the address to sign in. The <a href="https://github.com/Adithya188288/open-logs#readme">README</a> covers sending logs, limits and updates.</p>
+    </div>
+  </section>
+</div>
+
+<footer>
+  <div class="wrap">
+    <span>Open Logs · MIT license · Built by Adithya</span>
+    <a href="https://github.com/Adithya188288/open-logs">github.com/Adithya188288/open-logs</a>
+  </div>
+</footer>
+
+</body>
+</html>
