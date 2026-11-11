@@ -8,7 +8,7 @@
 // Verified on real Basin (staging, 2026-10-30): responses are `{ result: { schema, rows: [{…}], metrics }, success }`;
 // backslash is an ordinary character inside string literals; LIKE only accepts ESCAPE '\'.
 import { HttpError } from '../http.js';
-import { buildEventsSql, buildHistogramSql } from '../query/sql.js';
+import { buildEventsSql, buildHistogramSql, INGEST_MARGIN_MS, ingestTs } from '../query/sql.js';
 import { runAggregate } from './aggregate.js';
 import { eventsPage, histogramBuckets } from './shape.js';
 
@@ -168,7 +168,9 @@ export class BasinStorage {
   async newest(projectId) {
     const since = Date.now() - NEWEST_LOOKBACK_MS;
     const rows = await this.all({
-      sql: `SELECT MAX(ts) AS ts FROM ${this.dialect.table} WHERE project_id = ${sqlLiteral(projectId)} AND ts >= ${since}`,
+      sql:
+        `SELECT MAX(ts) AS ts FROM ${this.dialect.table} WHERE project_id = ${sqlLiteral(projectId)}` +
+        ` AND __ingest_ts >= ${sqlLiteral(ingestTs(since - INGEST_MARGIN_MS))} AND ts >= ${since}`,
     });
     const ts = rows[0]?.ts;
     return ts === null || ts === undefined ? null : Number(ts);

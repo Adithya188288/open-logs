@@ -2,7 +2,8 @@
 // npm run setup [my-logs]: installs Open Logs into your own Cloudflare account, in one go.
 //   sign in → Basin (R2 bucket, catalog, stream, sink, pipeline) → D1 (app data) → build and deploy
 //   → secrets → check the app is up (it does not wait for Basin).
-// Needs the Workers Paid plan (Basin) and one Cloudflare API token (see TOKEN_HELP).
+// Needs the Workers Paid plan (Basin) and one Cloudflare API token (see TOKEN_HELP). Table maintenance (compaction,
+// snapshot clean-up) is turned on here, so the many small files the sink writes are merged in the background.
 // Non-interactive: set OPEN_LOGS_TOKEN and OPEN_LOGS_EMAIL (and OPEN_LOGS_PASSWORD to choose the password).
 import { randomBytes } from 'node:crypto';
 import { existsSync } from 'node:fs';
@@ -21,6 +22,7 @@ import {
   mustWrangler,
   run,
   saveState,
+  setUpTableMaintenance,
   step,
   wrangler,
   writeConfig,
@@ -31,30 +33,6 @@ Open Logs needs one Cloudflare API token, for writing logs into Basin and search
   Cloudflare dashboard → R2 → Manage API tokens → Create Account API token
   → Permissions: Admin Read & Write (this includes Basin SQL Read) → Create → copy the token value.
   It is stored only as a secret on your Worker; nothing is written to disk.`;
-
-/**
- * Stores the token on the Basin Catalog itself (its "service credential"), so Cloudflare's own jobs on the
- * table can run: compaction and snapshot expiration, when turned on. Wrangler can only store it while turning
- * those jobs on, so this calls Cloudflare's API directly.
- * @param {string} accountId @param {string} bucket @param {string} token
- */
-async function storeCatalogCredential(accountId, bucket, token) {
-  const res = await fetch(
-    `https://api.cloudflare.com/client/v4/accounts/${accountId}/basin-catalog/${encodeURIComponent(bucket)}/credential`,
-    {
-      method: 'POST',
-      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ token }),
-    },
-  ).catch(() => null);
-  const body = res ? await res.json().catch(() => ({})) : {};
-  if (!res?.ok || body.success === false) {
-    console.log('  • Basin Catalog credential… failed');
-    console.error(`  ${res ? res.status : 'no answer'} ${body.errors?.[0]?.message ?? ''}`.trimEnd());
-    process.exit(1);
-  }
-  console.log('  • Basin Catalog credential… done');
-}
 
 const name = await installName();
 if (!/^[a-z][a-z0-9-]{2,40}$/.test(name)) {
@@ -100,7 +78,7 @@ hideInOutput(token);
 step('Creating Basin (where logs are stored)');
 mustWrangler('R2 bucket', ['r2', 'bucket', 'create', name]);
 mustWrangler('Basin Catalog', ['r2', 'bucket', 'catalog', 'enable', name]);
-await storeCatalogCredential(account.id, name, token);
+await setUpTableMaintenance(account.id, name, token);
 // biome-ignore format: one flag/value pair per line reads better here
 mustWrangler('stream', [
   'pipelines', 'streams', 'create', `${base}_stream`,

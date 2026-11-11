@@ -92,6 +92,14 @@ function clauseSql(b, c) {
   }
 }
 
+/** How far a log's own time (ts) can be from when it reached Basin (__ingest_ts). */
+export const INGEST_MARGIN_MS = 25 * 60 * 60 * 1000;
+
+/** Unix ms as the RFC 3339 UTC timestamp Basin SQL compares __ingest_ts with. @param {number} ms */
+export function ingestTs(ms) {
+  return new Date(ms).toISOString();
+}
+
 /**
  * WHERE clause shared by every query: project, time range, then the client's clauses.
  * @param {Builder} b
@@ -100,6 +108,11 @@ function clauseSql(b, c) {
 function whereSql(b, f) {
   const parts = [
     `project_id = ${b.param(f.project_id)}`,
+    // Basin stores files by the day they arrived (__ingest_ts), so this limits a query to the few days that can
+    // hold the range instead of every file in the table. ts is the client's time, accepted within ±24h of arrival
+    // (src/ingest/normalize.js); the margin adds an hour for pipeline delay.
+    `__ingest_ts >= ${b.param(ingestTs(f.from - INGEST_MARGIN_MS))}`,
+    `__ingest_ts < ${b.param(ingestTs(f.to + INGEST_MARGIN_MS))}`,
     `ts >= ${b.param(f.from)}`,
     `ts < ${b.param(f.to)}`,
   ];

@@ -253,3 +253,50 @@ export function applyMigrations(name) {
 
 /** @param {number} ms */
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/** Compaction merges the sink's small files (one a minute) into files of about this size. */
+const COMPACTION_TARGET_MB = '128';
+/** Snapshot clean-up removes table history older than this, always keeping the newest few. Logs are not deleted. */
+const SNAPSHOT_MAX_AGE = '30d';
+const SNAPSHOTS_TO_KEEP = 5;
+
+/**
+ * Calls Cloudflare's Basin Catalog API with the token in a header (never on a command line, where other users on
+ * the machine could read it). Exits when the call fails.
+ * @param {string} label @param {string} accountId @param {string} bucket @param {string} path @param {string} token
+ * @param {unknown} body
+ */
+async function catalogApi(label, accountId, bucket, path, token, body) {
+  const res = await fetch(
+    `https://api.cloudflare.com/client/v4/accounts/${accountId}/basin-catalog/${encodeURIComponent(bucket)}/${path}`,
+    {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+  ).catch(() => null);
+  const answer = res ? await res.json().catch(() => ({})) : {};
+  if (!res?.ok || answer.success === false) {
+    console.log(`  • ${label}… failed`);
+    console.error(`  ${res ? res.status : 'no answer'} ${answer.errors?.[0]?.message ?? ''}`.trimEnd());
+    process.exit(1);
+  }
+  console.log(`  • ${label}… done`);
+}
+
+/**
+ * Turns on Basin's own table maintenance for an install's catalog: stores the token as the catalog's service
+ * credential (Cloudflare's jobs run with it), then enables compaction and snapshot clean-up. Safe to run again.
+ * @param {string} accountId @param {string} bucket @param {string} token
+ */
+export async function setUpTableMaintenance(accountId, bucket, token) {
+  await catalogApi('Basin Catalog credential', accountId, bucket, 'credential', token, { token });
+  await catalogApi('Compaction and snapshot clean-up', accountId, bucket, 'maintenance-configs', token, {
+    compaction: { state: 'enabled', target_size_mb: COMPACTION_TARGET_MB },
+    snapshot_expiration: {
+      state: 'enabled',
+      max_snapshot_age: SNAPSHOT_MAX_AGE,
+      min_snapshots_to_keep: SNAPSHOTS_TO_KEEP,
+    },
+  });
+}
