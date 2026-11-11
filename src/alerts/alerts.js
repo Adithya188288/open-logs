@@ -153,10 +153,12 @@ export async function openIncident(env, a, value, previous) {
     resolved_webhook: null,
   };
   try {
-    // Only while the alert still exists and isn't paused (it may have changed since the check read it).
+    // Decided on the alert as it is now, not as the check read it a few seconds ago: it still exists, isn't
+    // paused, and its quiet time is over (a Resolve during the check sets a new quiet time).
     const res = await env.DB.prepare(
       `INSERT INTO incidents (id, alert_id, started_at, value, previous, last_data_at)
-       SELECT ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM alerts WHERE id = ? AND paused = 0)`,
+       SELECT ?, ?, ?, ?, ?, ?
+       WHERE EXISTS (SELECT 1 FROM alerts WHERE id = ? AND paused = 0 AND quiet_until <= ?)`,
     )
       .bind(
         incident.id,
@@ -166,6 +168,7 @@ export async function openIncident(env, a, value, previous) {
         incident.previous,
         incident.started_at,
         a.id,
+        incident.started_at,
       )
       .run();
     if (!res.meta.changes) return null;
