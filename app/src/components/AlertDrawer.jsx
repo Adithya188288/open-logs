@@ -12,7 +12,8 @@ import { Loader } from './Loader.jsx';
 const HTTPS = /^https:\/\/[^\s/]+\.[^\s]+$/;
 
 /**
- * @param {{ chart: { id: string, title: string, measure: string, field?: string | null, filter: { where: any[] } },
+ * @param {{ chart: { id: string, title: string, measure: string, field?: string | null, filter: { where: any[] },
+ *   alert?: object | null },
  *   onClose: () => void, onSaved: (alert: any | null) => void }} props
  */
 export function AlertDrawer({ chart, onClose, onSaved }) {
@@ -56,8 +57,10 @@ export function AlertDrawer({ chart, onClose, onSaved }) {
 
   const what = measureLabel(chart);
   const counting = chart.measure === 'count' || chart.measure === 'count_over_time';
-  const unit = form.kind === 'increase' ? '%' : counting ? 'logs' : '';
-  const verb = counting ? 'Logs' : what;
+  // The form reads like the condition everywhere else: "Logs above 5 in the last 15 min".
+  const subject = counting ? 'Logs' : what;
+  // Known before the alert loads (the chart's bell), so the title never flips from Add to Edit.
+  const editing = existing === undefined ? Boolean(chart.alert) : Boolean(existing);
 
   const validate = () => {
     /** @type {Record<string, string>} */
@@ -130,10 +133,10 @@ export function AlertDrawer({ chart, onClose, onSaved }) {
         className="drawer"
         role="dialog"
         aria-modal="true"
-        aria-label={existing ? 'Edit alert' : 'Add alert'}
+        aria-label={editing ? 'Edit alert' : 'Add alert'}
       >
         <div className="dhead">
-          <h2>{existing ? 'Edit alert' : 'Add alert'}</h2>
+          <h2>{editing ? 'Edit alert' : 'Add alert'}</h2>
           <button type="button" aria-label="Close" onClick={onClose}>
             <Icon name="x" size={16} />
           </button>
@@ -167,6 +170,7 @@ export function AlertDrawer({ chart, onClose, onSaved }) {
                   id="al-name"
                   className="input"
                   maxLength={100}
+                  aria-invalid={Boolean(errors.name)}
                   value={form.name}
                   onChange={(e) => set('name', e.target.value)}
                 />
@@ -175,28 +179,30 @@ export function AlertDrawer({ chart, onClose, onSaved }) {
               <div className="field">
                 <span className="label">Open an incident when</span>
                 <div className="alertrow">
+                  <span className="small">{subject}</span>
                   <select
                     className="select"
                     aria-label="Condition"
                     value={form.kind}
                     onChange={(e) => set('kind', e.target.value)}
                   >
-                    <option value="above">{`${verb} go${counting ? '' : 'es'} above`}</option>
-                    <option value="increase">{`${verb} increase${counting ? '' : 's'} by`}</option>
+                    <option value="above">above</option>
+                    <option value="increase">up by</option>
                   </select>
                   <input
                     className="input num"
                     aria-label="Threshold"
+                    aria-invalid={Boolean(errors.threshold)}
                     inputMode="decimal"
                     placeholder={form.kind === 'increase' ? '50' : counting ? '100' : '800'}
                     value={form.threshold}
                     onChange={(e) => set('threshold', e.target.value)}
                   />
-                  {unit && <span className="small muted">{unit}</span>}
+                  {form.kind === 'increase' && <span className="small muted">%</span>}
                 </div>
                 <div className="alertrow">
                   <span className="small muted">
-                    {form.kind === 'increase' ? 'comparing the last' : 'in the last'}
+                    {form.kind === 'increase' ? 'compared with the' : 'in the last'}
                   </span>
                   <select
                     className="select"
@@ -210,7 +216,7 @@ export function AlertDrawer({ chart, onClose, onSaved }) {
                       </option>
                     ))}
                   </select>
-                  {form.kind === 'increase' && <span className="small muted">with the period before</span>}
+                  {form.kind === 'increase' && <span className="small muted">before</span>}
                 </div>
                 {errors.threshold && <span className="error-text">{errors.threshold}</span>}
                 <span className="small muted">
@@ -242,6 +248,7 @@ export function AlertDrawer({ chart, onClose, onSaved }) {
                   <input
                     id="al-hook"
                     className="input mono"
+                    aria-invalid={Boolean(errors.webhook)}
                     placeholder="https://example.com/hooks/alerts"
                     value={form.webhook}
                     onChange={(e) => set('webhook', e.target.value)}

@@ -32,6 +32,9 @@ test('add an alert from a chart, then find, pause, edit and delete it', async ({
   await expect(drawer.getByText('Enter a name.')).toBeVisible();
   await expect(drawer.getByText('Enter a number above 0.')).toBeVisible();
   await expect(drawer.getByText('Enter a webhook URL starting with https://')).toBeVisible();
+  for (const field of ['Alert name', 'Threshold', 'Webhook URL']) {
+    await expect(drawer.getByLabel(field)).toHaveAttribute('aria-invalid', 'true');
+  }
 
   await drawer.getByLabel('Alert name').fill('Errors spike');
   await drawer.getByLabel('Threshold').fill('5');
@@ -42,12 +45,16 @@ test('add an alert from a chart, then find, pause, edit and delete it', async ({
   await drawer.getByRole('button', { name: 'Create alert' }).click();
   await expect(drawer).toHaveCount(0);
   await expect(errors.getByTestId('chart-alert')).toBeVisible();
+  // A chart that has an alert opens the panel as "Edit alert" straight away.
+  await errors.getByTestId('chart-alert').click();
+  await expect(page.getByRole('dialog', { name: 'Edit alert' })).toBeVisible();
+  await page.getByRole('dialog', { name: 'Edit alert' }).getByRole('button', { name: 'Cancel' }).click();
 
   await page.getByRole('link', { name: 'Alerts', exact: true }).click();
   const row = page.getByTestId('alert-row');
   await expect(row).toHaveCount(1);
   await expect(row).toContainText('Errors spike');
-  await expect(row).toContainText('More than 5 logs in 5 min');
+  await expect(row).toContainText('Logs above 5 in the last 5 min');
   await expect(row).toContainText('All good');
 
   await row.getByRole('link', { name: 'Errors spike' }).click();
@@ -67,7 +74,7 @@ test('add an alert from a chart, then find, pause, edit and delete it', async ({
   await edit.getByLabel('Threshold').fill('50');
   await edit.getByLabel('Time period').selectOption('30');
   await edit.getByRole('button', { name: 'Save alert' }).click();
-  await expect(page.locator('.stats-row')).toContainText('Logs up 50% on the 30 min before');
+  await expect(page.locator('.stats-row')).toContainText('Logs up 50% compared with the 30 min before');
 
   await page.getByRole('button', { name: 'Delete', exact: true }).click();
   await page.getByLabel('Type DELETE to confirm').fill('DELETE');
@@ -93,7 +100,7 @@ test('any chart can have an alert, and the API refuses bad settings', async ({ p
     webhook_url: TEST_WEBHOOK,
   };
   const { alert } = await app.put(`/api/charts/${chart.id}/alert`, good);
-  expect(alert.condition).toBe('p95 duration_ms above 800 in 15 min');
+  expect(alert.condition).toBe('p95 duration_ms above 800 in the last 15 min');
   expect(alert.quiet_minutes).toBe(5);
 
   const put = (/** @type {object} */ body) =>

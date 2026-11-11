@@ -537,8 +537,15 @@ circle[class^="k-"] {
 .alertrow .input.num {
   flex: 0 0 96px;
 }
+.input[aria-invalid="true"] {
+  border-color: var(--err);
+}
 .alertchart {
   height: 180px;
+}
+/* A number chart is a value and a small trend line: it gets only the height it needs. */
+.alertchart.number {
+  height: auto;
 }
 .incident {
   display: flex;

@@ -176,7 +176,7 @@ export function Alert() {
       </div>
       {editing && (
         <AlertDrawer
-          chart={chart}
+          chart={{ ...chart, alert }}
           onClose={() => setEditing(false)}
           onSaved={async (saved) => {
             setEditing(false);
@@ -201,7 +201,7 @@ function AlertChart({ projectId, chart }) {
       {error ? (
         <p className="error-text">{error instanceof ApiError ? error.message : 'Could not load the chart'}</p>
       ) : data ? (
-        <div className="alertchart">
+        <div className={`alertchart ${chart.viz}`}>
           <Chart c={chart} data={data.data} prev={data.prev} />
         </div>
       ) : (

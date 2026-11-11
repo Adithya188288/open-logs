@@ -251,8 +251,8 @@ export async function testWebhook({ request }) {
   const url = parseWebhookUrl(asObject(await readJson(request)).url);
   const result = await postWebhook(url, {
     type: 'test',
-    message: 'This is a test from Open Logs. Real alerts send incident.opened and incident.resolved.',
-    sent_at: Date.now(),
+    message: 'Test from Open Logs',
+    sent_at: new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'),
   });
   return json({ result });
 }

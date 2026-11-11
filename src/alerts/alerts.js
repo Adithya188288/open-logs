@@ -38,14 +38,36 @@ function measured(a) {
   return 'logs';
 }
 
-/** "More than 50 logs in 5 min", "Average duration_ms above 800 in 15 min", "Logs up 50% on the 15 min before". */
+/**
+ * The same wording as the alert form: "Logs above 5 in the last 15 min",
+ * "Average duration_ms up 50% compared with the 15 min before".
+ */
 export function conditionText(/** @type {AlertRow} */ a) {
   const what = measured(a);
   // Sentence case, except "p95", which is always written in lowercase.
   const What = what.startsWith('p95') ? what : what[0].toUpperCase() + what.slice(1);
-  if (a.kind === 'increase') return `${What} up ${a.threshold}% on the ${a.window_minutes} min before`;
-  if (what === 'logs') return `More than ${a.threshold} logs in ${a.window_minutes} min`;
-  return `${What} above ${a.threshold} in ${a.window_minutes} min`;
+  if (a.kind === 'increase')
+    return `${What} up ${a.threshold}% compared with the ${a.window_minutes} min before`;
+  return `${What} above ${a.threshold} in the last ${a.window_minutes} min`;
+}
+
+/** A chart filter as one line of search text, as typed in live tail, e.g. `level:error run:abc`. */
+export function filterText(/** @type {any[]} */ where) {
+  const quote = (/** @type {unknown} */ v) =>
+    /[\s"]/.test(String(v)) ? `"${String(v).replaceAll('"', '')}"` : String(v);
+  return where
+    .map((c) => {
+      if ('text' in c) return c.text;
+      const name = String(c.field).replace(/^fields\./, '');
+      if (c.op === 'exists') return `${name}:*`;
+      if (c.op === 'in' || c.op === 'not_in') {
+        return `${name}:${c.op === 'not_in' ? '!' : ''}${c.value.map(quote).join(',')}`;
+      }
+      const prefix =
+        { '!=': '!', '>': '>', '>=': '>=', '<': '<', '<=': '<=' }[/** @type {string} */ (c.op)] ?? '';
+      return `${name}:${prefix}${quote(c.value)}`;
+    })
+    .join(' ');
 }
 
 /** @param {AlertRow} a @param {{ id: string, resolved_at: number | null } | null} [open] */
@@ -197,6 +219,38 @@ export async function postWebhook(url, payload) {
 }
 
 /**
+ * The webhook body: one flat object. Times are ISO strings in UTC.
+ * @param {AlertRow} a @param {Incident} incident @param {'incident.opened' | 'incident.resolved'} type
+ * @param {string | undefined} resolvedBy @param {string} base  the app's address, for the link
+ * @param {number} [now]
+ */
+export function webhookPayload(a, incident, type, resolvedBy, base, now = Date.now()) {
+  const resolvedAt = type === 'incident.resolved' ? (incident.resolved_at ?? now) : null;
+  const iso = (/** @type {number} */ t) => new Date(t).toISOString().replace(/\.\d{3}Z$/, 'Z');
+  return {
+    type,
+    incident_id: incident.id,
+    alert_id: a.id,
+    alert_name: a.name,
+    condition: conditionText(a),
+    chart_id: a.chart_id,
+    chart_title: a.chart_title,
+    filter: filterText(JSON.parse(a.filter_json).where ?? []),
+    project_id: a.project_id,
+    project_name: a.project_name,
+    value: incident.value,
+    started_at: iso(incident.started_at),
+    resolved_at: resolvedAt === null ? null : iso(resolvedAt),
+    resolved_by: resolvedAt === null ? null : (resolvedBy ?? incident.resolved_by),
+    duration_seconds:
+      resolvedAt === null ? 0 : Math.max(0, Math.round((resolvedAt - incident.started_at) / 1000)),
+    url: base
+      ? `${base}/alert?project=${encodeURIComponent(a.project_id)}&id=${encodeURIComponent(a.id)}`
+      : null,
+  };
+}
+
+/**
  * Sends the incident's webhook and stores the result on it.
  * @param {Env} env @param {AlertRow} a @param {Incident} incident
  * @param {'incident.opened' | 'incident.resolved'} type
@@ -204,25 +258,10 @@ export async function postWebhook(url, payload) {
  * @param {boolean} [store]  false when the incident row is being deleted
  */
 export async function notify(env, a, incident, type, resolvedBy, store = true) {
-  const base = await appUrl(env);
-  const payload = {
-    type,
-    incident: {
-      id: incident.id,
-      started_at: incident.started_at,
-      resolved_at: incident.resolved_at ?? (type === 'incident.resolved' ? Date.now() : null),
-      resolved_by: resolvedBy ?? incident.resolved_by,
-      value: incident.value,
-      previous: incident.previous,
-    },
-    alert: { id: a.id, name: a.name, condition: conditionText(a) },
-    chart: { id: a.chart_id, title: a.chart_title, filter: JSON.parse(a.filter_json) },
-    project: { id: a.project_id, name: a.project_name },
-    url: base
-      ? `${base}/alert?project=${encodeURIComponent(a.project_id)}&id=${encodeURIComponent(a.id)}`
-      : null,
-  };
-  const result = await postWebhook(a.webhook_url, payload);
+  const result = await postWebhook(
+    a.webhook_url,
+    webhookPayload(a, incident, type, resolvedBy, await appUrl(env)),
+  );
   if (!store) return;
   const column = type === 'incident.opened' ? 'opened_webhook' : 'resolved_webhook';
   await env.DB.prepare(`UPDATE incidents SET ${column} = ? WHERE id = ?`).bind(result, incident.id).run();
