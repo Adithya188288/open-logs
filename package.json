@@ -14,6 +14,7 @@
     "reset": "node scripts/deploy.js --reset",
     "destroy": "node scripts/uninstall.js --branch",
     "verify": "playwright test",
+    "demo-data": "node scripts/demo-data.js",
     "dev": "node -e \"console.log('Open Logs runs on Cloudflare only: logs live in Basin, which has no local version.\\nInstall it: npm run setup   Developers: npm run deploy <install name>')\"",
     "build": "vite build",
     "lint": "biome check .",
