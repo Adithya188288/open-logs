@@ -69,6 +69,7 @@ test('switching projects shows the other project, then back again', async ({ pag
   await page.getByRole('menuitem', { name: named('empty') }).click();
   await expect(page).toHaveURL(new RegExp(`project=${empty.id}`));
   await expect(page.getByTestId('no-logs-yet')).toBeVisible();
+  await expect(page.getByText('waiting for data')).toHaveCount(0);
   await page.getByTestId('project-switcher').click();
   await page.getByRole('menuitem', { name: named('logs') }).click();
   await expect(page.getByTestId('chart').first().getByTestId('chart-value')).toHaveText('50');

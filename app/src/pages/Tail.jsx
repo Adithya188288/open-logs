@@ -9,7 +9,7 @@ import { Loader } from '../components/Loader.jsx';
 import { MenuButton } from '../components/Menu.jsx';
 import { ApiError, api } from '../lib/api.js';
 import { downloadCsv, toCsv } from '../lib/csv.js';
-import { ago, eventTime, hm, hms, hmsms, lagLabel, needsDate, num, span } from '../lib/format.js';
+import { ago, eventTime, hm, hms, hmsms, LOG_DELAY, lagLabel, needsDate, num, span } from '../lib/format.js';
 import { fetchTail, RANGES, TAIL_PAGE, tailKey } from '../lib/live.js';
 import { q, queryClient, refresh } from '../lib/queries.js';
 import { clauseLabel, clauseToSearch, parseSearch } from '../lib/search.js';
@@ -513,10 +513,10 @@ export function Tail() {
   const statusText = !dataThrough
     ? 'Loading…'
     : paused
-      ? `Paused · frozen at data through ${hms(dataThrough)} UTC`
+      ? 'Paused · new logs are not loading'
       : zoom || range === 'custom'
         ? `Viewing ${hms(w.from)}–${hms(w.to)} UTC${lag}`
-        : `Data through ${hms(dataThrough)} UTC${lag} · next check ${Math.max(0, Math.ceil((nextCheckAt - Date.now()) / 1000))}s`;
+        : `Live · ${LOG_DELAY} · next check ${Math.max(0, Math.ceil((nextCheckAt - Date.now()) / 1000))}s`;
   const bad = sources.find((s) => rejectedRecently(s) && !isDismissed(s));
   const panelEvent = events.find((e) => e.id === selected);
 
@@ -852,15 +852,21 @@ export function Tail() {
               ) : !status?.newest_event_at ? (
                 <div className="state" data-testid="waiting">
                   <h2>Waiting for the first event</h2>
-                  <p>Connect a source and send one event. It shows up here on its own.</p>
-                  <div className="rowline">
-                    <Link
-                      className="btn primary"
-                      to={`/sources?project=${encodeURIComponent(project.id)}&new=1`}
-                    >
-                      Connect a source
-                    </Link>
-                  </div>
+                  {sources.length ? (
+                    <p>Your logs are on the way. They show up 30 seconds to 3 minutes after you send them.</p>
+                  ) : (
+                    <>
+                      <p>Connect a source and send one event. It shows up here on its own.</p>
+                      <div className="rowline">
+                        <Link
+                          className="btn primary"
+                          to={`/sources?project=${encodeURIComponent(project.id)}&new=1`}
+                        >
+                          Connect a source
+                        </Link>
+                      </div>
+                    </>
+                  )}
                 </div>
               ) : (
                 <div className="state" data-testid="no-results">
