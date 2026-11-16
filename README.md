@@ -43,10 +43,12 @@ Setup asks for one Cloudflare API token. Create it before you start:
 
 1. Cloudflare dashboard → **R2** → **Manage API tokens** → **Create Account API token**.
 2. Permissions: **Admin Read & Write**. This includes Basin SQL Read.
-3. Create it and copy the token value.
+3. TTL: **Forever**. Don't set an end date.
+4. Create it and copy the token value.
 
 Open Logs uses this token for the Basin sink (it writes the Iceberg table) and stores it as the
 `BASIN_SQL_TOKEN` Worker secret (it runs searches). Setup does not write it to disk.
+If the token expires or is deleted, Open Logs stops saving and searching logs.
 
 What `npm run setup` does:
 

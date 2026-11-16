@@ -38,9 +38,15 @@ test('add an alert from a chart, then find, pause, edit and delete it', async ({
 
   await drawer.getByLabel('Alert name').fill('Errors spike');
   await drawer.getByLabel('Threshold').fill('5');
+  await drawer.getByLabel('Webhook URL').fill('https://example.com/hooks/alerts');
+  await drawer.getByRole('button', { name: 'Send test' }).click();
+  await expect(drawer.getByTestId('webhook-test')).toHaveText(
+    /^Test failed: the URL answered \d+\. Check the URL\.$/,
+  );
+  await expect(drawer.getByTestId('webhook-test')).toHaveClass('error-text');
   await drawer.getByLabel('Webhook URL').fill(TEST_WEBHOOK);
   await drawer.getByRole('button', { name: 'Send test' }).click();
-  await expect(drawer.getByTestId('webhook-test')).toHaveText('Test sent: the URL answered 200.');
+  await expect(drawer.getByTestId('webhook-test')).toHaveText('Test worked: the URL answered 200.');
   await drawer.getByLabel('After an incident resolves, wait before opening a new one').selectOption('120');
   await drawer.getByRole('button', { name: 'Create alert' }).click();
   await expect(drawer).toHaveCount(0);

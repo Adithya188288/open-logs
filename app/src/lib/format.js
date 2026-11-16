@@ -75,6 +75,9 @@ export function cap(s) {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
+/** How long a sent log takes to become searchable (Basin writes in batches). */
+export const LOG_DELAY = 'new logs take 30 s to 3 min to appear';
+
 /** "~1–3 min" style label for the Basin ingest lag. @param {number} ms */
 export function lagLabel(ms) {
   if (ms < 90_000) return `~${Math.round(ms / 1000)}s`;

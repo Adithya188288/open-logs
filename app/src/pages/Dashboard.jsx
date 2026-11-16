@@ -11,7 +11,7 @@ import { Loader } from '../components/Loader.jsx';
 import { MenuButton } from '../components/Menu.jsx';
 import { ApiError, api } from '../lib/api.js';
 import { downloadCsv, toCsv } from '../lib/csv.js';
-import { ago, hms, num } from '../lib/format.js';
+import { ago, LOG_DELAY, num } from '../lib/format.js';
 import { q, queryClient, refresh } from '../lib/queries.js';
 import { aggregate, chartQuery, DEFAULT_DASHBOARD_RANGE, partsFor, RANGES, windowFor } from '../lib/live.js';
 import { clauseToSearch, fieldFor, parseSearch } from '../lib/search.js';
@@ -33,7 +33,6 @@ export function Dashboard() {
   const navigate = useNavigate();
   const { data: dashboards } = useQuery(q.dashboards(project.id));
   const [range, setRange] = useState(/** @type {Range} */ (DEFAULT_DASHBOARD_RANGE));
-  const lag = useQuery(q.status()).data?.lag_ms ?? 0;
   const [drawer, setDrawer] = useState(
     /** @type {{ existing?: ChartRow, preset?: string } | null} */ (
       params.get('chart') ? { preset: params.get('chart') ?? undefined } : null
@@ -82,7 +81,6 @@ export function Dashboard() {
   if (!dashboards || !dashboard) return <PageLoader label="Loading dashboard" />;
   const freshness = fetchingCharts ? 'Updating…' : updatedAt ? `Updated ${ago(updatedAt)}` : '';
 
-  const w = windowFor(range);
   const newDashboard = () =>
     openDialog((close) => (
       <FormDialog
@@ -206,9 +204,7 @@ export function Dashboard() {
         title={title}
         meta={
           <span className="small muted">
-            {noSources
-              ? `${charts.length} charts, waiting for data`
-              : `${charts.length} chart${charts.length === 1 ? '' : 's'} · data through ${hms(w.to - 1000 - lag)} UTC`}
+            {noSources ? '' : `${charts.length} chart${charts.length === 1 ? '' : 's'} · ${LOG_DELAY}`}
           </span>
         }
       >
