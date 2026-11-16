@@ -214,6 +214,8 @@ npm run uninstall   # remove everything setup created
 
 - **Update** checks out the newest release tag (or a given one: `npm run update my-logs v0.2.0`), installs packages, regenerates the
   config, applies only the new D1 migrations, builds and deploys, then checks that the app is up.
+  Don't run `git pull` first: update downloads the new release itself. If your folder already has the newest
+  code, it says "Nothing to do" and does not deploy. It also asks for your API token, for Basin table maintenance.
 - **Roll back** uses `wrangler rollback` to put the previous Worker version live. It does not change the
   database. If an update damaged app data, it prints the D1 Time Travel command that restores the database
   to a minute before the update. Logs in Basin are never changed by an update.
