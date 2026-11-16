@@ -199,7 +199,7 @@ export function Source() {
             ) : (
               <span data-testid="events-24h">{count}</span>
             )}
-            <span className="tiny muted"> · new events take 1–3 minutes to appear</span>
+            <span className="tiny muted"> · new events take 30 seconds to 3 minutes to appear</span>
           </Stat>
           <Stat label="Last rejected request">
             {source.last_rejected_at ? (

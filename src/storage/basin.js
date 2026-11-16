@@ -104,6 +104,14 @@ export class BasinStorage {
         });
         const body = await res.json().catch(() => ({}));
         if (body?.errors?.some((/** @type {any} */ e) => e.code === TABLE_NOT_FOUND)) return [];
+        // 401/403 from Basin means the API token expired or was deleted; 502 so the app doesn't treat it as signed out.
+        if (res.status === 401 || res.status === 403) {
+          throw new HttpError(
+            502,
+            'basin_token_rejected',
+            'Basin rejected the API token. It may have expired or been deleted.',
+          );
+        }
         if (!res.ok || body?.success === false) {
           const message =
             body?.errors?.map((/** @type {any} */ e) => e.message).join('; ') ||

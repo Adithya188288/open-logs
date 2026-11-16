@@ -32,7 +32,8 @@ import {
 const TOKEN_HELP = `
 Open Logs needs one Cloudflare API token, for writing logs into Basin and searching them:
   Cloudflare dashboard → R2 → Manage API tokens → Create Account API token
-  → Permissions: Admin Read & Write (this includes Basin SQL Read) → Create → copy the token value.
+  → Permissions: Admin Read & Write (this includes Basin SQL Read) → TTL: Forever → Create → copy the token value.
+  If it expires or is deleted, Open Logs stops saving and searching logs.
   It is stored only as a secret on your Worker; nothing is written to disk.`;
 
 const name = await installName();
@@ -158,7 +159,7 @@ step('Checking the app is up');
 const up = Boolean(state.url) && (await checkUp(state.url));
 
 console.log(`
-${up ? '✓ Open Logs is up. Sign in, create a source and send your first log: it shows up 1–3 minutes later.' : '! Open Logs is deployed, but the app did not answer yet. Open the URL in a minute.'}
+${up ? '✓ Open Logs is up. Sign in, create a source and send your first log: it shows up 30 seconds to 3 minutes later.' : '! Open Logs is deployed, but the app did not answer yet. Open the URL in a minute.'}
 
   URL       ${state.url}
   Email     ${email}

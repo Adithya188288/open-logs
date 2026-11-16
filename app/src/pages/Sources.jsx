@@ -16,7 +16,7 @@ const POLL_MS = 3000;
 /**
  * New source: name → the one-time token and snippet → waiting for the first event.
  * The source's first accepted log is recorded once in D1 (first_event_at), so this knows within seconds that
- * the app is connected, while the log itself shows up in live tail once Basin has it (about 1–2 minutes).
+ * the app is connected, while the log itself shows up in live tail once Basin has it (30 seconds to 3 minutes).
  * @param {{ projectId: string, onCreated: () => void, onClose: () => void }} props
  */
 function NewSource({ projectId, onCreated, onClose }) {
@@ -83,8 +83,8 @@ function NewSource({ projectId, onCreated, onClose }) {
   return (
     <Modal title="New source" wide onClose={onClose}>
       <p className="small">
-        Source <b className="mono">{source.name}</b> created. Send us a log event; it shows up in live tail in
-        about 1–2 minutes.
+        Source <b className="mono">{source.name}</b> created. Send us a log event; it shows up in live tail 30
+        seconds to 3 minutes later.
       </p>
       <SendPanel sourceName={source.name} token={token} />
       <div className={`verify ${got ? 'got' : 'listening'}`} role="status" data-testid="verify">
@@ -100,7 +100,7 @@ function NewSource({ projectId, onCreated, onClose }) {
           </span>
           <span>
             {got
-              ? 'You’re connected. It shows up in live tail in about 1–2 minutes.'
+              ? 'You’re connected. It shows up in live tail 30 seconds to 3 minutes later.'
               : 'This updates on its own once your app sends a log.'}
           </span>
         </div>

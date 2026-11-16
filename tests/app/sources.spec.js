@@ -35,6 +35,11 @@ test('new source: token shown once and copyable; the first event is noticed', as
 
   await page.reload();
   await expect(page.getByTestId('token')).toHaveCount(0);
+
+  // Basin doesn't have the log yet: live tail says it's on the way instead of asking for a source.
+  await page.goto(`/tail?project=${project.id}`);
+  await expect(page.getByTestId('waiting')).toContainText('Your logs are on the way.');
+  await expect(page.getByTestId('waiting').getByRole('link', { name: 'Connect a source' })).toHaveCount(0);
 });
 
 test('source page: rename, regenerate (old token stops working), delete with DELETE typed', async ({
