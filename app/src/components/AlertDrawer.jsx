@@ -28,7 +28,7 @@ export function AlertDrawer({ chart, onClose, onSaved }) {
     webhook: '',
   });
   const [errors, setErrors] = useState(/** @type {Record<string, string>} */ ({}));
-  const [tested, setTested] = useState('');
+  const [tested, setTested] = useState({ text: '', ok: true });
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -54,7 +54,7 @@ export function AlertDrawer({ chart, onClose, onSaved }) {
   const set = (key, value) => {
     setForm((f) => ({ ...f, [key]: value }));
     setErrors(({ [key]: _, form: __, ...rest }) => rest);
-    if (key === 'webhook') setTested('');
+    if (key === 'webhook') setTested({ text: '', ok: true });
   };
 
   const what = measureLabel(chart);
@@ -104,12 +104,18 @@ export function AlertDrawer({ chart, onClose, onSaved }) {
       setErrors((e) => ({ ...e, webhook: 'Enter a webhook URL starting with https://' }));
       return;
     }
-    setTested('Sending…');
+    setTested({ text: 'Sending…', ok: true });
     try {
       const { result } = await api('/api/webhooks/test', { body: { url: form.webhook.trim() } });
-      setTested(/^\d+$/.test(result) ? `Test sent: the URL answered ${result}.` : `Test ${result}.`);
+      setTested(
+        /^2\d\d$/.test(result)
+          ? { text: `Test worked: the URL answered ${result}.`, ok: true }
+          : /^\d+$/.test(result)
+            ? { text: `Test failed: the URL answered ${result}. Check the URL.`, ok: false }
+            : { text: `Test ${result}.`, ok: false },
+      );
     } catch (err) {
-      setTested(err instanceof ApiError ? err.message : 'Could not send the test');
+      setTested({ text: err instanceof ApiError ? err.message : 'Could not send the test', ok: false });
     }
   };
 
@@ -285,8 +291,8 @@ export function AlertDrawer({ chart, onClose, onSaved }) {
                 {errors.webhook ? (
                   <span className="error-text">{errors.webhook}</span>
                 ) : (
-                  <span className="small muted" data-testid="webhook-test">
-                    {tested || 'We POST JSON here when an incident opens and when it resolves.'}
+                  <span className={tested.ok ? 'small muted' : 'error-text'} data-testid="webhook-test">
+                    {tested.text || 'We POST JSON here when an incident opens and when it resolves.'}
                   </span>
                 )}
               </div>
