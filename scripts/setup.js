@@ -159,7 +159,7 @@ step('Checking the app is up');
 const up = Boolean(state.url) && (await checkUp(state.url));
 
 console.log(`
-${up ? '✓ Open Logs is up. Sign in, create a source and send your first log: it shows up 1–3 minutes later.' : '! Open Logs is deployed, but the app did not answer yet. Open the URL in a minute.'}
+${up ? '✓ Open Logs is up. Sign in, create a source and send your first log: it shows up 30 seconds to 3 minutes later.' : '! Open Logs is deployed, but the app did not answer yet. Open the URL in a minute.'}
 
   URL       ${state.url}
   Email     ${email}
